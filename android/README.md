@@ -37,6 +37,8 @@ bash gradlew --no-daemon :oidc-client:test assembleDebug   # BUILD SUCCESSFUL
 bash scripts/verify-family-signing.sh                      # family-signing: OK <sha-256>
 ```
 
+- `gradlew` and `scripts/verify-family-signing.sh` are stored executable, so on Linux and macOS
+  `./gradlew` and `./scripts/verify-family-signing.sh` work without the `bash` prefix.
 - Test reports: `oidc-client/build/reports/tests/test/index.html`; JUnit XML in
   `oidc-client/build/test-results/test/`.
 - APKs: `superapp/build/outputs/apk/debug/superapp-debug.apk` and
