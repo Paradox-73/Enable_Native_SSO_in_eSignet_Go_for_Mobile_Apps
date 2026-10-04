@@ -255,6 +255,74 @@ func (_c *TokenValidatorInterfaceMock_ValidateIDJAGSubjectToken_Call) RunAndRetu
 	return _c
 }
 
+// ValidateNativeSSOIDToken provides a mock function for the type TokenValidatorInterfaceMock
+func (_mock *TokenValidatorInterfaceMock) ValidateNativeSSOIDToken(ctx context.Context, token string) (*tokenservice.NativeSSOIDTokenClaims, error) {
+	ret := _mock.Called(ctx, token)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateNativeSSOIDToken")
+	}
+
+	var r0 *tokenservice.NativeSSOIDTokenClaims
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*tokenservice.NativeSSOIDTokenClaims, error)); ok {
+		return returnFunc(ctx, token)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *tokenservice.NativeSSOIDTokenClaims); ok {
+		r0 = returnFunc(ctx, token)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*tokenservice.NativeSSOIDTokenClaims)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, token)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateNativeSSOIDToken'
+type TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call struct {
+	*mock.Call
+}
+
+// ValidateNativeSSOIDToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - token string
+func (_e *TokenValidatorInterfaceMock_Expecter) ValidateNativeSSOIDToken(ctx interface{}, token interface{}) *TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call {
+	return &TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call{Call: _e.mock.On("ValidateNativeSSOIDToken", ctx, token)}
+}
+
+func (_c *TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call) Run(run func(ctx context.Context, token string)) *TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call) Return(nativeSSOIDTokenClaims *tokenservice.NativeSSOIDTokenClaims, err error) *TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call {
+	_c.Call.Return(nativeSSOIDTokenClaims, err)
+	return _c
+}
+
+func (_c *TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call) RunAndReturn(run func(ctx context.Context, token string) (*tokenservice.NativeSSOIDTokenClaims, error)) *TokenValidatorInterfaceMock_ValidateNativeSSOIDToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ValidateRefreshToken provides a mock function for the type TokenValidatorInterfaceMock
 func (_mock *TokenValidatorInterfaceMock) ValidateRefreshToken(ctx context.Context, token string) (*tokenservice.RefreshTokenClaims, error) {
 	ret := _mock.Called(ctx, token)

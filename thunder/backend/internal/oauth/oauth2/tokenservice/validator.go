@@ -47,6 +47,11 @@ type TokenValidatorInterface interface {
 	// ValidateIDJAGAssertion validates an ID-JAG assertion presented on the jwt-bearer grant,
 	// binding it to the authenticated client via its client_id claim.
 	ValidateIDJAGAssertion(ctx context.Context, assertion, clientID string) (*IDJAGAssertionClaims, error)
+	// ValidateNativeSSOIDToken validates the id_token presented as subject_token in an OpenID Connect
+	// Native SSO token exchange. It must be an id_token issued and signed by this server; its expiry is
+	// not enforced, because the device secret it is bound to decides how long it may be used (Native
+	// SSO 6.3). The caller checks the audience, ds_hash and sid against the device secret.
+	ValidateNativeSSOIDToken(ctx context.Context, token string) (*NativeSSOIDTokenClaims, error)
 }
 
 // TokenValidator implements TokenValidatorInterface.

@@ -101,12 +101,33 @@ Design decisions in this step:
 - `claims` in the device secret holds names only. With eSignet's opaque attribute token (`_jwt`) Thunder cannot
   see which values exist, so it lists every name the granted scopes and the `claims` parameter release.
 
+### Native SSO token exchange with a device secret (work package WP-10)
+
+A token exchange whose `actor_token_type` is `urn:openid:params:token-type:device-secret` takes its own branch
+before the generic exchange looks at the actor token, the way an ID-JAG request does. With no provider passed the
+type is refused with `invalid_request`, as before.
+
+| Change | File (under `backend/internal/oauth/` unless noted) |
+|---|---|
+| `ValidateGrant`: the draft-06 URN `urn:x-oath:...:device-secret` is refused naming the new URN; Native SSO requests need `subject_token_type` `...:id_token`, an `actor_token`, no `requested_token_type` other than an access token, and exactly one `audience` equal to the issuer (`invalid_target` otherwise); with `oauth.native_sso.exchange_only` every other token exchange is `invalid_request` | `oauth2/granthandlers/token_exchange.go`, `token_exchange_native_sso.go` |
+| `HandleGrant` checks, in the order of design section 11: requesting client allows `device_sso` (`unauthorized_client`); `ValidateDeviceSecret` (session ended: `invalid_grant`; other client errors: `invalid_request`; server errors: `server_error`); returned claims re-checked (issuer, expiry, client, subject, `sid`, `cnf.jkt`); `id_token`; `aud` = client of the device secret, same `sub`; optional age cap; `ds_hash`; `sid`; same organization unit and the first client still allows `device_sso`; `dpop.VerifyProofBinding` against the device secret's `cnf.jkt` (`invalid_grant`) | `oauth2/granthandlers/token_exchange_native_sso.go` |
+| On success: an access token for the requesting client, same `sub`, the device secret's scope without `device_sso`, bound to the request's DPoP key | same |
+| `TokenValidatorInterface.ValidateNativeSSOIDToken`: typ `JWT`, no refresh-token shape, issuer is this server, signature, `sub`, `iat`, `nbf`, deny list; `exp` not enforced | `oauth2/tokenservice/validator.go`, `validator_native_sso.go`; mock regenerated |
+| The token-exchange handler receives the actor provider and the device secret provider | `oauth2/granthandlers/provider.go` |
+
+Design decisions in this step:
+
+- An expired `id_token` is accepted (Native SSO 6.3, design section 11.1); `oauth.native_sso.id_token_max_age_seconds`
+  caps its age since `iat` when set.
+- The first client's organization unit and `device_sso` are read at exchange time, not from the device secret,
+  so removing `device_sso` from the first client stops sharing at once.
+- `ds_hash` and `sid` are compared in constant time; error descriptions never carry tokens or user data.
+
 ### Planned
 
 | Work package | Change |
 |---|---|
-| WP-10 | Token exchange with a device secret as `actor_token`: provider validation, `id_token` checks (`ds_hash`, `sid`, DPoP `cnf.jkt`), scope rules |
-| WP-12 | Scope-subset rules, re-consent signal, discovery metadata |
+| WP-12 | Scope-subset rules, re-consent signal, Child App `id_token` and claims, discovery metadata |
 
 ## Tests and checks
 
@@ -152,6 +173,22 @@ Results measured on 2026-10-05 for WP-07:
   lines (suites and cases), 0 `FAIL`.
 - `go-lint.sh thunder/backend -- --timeout=30m`: 0 issues.
 - No interface changed, so the mocks were not regenerated.
+
+Unit tests added for WP-10:
+
+| Test file (under `backend/internal/oauth/oauth2/`) | Checks |
+|---|---|
+| `granthandlers/token_exchange_native_sso_test.go` | request shape (old URN, token types, audience, requested type, no provider, exchange-only); success with an expired `id_token`; client without `device_sso`; every provider outcome; re-checked claims; forged `id_token`; `aud`, `sub`, `ds_hash`, `sid` mismatches; age cap inside and outside; other vendor; first-client lookup errors; DPoP key mismatch and missing proof; build failure |
+| `tokenservice/validator_native_sso_test.go` | expired `id_token` accepted; wrong typ, refresh-token shape, other issuer, bad signature, missing `sub` or `iat`, future `nbf`, revoked: rejected |
+
+Results measured on 2026-10-05 for WP-10:
+
+- `go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages, 2341 tests, 0 failed (1
+  skipped by upstream); 276 of 287 statements on changed lines covered (96.2 %); `token_exchange_native_sso.go`
+  99/100, `validator_native_sso.go` 35/35.
+- `go.sh thunder/backend test -count=1 -v -run NativeSSO ./internal/oauth/oauth2/granthandlers/`: 73 `PASS` lines
+  (55 of them in the token-exchange suite), 0 `FAIL`.
+- `go-lint.sh thunder/backend -- --timeout=30m`: 0 issues.
 
 Results measured on 2026-10-04 for the contract step:
 

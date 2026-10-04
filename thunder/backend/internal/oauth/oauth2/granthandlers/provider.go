@@ -66,7 +66,7 @@ func newGrantHandlerProvider(
 	}
 	if isGrantTypeAllowed(allowedGrantTypes, providers.GrantTypeTokenExchange) {
 		grantProvider.tokenExchangeGrantHandler = newTokenExchangeGrantHandler(
-			tokenBuilder, tokenValidator, resourceService, cfg)
+			tokenBuilder, tokenValidator, resourceService, actorProvider, deviceSecretProvider, cfg)
 	}
 	if isGrantTypeAllowed(allowedGrantTypes, providers.GrantTypeCIBA) {
 		grantProvider.cibaGrantHandler = newCIBAGrantHandler(cibaService, tokenBuilder, attrCacheService,

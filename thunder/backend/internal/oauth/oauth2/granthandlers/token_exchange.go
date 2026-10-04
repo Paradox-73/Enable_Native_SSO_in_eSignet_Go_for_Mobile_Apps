@@ -8,6 +8,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"time"
 
 	oauthconfig "github.com/thunder-id/thunderid/internal/oauth/config"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
@@ -27,7 +28,14 @@ type tokenExchangeGrantHandler struct {
 	tokenBuilder    tokenservice.TokenBuilderInterface
 	tokenValidator  tokenservice.TokenValidatorInterface
 	resourceService providers.ResourceServerProvider
-	cfg             oauthconfig.Config
+	// actorProvider looks up the client a Native SSO device secret was issued to.
+	actorProvider providers.ActorProvider
+	// deviceSecretProvider validates the device secret of an OpenID Connect Native SSO token exchange;
+	// nil when Native SSO is off.
+	deviceSecretProvider providers.DeviceSecretProvider
+	cfg                  oauthconfig.Config
+	// now returns the current time; nil means time.Now. Tests set it to check the id_token age cap.
+	now func() time.Time
 }
 
 // newTokenExchangeGrantHandler creates a new instance of tokenExchangeGrantHandler.
@@ -35,13 +43,17 @@ func newTokenExchangeGrantHandler(
 	tokenBuilder tokenservice.TokenBuilderInterface,
 	tokenValidator tokenservice.TokenValidatorInterface,
 	resourceService providers.ResourceServerProvider,
+	actorProvider providers.ActorProvider,
+	deviceSecretProvider providers.DeviceSecretProvider,
 	cfg oauthconfig.Config,
 ) GrantHandlerInterface {
 	return &tokenExchangeGrantHandler{
-		tokenBuilder:    tokenBuilder,
-		tokenValidator:  tokenValidator,
-		resourceService: resourceService,
-		cfg:             cfg,
+		tokenBuilder:         tokenBuilder,
+		tokenValidator:       tokenValidator,
+		resourceService:      resourceService,
+		actorProvider:        actorProvider,
+		deviceSecretProvider: deviceSecretProvider,
+		cfg:                  cfg,
 	}
 }
 
@@ -53,6 +65,12 @@ func (h *tokenExchangeGrantHandler) ValidateGrant(ctx context.Context, tokenRequ
 			Error:            constants.ErrorUnsupportedGrantType,
 			ErrorDescription: "Unsupported grant type",
 		}
+	}
+
+	// OpenID Connect Native SSO: a device secret as actor_token selects its own profile (Native SSO 4.1),
+	// and with oauth.native_sso.exchange_only no other token exchange is accepted.
+	if errResp, handled := h.validateNativeSSOGrant(tokenRequest); handled {
+		return errResp
 	}
 
 	if tokenRequest.SubjectToken == "" {
@@ -141,6 +159,12 @@ func (h *tokenExchangeGrantHandler) HandleGrant(ctx context.Context, tokenReques
 	oauthApp *providers.OAuthClient) (
 	*model.TokenResponseDTO, *model.ErrorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "TokenExchangeGrantHandler"))
+
+	// An OpenID Connect Native SSO request (a device secret as actor_token) has its own checks and issues
+	// tokens for the requesting app from the login of the first app (Native SSO 4.3 and 4.4).
+	if constants.TokenTypeIdentifier(tokenRequest.ActorTokenType) == constants.TokenTypeIdentifierDeviceSecret {
+		return h.handleNativeSSOGrant(ctx, tokenRequest, oauthApp)
+	}
 
 	// An ID-JAG request (draft-ietf-oauth-identity-assertion-authz-grant) follows a distinct path:
 	// it exchanges a self-issued ID token for a JWT authorization grant targeted at an external
