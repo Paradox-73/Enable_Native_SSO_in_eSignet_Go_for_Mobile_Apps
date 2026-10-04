@@ -21,6 +21,11 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "ISSUER", "\"$issuer\"")
+        // client_id = this prefix + 12 hex characters of the client key's thumbprint: every install
+        // has its own Keystore key and so its own registration (android/scripts/register-client.sh).
+        buildConfigField("String", "CLIENT_ID_PREFIX", "\"ps03-hub-\"")
+        buildConfigField("String", "REDIRECT_URI", "\"org.badmosip.nativesso.superapp://oauth/callback\"")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -37,6 +42,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    testOptions {
+        unitTests.all {
+            it.testLogging {
+                events("failed")
+                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            }
+        }
+    }
     packaging {
         resources.excludes += setOf("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
     }
@@ -45,8 +58,18 @@ android {
 dependencies {
     implementation(project(":sso-contract"))
     implementation(project(":oidc-client"))
+    implementation(project(":secure-store"))
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.uiautomator)
 }

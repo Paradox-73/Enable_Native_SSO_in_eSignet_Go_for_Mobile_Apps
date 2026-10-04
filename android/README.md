@@ -7,11 +7,12 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 - **Health Card** (Child App, `org.badmosip.nativesso.childapp`): signs the same user in without a
   password or OTP, by sending Hub's id_token and device secret to eSignet in a token exchange.
 
-> **State on 2026-10-04.** Built and tested: the Gradle project, shared signing, the binder contract
-> and the `oidc-client` library (64 JVM tests, all passing). The two apps are shells: a home screen
-> that shows the server URL and the signing certificate (Health Card also shows whether Hub is
-> installed with the same certificate). The browser login, the Android Keystore keys, encrypted
-> storage and the single sign-on service are the next work packages; nothing below claims them.
+> **State on 2026-10-05.** Built and tested: the Gradle project, shared signing, the binder contract,
+> the `oidc-client` library (64 JVM tests), the `secure-store` module (13 JVM tests) and Hub's
+> sign-in with eSignet (29 JVM tests against a fake eSignet): Android Keystore keys, Custom Tab login,
+> id_token checks, tokens stored encrypted. The on-emulator run of `SuperAppSignInTest` is NOT RUN yet
+> (see [Hub sign-in](#hub-sign-in-with-esignet)). Health Card is still a shell; the single sign-on
+> service is the next work package.
 
 ## Modules
 
@@ -19,7 +20,8 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 |---|---|---|
 | `oidc-client` | Kotlin/JVM library, no Android code | discovery, PKCE, DPoP proofs, `private_key_jwt`, PAR, authorization-code and Native SSO token-exchange requests, userinfo, `use_dpop_nonce` retry, RFC 7638 thumbprints, id_token checks including `ds_hash` and `sid`, typed errors |
 | `sso-contract` | Android library | `IFamilySso.aidl` and the `SsoBundle` parcelable, the permission, action and package names, error codes, a signing-certificate helper |
-| `superapp` | Android app | Hub shell, declares the family permission |
+| `secure-store` | Android library | `EncryptedFileStore`: one AES-256-GCM file per blob in `noBackupFilesDir`, key in Android Keystore (`KeystoreSecureStore`) |
+| `superapp` | Android app | Hub: sign-in with eSignet (Custom Tab, PAR, PKCE, DPoP, `private_key_jwt`), Keystore keys, encrypted token storage; declares the family permission |
 | `childapp` | Android app | Health Card shell, declares the same permission and a `<queries>` entry for Hub |
 
 Toolchain: AGP 8.6.0, Gradle 8.7 (wrapper, checksum pinned), Kotlin 2.0.20, Jetpack Compose (BOM
@@ -34,10 +36,12 @@ newer; the team uses JDK 21. Versions live in [`gradle/libs.versions.toml`](grad
 source /e/Projects/MOSIP/toolchain/env.sh && use_java21
 cd android
 bash gradlew --no-daemon :oidc-client:test assembleDebug   # BUILD SUCCESSFUL
+bash gradlew --no-daemon :secure-store:testDebugUnitTest :superapp:testDebugUnitTest
+bash gradlew --no-daemon assembleDebug assembleDebugAndroidTest   # BUILD SUCCESSFUL (APKs and test APKs)
 bash scripts/verify-family-signing.sh                      # family-signing: OK <sha-256>
 ```
 
-- `gradlew` and `scripts/verify-family-signing.sh` are stored executable, so on Linux and macOS
+- `gradlew` and the scripts in `scripts/` are stored executable, so on Linux and macOS
   `./gradlew` and `./scripts/verify-family-signing.sh` work without the `bash` prefix.
 - Test reports: `oidc-client/build/reports/tests/test/index.html`; JUnit XML in
   `oidc-client/build/test-results/test/`.
@@ -77,6 +81,94 @@ one certificate, in debug builds too.
 - Both apps declare the permission, not only Hub, so whichever is installed first defines it with
   the signature level (see "custom permission takeover" in
   [`FamilySsoContract.kt`](sso-contract/src/main/java/org/badmosip/nativesso/contract/FamilySsoContract.kt)).
+
+## Hub sign-in with eSignet
+
+What happens when the user taps "Sign in with eSignet" (`superapp/.../auth/HubAuthenticator.kt`, no
+Android code, so every step is covered by JVM tests):
+
+1. Discovery of `ps03.issuer`; the document must name exactly that issuer.
+2. PAR with `scope=openid profile` (plus `device_sso` when "Use this sign-in in my other apps" is on),
+   `acr_values=mosip:idp:acr:generated-code`, a `claims` request for `name` in userinfo, PKCE S256,
+   `state`, `nonce`, a DPoP proof and a `private_key_jwt` assertion (audience = issuer).
+3. The pending login (`state`, `nonce`, `code_verifier`, the switch) is written to the encrypted
+   store, then the authorization URL opens in a Custom Tab.
+4. eSignet's login pages (OTP, consent) redirect to `org.badmosip.nativesso.superapp://oauth/callback`.
+   `RedirectActivity` (exported, shows nothing) passes the URI to `MainActivity` (`singleTask`, so the
+   Custom Tab closes). Because the pending login is on disk, this also works when Android killed Hub
+   while the browser was open.
+5. A redirect whose `state` differs is refused and leaves the login pending (another app cannot
+   cancel it); a matching one uses the pending login up, so a replay finds nothing. A login older
+   than 10 minutes is refused.
+6. Code exchange with the DPoP proof; then every id_token check of `IdTokenValidator`, with the
+   login's `nonce`, the access token (`at_hash`) and, when a device secret came back, `ds_hash` and
+   `sid`. A device secret the login did not ask for is refused. Any failure stores nothing.
+7. Userinfo (signed JWT, verified with the issuer's keys; ignored when its `sub` differs) gives the
+   name for the home screen. When userinfo fails the login still stands, without a name.
+8. The `TokenBundle` (access token, id_token, device secret if any, `sub`, `sid`, DPoP `jkt`, name)
+   is written to the encrypted store as one blob. `toString()` of every record hides the tokens.
+
+Keys (`superapp/.../keys/`):
+
+| Key | Alias | Use |
+|---|---|---|
+| DPoP key, EC P-256 | `hub-dpop-es256` | every DPoP proof; the tokens and the device secret are bound to it (`cnf.jkt`) |
+| client key, EC P-256 | `hub-client-auth-es256` | `private_key_jwt`; `kid` = its RFC 7638 thumbprint |
+| store key, AES-256-GCM | `secure-store-aes` | encrypts the store (module `secure-store`) |
+
+- All three are Android Keystore keys: created on first use, never exportable, in StrongBox when the
+  device has one (else TEE; software on an emulator). `EcKeyJwsSigner` turns Keystore's DER ECDSA
+  signatures into the 64-byte `R || S` form JWS needs.
+- Debug builds derive the client_id from the client key: `ps03-hub-` + 12 hex characters of SHA-256
+  over its thumbprint. Each install has its own key and so its own registration; eSignet's client
+  management never changes a registered key. Debug builds also write the public half to
+  `files/client-registration.json` for `scripts/register-client.sh`.
+
+Storage (`secure-store`): one file per blob in `noBackupFilesDir/secure-store/`, layout magic `PS3S`,
+version byte, IV length, IV, AES-GCM ciphertext and tag; the associated data is magic, version and
+blob name, so a file copied under another name fails. Writes go to a temporary file that is moved
+over the old one. A blob that cannot be decrypted (key gone, file changed) counts as signed out and is
+deleted. Hub also sets `allowBackup=false` and data-extraction rules that exclude everything. Jetpack
+`security-crypto` is not used (deprecated since 1.1.0-beta01).
+
+Cleartext HTTP: release builds allow none (`src/main/res/xml/network_security_config.xml`); debug
+builds allow it for `localhost` and `127.0.0.1` only (`src/debug/res/...`), for the local stack.
+
+### On the emulator
+
+```bash
+source /e/Projects/MOSIP/toolchain/env.sh && use_java21
+bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh superapp SuperAppSignInTest
+# ... OK (1 test)
+```
+
+| Script | What it does |
+|---|---|
+| `scripts/with-emulator.sh <cmd...>` | takes the `emulator` lock; boots AVD `ps03_api34` headless on port 5584 (`-gpu host`), waits for boot and network, `adb reverse` 38088 and 38300, turns Chrome's first-run screens off, runs the command, then cleans up and kills the emulator it started |
+| `scripts/register-client.sh [superapp]` | reads `files/client-registration.json` with `adb shell run-as` (starts the app once if needed) and registers the client through `POST /client-mgmt/client` (private_key_jwt, PAR, PKCE, DPoP, relying party `ps03-family`) |
+| `scripts/run-ui-test.sh <app> <Class>` | builds the app and test APKs, installs them, registers the client, runs the class with `am instrument`, saves logcat, the last screenshot and window dump to `$PS03_RUN_DIR/evidence/ui-<app>-<time>/` |
+
+`SuperAppSignInTest` (UI Automator): signs out, starts Hub, leaves the switch off, taps "Sign in with
+eSignet", then in Chrome types UIN `1774231323`, taps the captcha box when there is one, "Get OTP",
+types OTP `111111`, "Verify" and "Allow", and expects Hub's home screen with the name
+`Siddharth K Mansour` (arguments `uin`, `otp`, `expectedName`; environment `PS03_TEST_UIN`,
+`PS03_TEST_OTP`, `PS03_TEST_NAME` in `run-ui-test.sh`). Then it checks the stored session has an
+id_token, the file is under `noBackupFilesDir`, and neither the id_token, the access token nor the
+JSON field names can be read in the file.
+
+What the JVM tests cover:
+
+- `secure-store` (13): round trip, ciphertext only on disk, new IV per write, atomic replace, a
+  changed ciphertext or IV byte, a file copied under another name, wrong magic or version, truncation,
+  another key, delete, empty blob, name rules.
+- `superapp` (29): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
+  PKCE pairing, client assertion audience and `kid`, DPoP proofs at PAR, token and userinfo with the
+  right `htu`); `device_sso` on with the device secret kept after the `ds_hash` check; wrong `ds_hash`,
+  wrong `nonce`, an unasked device secret, error redirects: nothing stored; `state` mismatch keeps the
+  login pending; replay, expiry, another redirect URI; finishing in a new process from the same store;
+  userinfo failing or about another `sub`; sign-out; tokens unreadable in the encrypted file; records,
+  name rules, redirect matching, client_id rule; ES256 signatures from `EcKeyJwsSigner` verified by
+  Nimbus and by `java.security`.
 
 ## The binder contract (`sso-contract`)
 

@@ -5,6 +5,22 @@
     <string name="permission_label">Share the Hub sign-in with apps from the same publisher</string>
     <string name="role">Super App. You sign in here once with eSignet; your other apps from the same publisher can then sign you in without asking again.</string>
     <string name="issuer_label">eSignet server</string>
-    <string name="certificate_label">Signed with certificate (SHA-256)</string>
-    <string name="certificate_unknown">unknown</string>
+    <string name="share_switch">Use this sign-in in my other apps</string>
+    <string name="sign_in">Sign in with eSignet</string>
+    <string name="working">Signing you in…</string>
+    <string name="working_browser">Finish signing in in the browser.</string>
+    <string name="cancel">Cancel</string>
+    <string name="signed_in_as">Signed in as</string>
+    <string name="name_unknown">(name not shared)</string>
+    <string name="sharing_label">Sign-in shared with my other apps</string>
+    <string name="sharing_on">Yes</string>
+    <string name="sharing_off">No</string>
+    <string name="sign_out">Sign out</string>
+    <string name="error_network">Cannot reach the eSignet server. Check the connection and try again.</string>
+    <string name="error_server">eSignet refused the sign-in (%1$s).</string>
+    <string name="error_token">The sign-in answer failed a security check (%1$s). Nothing was saved.</string>
+    <string name="error_expired">The sign-in took too long. Please start again.</string>
+    <string name="error_no_login">That sign-in is not the one in progress. Please start again.</string>
+    <string name="error_response">eSignet sent an answer Hub cannot use. Nothing was saved.</string>
+    <string name="error_unexpected">Something went wrong. Please try again.</string>
 </resources>

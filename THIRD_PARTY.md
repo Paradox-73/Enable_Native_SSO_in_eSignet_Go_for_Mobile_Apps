@@ -56,5 +56,8 @@ Declared in `android/gradle/libs.versions.toml`; downloaded by Gradle, not store
 | Jetpack Compose BOM, Material 3 | 2024.09.02 | Apache-2.0 | `superapp`, `childapp` |
 | OkHttp | 4.12.0 | Apache-2.0 | `oidc-client` (HTTP) |
 | Nimbus JOSE + JWT | 10.10 | Apache-2.0 | `oidc-client` (JWS/JWK parsing, id_token signature checks) |
+| AndroidX Browser (Custom Tabs) | 1.8.0 | Apache-2.0 | `superapp` (browser login) |
 | JUnit | 4.13.2 | EPL-1.0 | tests only |
-| OkHttp MockWebServer | 4.12.0 | Apache-2.0 | tests only |
+| AndroidX Test runner, AndroidX Test JUnit extension | 1.6.2, 1.2.1 | Apache-2.0 | instrumented tests only |
+| AndroidX UI Automator | 2.3.0 | Apache-2.0 | instrumented tests only (drives Chrome in `SuperAppSignInTest`) |
+| OkHttp MockWebServer | 4.12.0 | Apache-2.0 | tests only (`oidc-client`, `superapp`) |

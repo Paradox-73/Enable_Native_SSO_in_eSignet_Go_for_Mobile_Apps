@@ -20,6 +20,7 @@ dependencyResolutionManagement {
 rootProject.name = "esignet-native-sso-android"
 
 include(":sso-contract")
+include(":secure-store")
 include(":oidc-client")
 include(":superapp")
 include(":childapp")
