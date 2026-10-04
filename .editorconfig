@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: MIT
+# Editor settings for team-written files. https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.go]
+indent_style = tab
+indent_size = 4
+
+[{Makefile,*.mk}]
+indent_style = tab
+
+[*.{kt,kts,java,aidl,gradle,py}]
+indent_size = 4
+
+[*.md]
+# Two trailing spaces are a line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# Imported upstream folders stay byte-for-byte as published: editors must not reformat them.
+# Last, so it overrides the sections above.
+[{thunder,esignet}/**]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = unset
+insert_final_newline = unset
+charset = unset

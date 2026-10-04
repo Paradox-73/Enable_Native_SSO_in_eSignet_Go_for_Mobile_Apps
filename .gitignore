@@ -41,3 +41,7 @@ local.properties
 *.pem.private
 secrets/
 run/
+
+# Tool output written inside the repository
+.golangci-lint-cache/
+*.cover

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT
+# Image builds use the repository root as context (deploy/esignet.Dockerfile needs both
+# thunder/backend and esignet/esignet-service, joined by a relative replace directive).
+# Only the Go sources are needed; everything else stays out of the context.
+.git
+.github
+android
+docs
+e2e
+run
+scripts
+**/node_modules
+**/.gradle
+**/build
+**/*.apk
+**/*.aab
+**/*.log
+**/.golangci-lint-cache
+**/.env
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.pfx

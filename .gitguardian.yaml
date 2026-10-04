@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Secret-scanner settings (ggshield format), also read by scripts/repo-lint.sh.
+#
+# The only key material in this repository is upstream Thunder's own test fixtures, imported
+# unchanged from thunder-id/thunderid@12f517c4 (Apache-2.0): three ML-DSA test keys used by the
+# PKI unit tests and one unit test that embeds a throw-away PEM key. They protect nothing.
+# The eSignet import (mosip/esignet@db528423) has no key material (checked 2026-10-04).
+# Keys the team needs (app signing, client keys) are generated at run time into $PS03_RUN_DIR
+# and never committed; do not add real keys here.
+version: 2
+secret:
+  ignored_paths:
+    - thunder/backend/internal/system/kmprovider/defaultkm/pki/testdata/mldsa44.key
+    - thunder/backend/internal/system/kmprovider/defaultkm/pki/testdata/mldsa65.key
+    - thunder/backend/internal/system/kmprovider/defaultkm/pki/testdata/mldsa87.key
+    - thunder/backend/internal/system/utils/configutil_test.go
