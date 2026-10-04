@@ -14,7 +14,7 @@ checks every file's bytes and mode against the upstream commit.
 | Folder | Upstream | Version | Commit | Licence | Imported paths | Status |
 |---|---|---|---|---|---|---|
 | `thunder/` | [thunder-id/thunderid](https://github.com/thunder-id/thunderid) | v1.0.1 | `12f517c4384004e360e26eb7eb1ab0501b678bb2` | Apache-2.0 | `LICENSE`, `api/oauth2.yaml`, `backend/` (1,678 of its 1,679 files) | planned (WP-02) |
-| `esignet/` | [mosip/esignet](https://github.com/mosip/esignet) | v2.0.0 | `db528423dac7898ad546cb7b2f5f867a949676a7` | MPL-2.0 | `LICENSE`, `README.md`, `THIRD-PARTY-NOTICES.txt`, `docs/`, `postman-collection/`, `docker-compose/`, `esignet-service/` (241 of its 242 files) | planned (WP-03) |
+| `esignet/` | [mosip/esignet](https://github.com/mosip/esignet) | v2.0.0 | `db528423dac7898ad546cb7b2f5f867a949676a7` | MPL-2.0 | `LICENSE`, `README.md`, `THIRD-PARTY-NOTICES.txt`, `docs/`, `postman-collection/`, `docker-compose/`, `esignet-service/` (241 of its 242 files) | imported (`4eac1cc`, WP-03) |
 
 - Left out of `backend/` and `esignet-service/`: one contributor-tool instruction file at the top of each,
   not needed to build, test or document the code. Everything else upstream (web frontends, Helm charts, UI test
