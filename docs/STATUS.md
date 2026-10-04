@@ -53,7 +53,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-06 | platform | Local stack and headless FAPI 2.0 login | WP-03 | DONE | `bf5a1b2`, this file's update |
 | WP-07 | thunder | Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (T1, T2, T5, T6) | WP-02 | DONE | `1a8a6e7`, `2a43b22`, `3dec587` |
 | WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | DONE | `9314b2b`, `64e5c9e`, `f8a58e0`, `6aff73e` |
-| WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | TODO | |
+| WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | PARTIAL | `72b2528`, `b1ec211` |
 | WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | DONE | `13d17ac` |
 | WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | TODO | |
 | WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | TODO | |
@@ -311,7 +311,34 @@ commit of that folder.
   - New Go files inside `esignet/` start with eSignet's MPL-2.0 notice block (copy it from an existing file).
   - Format reference: [design.md section 9](design.md#9-device-secret-format).
 
-### WP-09 Hub: Sign in with eSignet on the emulator, tokens stored encrypted
+### WP-09 Hub: Sign in with eSignet on the emulator, tokens stored encrypted (PARTIAL)
+
+- **Result (2026-10-05, on `main` after `b1ec211`)**
+  - `cd android && bash gradlew --no-daemon assembleDebug assembleDebugAndroidTest`: `BUILD SUCCESSFUL` in 1 min 7 s
+    (240 tasks, 159 executed).
+  - `bash gradlew --no-daemon :secure-store:testDebugUnitTest :superapp:testDebugUnitTest`: `secure-store` 13 tests,
+    `superapp` 29 tests, 0 failures. The `superapp` tests run Hub's whole sign-in against a fake eSignet on
+    MockWebServer; what they cover is listed in [../android/README.md](../android/README.md#hub-sign-in-with-esignet).
+  - `bash scripts/repo-lint.sh`: `repo-lint: OK`.
+  - **Open, the only item left**: the emulator acceptance
+    `bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh superapp SuperAppSignInTest`
+    is NOT RUN. The machine-wide `emulator` lock (`/e/Projects/MOSIP/toolchain/locks/emulator`, left by an
+    earlier stopped run at 03:58 IST) was still held when the code was finished; it was not removed or bypassed.
+    So these are untested on a device: Keystore key creation, the Custom Tab and `RedirectActivity` round trip,
+    `register-client.sh`, the UI Automator steps in Chrome (field and button names on eSignet's pages are guesses
+    until then), whether eSignet accepts the `claims` parameter Hub sends, and the hCaptcha question from WP-06.
+    Run the command when the lock is free; with the toolchain's `with_lock emulator` around it, set
+    `PS03_HELD_LOCKS=:emulator` (see `android/scripts/with-emulator.sh`).
+- **Decisions**
+  - Debug client_id = `ps03-hub-` + 12 hex characters of SHA-256 over the client key's RFC 7638 thumbprint: each
+    install has its own Keystore key, and eSignet's client management cannot replace a registered key.
+  - The pending login (`state`, `nonce`, `code_verifier`) is kept in the encrypted store, not only in saved state,
+    so the login finishes after process death. A redirect with another `state` leaves it pending, so another app
+    cannot cancel a login by sending a fake redirect.
+  - A device secret the login did not ask for is refused; userinfo failure keeps the login without a name.
+  - Removed from Hub's screen: the signing certificate the WP-04 shell showed (still checked by
+    `verify-family-signing.sh`).
+
 
 - **Goal**
   - Android Keystore keys for DPoP and client authentication (EC P-256, not exportable, StrongBox when present)
