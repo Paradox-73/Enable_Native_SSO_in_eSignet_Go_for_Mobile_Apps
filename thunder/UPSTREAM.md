@@ -111,7 +111,7 @@ Results measured on 2026-10-04 for the contract step:
 - `verify-import.sh thunder`: 1680 files, 0 differ, 0 missing, 0 extra.
 - `go-test.sh thunder/backend ./internal/oauth/... ./pkg/...`: 31 packages, 2214 tests, 0 failed (1 skipped by
   upstream); 22 of 22 statements on changed lines covered.
-- Both mockery configurations regenerated with no change to the committed mocks.
+- Both mockery configurations regenerated; the committed mocks did not change.
 - `internal/system/i18n/core/defaults.go` matches the output of upstream's `tools/i18n-extractor` at the same
   commit (the generator of that file, run from the upstream clone).
 - `go-lint.sh thunder/backend` (golangci-lint v1.64.8, upstream's config, changed lines): 0 issues. On a busy

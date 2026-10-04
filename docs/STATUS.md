@@ -175,9 +175,8 @@ commit of that folder.
     printed 4 packages, 470 tests, 0 failed; `nativesso.go` 0/34 statements covered (the package has no tests of
     its own yet). `go-lint.sh` was not run on these files.
 - **Still to do**
-  0. Reword `thunder/UPSTREAM.md` line 114 ("regenerated with no change" matches the word list of
-     `scripts/repo-lint.sh`, which prints `FAILED (1 problems)` on `main` today), for example to "regenerated; the
-     committed mocks did not change".
+  0. Done 2026-10-05: `thunder/UPSTREAM.md` line 114 reworded (it matched the word list of
+     `scripts/repo-lint.sh`); `repo-lint: OK`.
   1. Set `NativeSSOEnabled` in `oauth.Initialize` from the provider it receives (true only when the provider is
      not nil), and pass the provider down to the authorization-code handler in `oauth2/granthandlers/`.
   2. Unit tests for `nativesso.go` itself (`NewSessionID` length and uniqueness, `DeviceSecretHash` against a

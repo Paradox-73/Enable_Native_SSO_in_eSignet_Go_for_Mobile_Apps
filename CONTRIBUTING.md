@@ -48,12 +48,11 @@ git config user.name  "Your Name"
 git config user.email "an-email-verified-on-your-github-account@example.com"
 bash scripts/install-hooks.sh          # prints: install-hooks: core.hooksPath=scripts/hooks
 bash scripts/go.sh . version           # prints: go version go1.26.x linux/amd64 (first run pulls the image)
-bash scripts/repo-lint.sh              # prints: repo-lint: OK (see the known problem below)
+bash scripts/repo-lint.sh              # prints: repo-lint: OK
 ```
 
-- Known problem on `main` at `1bd6fd0` (2026-10-04): `repo-lint.sh` prints `FAILED (1 problems)` for
-  `thunder/UPSTREAM.md:114`, where the words "regenerated with" match its word list. The fix (reword that line) is
-  the first step of task WP-07 in [docs/STATUS.md](docs/STATUS.md); every other check passes.
+- Fixed on 2026-10-05 (task WP-07): `repo-lint.sh` printed `FAILED (1 problems)` on `main` at `1bd6fd0` for a
+  phrase on its word list in `thunder/UPSTREAM.md:114`; that line is reworded and the check prints `repo-lint: OK`.
 
 - `install-hooks.sh` sets two local git settings: `core.hooksPath=scripts/hooks` (a pre-commit hook that keeps
   executable bits on Windows) and `core.longpaths=true` (upstream test files have long paths).
@@ -98,7 +97,7 @@ Run from the repository root. Each script prints one result line on stdout and e
 
 | Command | Result line when it passes | Measured 2026-10-04 |
 |---|---|---|
-| `bash scripts/repo-lint.sh` | `repo-lint: OK` | 1 known problem in `thunder/UPSTREAM.md:114`, see [One-time setup](#one-time-setup) |
+| `bash scripts/repo-lint.sh` | `repo-lint: OK` | OK on 2026-10-05 (1 problem on 2026-10-04, fixed by WP-07) |
 | `bash scripts/verify-import.sh thunder` | `verify-import: thunder: N files, N same, 0 differ, 0 missing, 0 extra` | 1,680 files |
 | `bash scripts/verify-import.sh esignet` | same form | 274 files |
 | `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/...` | `go-test: thunder/backend: ... 0 failed` | 2214 tests, 0 failed |
@@ -165,7 +164,7 @@ docker compose -f esignet/docker-compose/docker-compose.yaml down -v # stop and 
 Native SSO does not work end to end yet: no grant handler issues or accepts a device secret, and the apps are
 shells. What can be run, in order, with the result recorded on 2026-10-04:
 
-1. `bash scripts/repo-lint.sh` -> one known problem (`thunder/UPSTREAM.md:114`), everything else passes.
+1. `bash scripts/repo-lint.sh` -> `repo-lint: OK` (2026-10-05).
 2. `bash scripts/verify-import.sh thunder` and `... esignet` -> `0 differ, 0 missing`.
 3. Thunder unit tests (provider contract included) -> 2214 tests, 0 failed.
 4. eSignet build and unit tests against the in-repo Thunder -> exit 0; 1437 tests, 0 failed.
