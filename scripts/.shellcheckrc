@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MIT
+# shellcheck settings for the scripts in this folder.
+# lib.sh is sourced from the script's own folder.
+source-path=SCRIPTDIR
+# Container and node programs are single-quoted on purpose: they expand inside the container.
+disable=SC2016

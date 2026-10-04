@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Allow-list of the unchanged Thunder import (work package WP-02).
+# Read by scripts/import-upstream.sh, scripts/verify-import.sh and scripts/repo-lint.sh.
+# "path" lines name upstream files or folders taken as they are; everything else upstream is left out
+# (bash scripts/verify-import.sh thunder --list-excluded prints it).
+dir      thunder
+repo     thunder-id/thunderid
+url      https://github.com/thunder-id/thunderid.git
+commit   12f517c4384004e360e26eb7eb1ab0501b678bb2
+version  v1.0.1
+licence  Apache-2.0
+clone    thunder-v1.0.1
+# New Go files the team adds under thunder/ carry Thunder's own header, so they can go upstream.
+header   SPDX-License-Identifier: Apache-2.0
+path     LICENSE
+path     api/oauth2.yaml
+path     backend/.excludecoverage
+path     backend/.golangci.yml
+path     backend/.mockery.private.yml
+path     backend/.mockery.public.yml
+path     backend/README.md
+path     backend/cmd
+path     backend/dbscripts
+path     backend/go.mod
+path     backend/go.sum
+path     backend/internal
+path     backend/pkg
+path     backend/scripts
+path     backend/tests

@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: MIT
+# Allow-list of the unchanged eSignet import (work package WP-03).
+# Read by scripts/import-upstream.sh, scripts/verify-import.sh and scripts/repo-lint.sh.
+# "path" lines name upstream files or folders taken as they are; everything else upstream is left out
+# (bash scripts/verify-import.sh esignet --list-excluded prints it).
+dir      esignet
+repo     mosip/esignet
+url      https://github.com/mosip/esignet.git
+commit   db528423dac7898ad546cb7b2f5f867a949676a7
+version  v2.0.0
+licence  MPL-2.0
+clone    esignet
+# New Go files the team adds under esignet/ carry eSignet's MPL-2.0 notice block.
+header   This Source Code Form is subject to the terms of the Mozilla Public
+path     LICENSE
+path     README.md
+path     THIRD-PARTY-NOTICES.txt
+path     docs
+path     postman-collection
+path     docker-compose
+path     esignet-service/.dockerignore
+path     esignet-service/.env.example
+path     esignet-service/.gitignore
+path     esignet-service/.golangci.yml
+path     esignet-service/Dockerfile
+path     esignet-service/README.md
+path     esignet-service/cmd
+path     esignet-service/data
+path     esignet-service/docker-entrypoint.sh
+path     esignet-service/go.mod
+path     esignet-service/go.sum
+path     esignet-service/internal
+path     esignet-service/make.sh
+path     esignet-service/sqlc.yaml

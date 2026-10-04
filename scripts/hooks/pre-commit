@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Team Badmosip
+#
+# Keeps the executable bit in path-limited commits ("git commit -- <paths>", which the shared
+# commit helper uses). Git builds such a commit in a temporary index from HEAD plus the working
+# tree; on Windows the working tree has no executable bit, so a mode set with
+# "git update-index --chmod=+x" in the real index would be lost. This hook copies 100755 from
+# the real index into the temporary one for the paths being committed. Installed by
+# scripts/install-hooks.sh (core.hooksPath).
+#
+# Limit: git decides whether there is anything to commit before this hook runs, so a commit
+# whose only change is a mode needs at least one content change next to it.
+set -eu
+real="$(git rev-parse --git-dir)/index"
+[ -n "${GIT_INDEX_FILE:-}" ] || exit 0
+case "$GIT_INDEX_FILE" in
+  index | */index | *\\index) exit 0 ;; # a normal commit already uses the real index
+esac
+GIT_INDEX_FILE="$real" git ls-files -s -z | tr '\0' '\n' | grep '^100755 ' | cut -f 2- |
+  while IFS= read -r path; do
+    case "$(git ls-files -s -- "$path")" in
+      100644*) git update-index --chmod=+x -- "$path" ;;
+    esac
+  done
