@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/thunder-id/thunderid/internal/attributecache"
+	oauthconfig "github.com/thunder-id/thunderid/internal/oauth/config"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/authz"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/dpop"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/pkce"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/resourceindicators"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/tokenservice"
@@ -28,6 +30,10 @@ type authorizationCodeGrantHandler struct {
 	tokenBuilder    tokenservice.TokenBuilderInterface
 	attributeCache  attributecache.AttributeCacheServiceInterface
 	resourceService providers.ResourceServerProvider
+	// deviceSecretProvider issues the OpenID Connect Native SSO device secret for a code granted the
+	// device_sso scope; nil when Native SSO is off.
+	deviceSecretProvider providers.DeviceSecretProvider
+	cfg                  oauthconfig.Config
 }
 
 // newAuthorizationCodeGrantHandler creates a new instance of AuthorizationCodeGrantHandler.
@@ -36,12 +42,16 @@ func newAuthorizationCodeGrantHandler(
 	tokenBuilder tokenservice.TokenBuilderInterface,
 	attributeCache attributecache.AttributeCacheServiceInterface,
 	resourceService providers.ResourceServerProvider,
+	deviceSecretProvider providers.DeviceSecretProvider,
+	cfg oauthconfig.Config,
 ) GrantHandlerInterface {
 	return &authorizationCodeGrantHandler{
-		authzService:    authzService,
-		tokenBuilder:    tokenBuilder,
-		attributeCache:  attributeCache,
-		resourceService: resourceService,
+		authzService:         authzService,
+		tokenBuilder:         tokenBuilder,
+		attributeCache:       attributeCache,
+		resourceService:      resourceService,
+		deviceSecretProvider: deviceSecretProvider,
+		cfg:                  cfg,
 	}
 }
 
@@ -98,6 +108,14 @@ func (h *authorizationCodeGrantHandler) HandleGrant(ctx context.Context, tokenRe
 
 	// Parse authorized scopes
 	authorizedScopes := tokenservice.ParseScopes(authCode.Scopes)
+
+	// OpenID Connect Native SSO: check the device_sso grant before any token is built.
+	nativeSSO := nativesso.RequestsDeviceSSO(authorizedScopes)
+	if nativeSSO {
+		if errResp := h.checkDeviceSSOGrant(ctx, authorizedScopes, oauthApp); errResp != nil {
+			return nil, errResp
+		}
+	}
 
 	// Get user attributes from attribute cache
 	attrs := make(map[string]interface{})
@@ -186,9 +204,28 @@ func (h *authorizationCodeGrantHandler) HandleGrant(ctx context.Context, tokenRe
 		AccessToken: *accessToken,
 	}
 
+	// Issue the device secret last, after every check that can fail on bad input, so that a refused
+	// request leaves no login session behind. Its sid and ds_hash go into the id_token below.
+	var deviceSecret *issuedDeviceSecret
+	if nativeSSO {
+		var dsErr *model.ErrorResponse
+		deviceSecret, dsErr = h.issueDeviceSecret(ctx, authCode, authorizedScopes, attrs, oauthApp,
+			accessToken.ExpiresIn)
+		if dsErr != nil {
+			return nil, dsErr
+		}
+		tokenResponse.DeviceSecret = model.TokenDTO{
+			Token:     deviceSecret.value,
+			ExpiresIn: deviceSecret.expiresIn,
+			ClientID:  tokenRequest.ClientID,
+			Subject:   authCode.AuthorizedUserID,
+			Scopes:    authorizedScopes,
+		}
+	}
+
 	// Generate ID token if 'openid' scope is present
 	if slices.Contains(accessTokenScopes, constants.ScopeOpenID) {
-		idToken, err := h.tokenBuilder.BuildIDToken(ctx, &tokenservice.IDTokenBuildContext{
+		idTokenCtx := &tokenservice.IDTokenBuildContext{
 			Subject:        authCode.AuthorizedUserID,
 			Audience:       tokenRequest.ClientID,
 			Scopes:         accessTokenScopes,
@@ -198,7 +235,12 @@ func (h *authorizationCodeGrantHandler) HandleGrant(ctx context.Context, tokenRe
 			ClaimsRequest:  authCode.ClaimsRequest,
 			Nonce:          authCode.Nonce,
 			CompletedACR:   authCode.CompletedACR,
-		})
+		}
+		if deviceSecret != nil {
+			idTokenCtx.SessionID = deviceSecret.sessionID
+			idTokenCtx.DeviceSecretHash = nativesso.DeviceSecretHash(deviceSecret.value)
+		}
+		idToken, err := h.tokenBuilder.BuildIDToken(ctx, idTokenCtx)
 		if err != nil {
 			logger.Error(ctx, "Failed to generate ID token", log.Error(err))
 			return nil, &model.ErrorResponse{

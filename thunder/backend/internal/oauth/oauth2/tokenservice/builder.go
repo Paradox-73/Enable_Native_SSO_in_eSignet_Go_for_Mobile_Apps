@@ -478,5 +478,13 @@ func (tb *tokenBuilder) buildIDTokenClaims(ctx *IDTokenBuildContext) map[string]
 		claims[key] = value
 	}
 
+	// Set after the user claims, so that no user attribute of the same name can replace them.
+	if ctx.SessionID != "" {
+		claims[constants.ClaimSessionID] = ctx.SessionID
+	}
+	if ctx.DeviceSecretHash != "" {
+		claims[constants.ClaimDeviceSecretHash] = ctx.DeviceSecretHash
+	}
+
 	return claims
 }

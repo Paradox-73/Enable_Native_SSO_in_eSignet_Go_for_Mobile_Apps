@@ -55,8 +55,13 @@ func Initialize(
 	transactioner providers.Transactioner,
 	enforcementService revocation.EnforcementServiceInterface,
 	revocationSvc revocation.RevocationServiceInterface,
+	deviceSecretProvider providers.DeviceSecretProvider,
 	cfg oauthconfig.Config,
 ) (tokenservice.TokenValidatorInterface, error) {
+	// OpenID Connect Native SSO is on only when a DeviceSecretProvider is supplied. The flag is set here,
+	// before any service reads cfg, so the device_sso checks and the provider cannot disagree.
+	cfg.NativeSSOEnabled = deviceSecretProvider != nil
+
 	jwks.Initialize(mux, runtimeCrypto)
 	httpClient := syshttp.NewHTTPClientWithCheckRedirect(func(req *http.Request, _ []*http.Request) error {
 		return syshttp.IsSSRFSafeURL(req.URL.String())
@@ -96,7 +101,7 @@ func Initialize(
 	grantHandlerProvider := granthandlers.Initialize(
 		jwtService, oauth2AuthzService, tokenBuilder, tokenValidator,
 		attributeCacheSvc, ouService, authzService, actorProvider, resourceService,
-		cibaService, revocationSvc, revocationSvc, cfg)
+		cibaService, revocationSvc, revocationSvc, deviceSecretProvider, cfg)
 
 	token.Initialize(mux, jwtService, actorProvider, authnProvider, grantHandlerProvider,
 		scopeValidator, observabilitySvc, discoveryService, dpopVerifier, jtiStore, cfg)

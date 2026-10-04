@@ -30,6 +30,7 @@ import (
 	"github.com/thunder-id/thunderid/tests/mocks/oauth/oauth2/authzmock"
 	"github.com/thunder-id/thunderid/tests/mocks/oauth/oauth2/tokenservicemock"
 	"github.com/thunder-id/thunderid/tests/mocks/resourcemock"
+	"github.com/thunder-id/thunderid/tests/testhelpers"
 )
 
 const (
@@ -178,7 +179,8 @@ func (suite *AuthorizationCodeGrantHandlerTestSuite) stubDefaultResourceServer()
 
 func (suite *AuthorizationCodeGrantHandlerTestSuite) TestNewAuthorizationCodeGrantHandler() {
 	handler := newAuthorizationCodeGrantHandler(
-		suite.mockAuthzService, suite.mockTokenBuilder, suite.mockAttrCacheService, suite.mockResourceService)
+		suite.mockAuthzService, suite.mockTokenBuilder, suite.mockAttrCacheService, suite.mockResourceService,
+		nil, testhelpers.OAuthConfig())
 	assert.NotNil(suite.T(), handler)
 	assert.Implements(suite.T(), (*GrantHandlerInterface)(nil), handler)
 }

@@ -107,6 +107,12 @@ type IDTokenBuildContext struct {
 	ClaimsRequest  *oauth2model.ClaimsRequest
 	Nonce          string
 	CompletedACR   string
+	// SessionID is the sid claim (OpenID Connect Native SSO for Mobile Apps 1.0, 3.4.1): the login session
+	// a device secret issued with this id_token belongs to. Empty when no device secret is issued.
+	SessionID string
+	// DeviceSecretHash is the ds_hash claim that binds this id_token to its device secret (Native SSO
+	// 3.4.1). Empty when no device secret is issued.
+	DeviceSecretHash string
 }
 
 // RefreshTokenClaims represents the validated claims from a refresh token.
