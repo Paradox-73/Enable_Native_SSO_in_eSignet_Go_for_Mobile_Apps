@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<resources>
+    <string name="app_name">Health Card</string>
+    <string name="permission_label">Share the Hub sign-in with apps from the same publisher</string>
+    <string name="role">Child App. Signs you in with the sign-in you already have in Hub, without a password or OTP.</string>
+    <string name="issuer_label">eSignet server</string>
+    <string name="certificate_label">Signed with certificate (SHA-256)</string>
+    <string name="certificate_unknown">unknown</string>
+    <string name="super_app_label">Hub</string>
+    <string name="super_app_missing">Not installed. Install Hub and sign in there first.</string>
+    <string name="super_app_same_family">Installed, same certificate as this app</string>
+    <string name="super_app_other_family">Installed, but signed with another certificate: it cannot share its sign-in</string>
+</resources>

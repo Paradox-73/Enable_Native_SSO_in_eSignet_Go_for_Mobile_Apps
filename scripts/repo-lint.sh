@@ -99,8 +99,15 @@ lint_repo() {
       problem "words: $file:$line: $(grep -oiE -- "$BANNED" <<<"$text" | head -n 1 | rot13) (rot13)"
     done
   }
-  if [ ${#team[@]} -gt 0 ]; then
-    report_words < <(printf '%s\0' "${team[@]}" | xargs -0 grep -n -H -I -i -E -s -- "$BANNED" || true)
+  # The Gradle wrapper scripts are Gradle's own files (Apache-2.0, listed in THIRD_PARTY.md), copied
+  # unchanged; their text is not team-written, as in the header check below.
+  local -a team_text=()
+  for f in "${team[@]+"${team[@]}"}"; do
+    case ${f##*/} in gradlew|gradlew.bat) continue ;; esac
+    team_text+=("$f")
+  done
+  if [ ${#team_text[@]} -gt 0 ]; then
+    report_words < <(printf '%s\0' "${team_text[@]}" | xargs -0 grep -n -H -I -i -E -s -- "$BANNED" || true)
   fi
   for path in "${!modified[@]}"; do
     report_words < <(added_lines "$path" | grep -iE -- "$BANNED" || true)

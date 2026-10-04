@@ -43,4 +43,18 @@ embedded PEM key (`backend/internal/system/utils/configutil_test.go`). They are 
 
 ## Android app dependencies
 
-*Planned (WP-04):* the libraries of the two Android apps, with versions and licences.
+Declared in `android/gradle/libs.versions.toml`; downloaded by Gradle, not stored in this repository
+(except the Gradle wrapper files listed first).
+
+| Component | Version | Licence | Used by |
+|---|---|---|---|
+| Gradle wrapper (`android/gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`) | 8.7 | Apache-2.0 | building the Android project |
+| Android Gradle Plugin | 8.6.0 | Apache-2.0 | build |
+| Kotlin (compiler, Gradle plugins, standard library) | 2.0.20 | Apache-2.0 | all modules |
+| AndroidX Core KTX | 1.13.1 | Apache-2.0 | `superapp`, `childapp` |
+| AndroidX Activity Compose | 1.9.2 | Apache-2.0 | `superapp`, `childapp` |
+| Jetpack Compose BOM, Material 3 | 2024.09.02 | Apache-2.0 | `superapp`, `childapp` |
+| OkHttp | 4.12.0 | Apache-2.0 | `oidc-client` (HTTP) |
+| Nimbus JOSE + JWT | 10.10 | Apache-2.0 | `oidc-client` (JWS/JWK parsing, id_token signature checks) |
+| JUnit | 4.13.2 | EPL-1.0 | tests only |
+| OkHttp MockWebServer | 4.12.0 | Apache-2.0 | tests only |

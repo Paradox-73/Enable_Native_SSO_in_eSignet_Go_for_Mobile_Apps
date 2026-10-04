@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Guards the single sign-on service. protectionLevel="signature": the system grants it only to
+      apps signed with this app's certificate. Every family app declares it too, so whichever app is
+      installed first defines it with the same level (custom permission takeover, see
+      sso-contract/FamilySsoContract.kt).
+    -->
+    <permission
+        android:name="org.badmosip.nativesso.permission.FAMILY_SSO"
+        android:label="@string/permission_label"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="org.badmosip.nativesso.permission.FAMILY_SSO" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

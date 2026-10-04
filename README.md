@@ -17,7 +17,7 @@ device secret for its own tokens (OAuth 2.0 Token Exchange, RFC 8693).
 |---|---|---|
 | Thunder ID engine (upstream `thunder-id/thunderid` v1.0.1), Native SSO protocol rules | `thunder/` | planned |
 | eSignet Go (upstream `mosip/esignet` v2.0.0), device secret provider and settings | `esignet/` | planned |
-| Super App and Child App (Kotlin, Android) | `android/` | planned |
+| Super App and Child App (Kotlin, Android) | `android/` | started: Gradle project, shared signing, binder contract and the OpenID Connect client library with 64 JVM tests ([android/README.md](android/README.md)); app screens are shells |
 | Local stack: eSignet, mock identity system, Postgres (docker compose) | `deploy/` | planned |
 | Live integration tests against the local stack | `e2e/` | planned |
 | Design, threat model, API docs, test report, demo script | `docs/` | index only ([docs/README.md](docs/README.md)) |
