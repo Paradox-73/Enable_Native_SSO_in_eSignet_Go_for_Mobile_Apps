@@ -75,11 +75,36 @@ Design decisions in this step:
     device secret: `interaction_required` (default) or `invalid_scope`. Other values are rejected.
   - `exchange_only`: when true, the token-exchange grant accepts only the Native SSO profile.
 
+### Native SSO at PAR, authorize and the authorization-code grant (work package WP-07)
+
+With no provider passed, `device_sso` is refused with `invalid_scope` and every other login behaves as upstream.
+
+| Change | File (under `backend/internal/oauth/` unless noted) |
+|---|---|
+| New package `nativesso`: `RequestsDeviceSSO`, `ValidateDeviceSSOScope` (`invalid_scope` when Native SSO is off, the client's `Scopes` lack `device_sso`, or `openid` is missing), `NewSessionID` (128 random bits, base64url), `DeviceSecretHash` (`ds_hash`), `ReleasedClaimNames` | `oauth2/nativesso/nativesso.go` |
+| `device_sso` stays with the OpenID scopes, so it reaches the authorization code | `oauth2/utils/oauthutils.go` |
+| PAR and authorize apply `ValidateDeviceSSOScope` | `oauth2/par/service.go`, `oauth2/authz/validator.go`, `oauth2/authz/service.go` |
+| `Config.NativeSSOEnabled`, set by `oauth.Initialize` from the provider (true only when it is not nil) | `config/config.go`, `init.go` |
+| The provider is passed from the engine through `oauth.Initialize`, `granthandlers.Initialize` and `newGrantHandlerProvider` to the authorization-code handler; the standalone server passes nil | `init.go`, `oauth2/granthandlers/init.go`, `provider.go`, `backend/pkg/thunderidengine/engine.go`, `backend/cmd/server/servicemanager.go` |
+| A code granted `device_sso` carries its authorization request id (`AuthorizationCode.AuthID`) | `oauth2/authz/model.go`, `oauth2/authz/service.go` |
+| Code grant with `device_sso`: client still allowed and provider present (else `invalid_scope`); DPoP proof present (else `invalid_request`); new `sid`; `GenerateDeviceSecret`; attribute cache kept for the longest of device secret, access token and refresh token; `id_token` with `sid` and `ds_hash`; `device_secret` in the response. Any failure after the checks is `server_error` with no tokens | `oauth2/granthandlers/authorization_code.go`, `authorization_code_native_sso.go` |
+| `IDTokenBuildContext.SessionID` and `DeviceSecretHash`, written after the user claims so no attribute can replace them | `oauth2/tokenservice/model.go`, `builder.go` |
+
+Design decisions in this step:
+
+- The device secret is requested after the access token is built and before the `id_token`, so a request refused
+  by a check leaves no login session in the provider. If the `id_token` cannot be built after that, the session
+  record stays until its TTL ends; Thunder has no call to delete it.
+- The attribute cache TTL is set to the longest of the three lifetimes plus Thunder's usual 60 s buffer, never
+  shorter: `ExtendAttributeCacheTTL` replaces the TTL, and a refresh token (24 h by default) can outlive the device
+  secret (8 h by default in eSignet).
+- `claims` in the device secret holds names only. With eSignet's opaque attribute token (`_jwt`) Thunder cannot
+  see which values exist, so it lists every name the granted scopes and the `claims` parameter release.
+
 ### Planned
 
 | Work package | Change |
 |---|---|
-| WP-07 | Code grant: `device_sso` allowed-scope check, `sid`, device secret issuance through the provider, `ds_hash` in the `id_token` |
 | WP-10 | Token exchange with a device secret as `actor_token`: provider validation, `id_token` checks (`ds_hash`, `sid`, DPoP `cnf.jkt`), scope rules |
 | WP-12 | Scope-subset rules, re-consent signal, discovery metadata |
 
@@ -105,6 +130,28 @@ Unit tests added for the contract:
 | `internal/oauth/oauth2/constants/constants_test.go` | protocol names; `device_sso` is not a standard scope; the device-secret type is not a generic token type |
 | `internal/oauth/oauth2/model/token_test.go` | `device_secret` is in the JSON only when set |
 | `internal/oauth/oauth2/token/service_test.go` | the token service copies the device secret into the response |
+
+Unit tests added for WP-07 (all names contain `DeviceSSO`, `DeviceSecret` or `NativeSSO`):
+
+| Test file (under `backend/internal/oauth/oauth2/`) | Checks |
+|---|---|
+| `nativesso/nativesso_test.go` | every `ValidateDeviceSSOScope` branch; `NewSessionID` length and uniqueness; `DeviceSecretHash` against fixed SHA-256 vectors; `ReleasedClaimNames` with plain and opaque attributes |
+| `authz/validator_native_sso_test.go`, `par/service_native_sso_test.go` | allowed client passes; client not allowed, no provider, no `openid`: `invalid_scope` |
+| `authz/service_native_sso_test.go` | a `device_sso` code carries `AuthID`; other codes do not |
+| `utils/oauthutils_native_sso_test.go` | `device_sso` stays an OpenID scope and releases no claims |
+| `granthandlers/authorization_code_native_sso_test.go` | allowed client gets `device_secret`, `sid`, `ds_hash`, full provider request; client not allowed and no provider: `invalid_scope`; no DPoP proof: `invalid_request`; provider error, empty or expired secret, incomplete request, cache failure: `server_error` and no tokens; no `device_sso`: response unchanged; cache TTL |
+| `tokenservice/builder_native_sso_test.go` | `sid` and `ds_hash` in the `id_token`, not replaceable by user attributes, absent without a device secret |
+
+Results measured on 2026-10-05 for WP-07:
+
+- `go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages, 2270 tests, 0 failed (1
+  skipped by upstream); 135 of 145 statements on changed lines covered (93.1 %). Not covered: `internal/oauth/init.go`
+  (9) and `granthandlers/init.go` (1), whose packages have no unit tests; the engine test `TestNew_HappyPath` runs
+  them.
+- `go.sh thunder/backend test -count=1 -v -run 'DeviceSSO|DeviceSecret|NativeSSO' ./internal/oauth/...`: 55 `PASS`
+  lines (suites and cases), 0 `FAIL`.
+- `go-lint.sh thunder/backend -- --timeout=30m`: 0 issues.
+- No interface changed, so the mocks were not regenerated.
 
 Results measured on 2026-10-04 for the contract step:
 

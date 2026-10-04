@@ -51,7 +51,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-04 | android | Android project, shared signing and the OpenID Connect client library | WP-01 | DONE | `691de72`, `a3727cd` |
 | WP-05 | platform | Design document and threat model | WP-01 | DONE | `e052436` |
 | WP-06 | platform | Local stack and headless FAPI 2.0 login | WP-03 | TODO | |
-| WP-07 | thunder | Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (T1, T2, T5, T6) | WP-02 | PARTIAL | branch `wip/2026-10-04-stop` (`4be5ec8`) |
+| WP-07 | thunder | Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (T1, T2, T5, T6) | WP-02 | DONE | `1a8a6e7`, `2a43b22`, `3dec587` |
 | WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | TODO | |
 | WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | TODO | |
 | WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | TODO | |
@@ -136,7 +136,7 @@ commit of that folder.
   - Memory measured 2026-10-04 with upstream 2.0.0 images: mock identity 535 MiB, Postgres 98 MiB, eSignet 43 MiB,
     oidc-ui 4.5 MiB. Health answered after 15 s, mock identity after 31 s.
 
-### WP-07 Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (PARTIAL)
+### WP-07 Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (DONE)
 
 - **Goal**
   - `device_sso` reaches the authorization-code record as an OpenID scope and releases no claims (T1).
@@ -156,42 +156,28 @@ commit of that folder.
   - `bash scripts/go.sh thunder/backend test -count=1 -v -run 'DeviceSSO|DeviceSecret|NativeSSO' ./internal/oauth/...`
     shows at least 12 passing cases, including client-not-allowed, missing-DPoP and provider-failure cases.
   - `bash scripts/go-lint.sh thunder/backend` exits 0.
-- **Already on `wip/2026-10-04-stop`** (all under `thunder/backend/internal/oauth/`; not on `main`):
-  - `oauth2/nativesso/nativesso.go` (new package): `RequestsDeviceSSO`; `ValidateDeviceSSOScope` (returns
-    `invalid_scope` when Native SSO is off, the client's `Scopes` lack `device_sso`, or `openid` is missing);
-    `NewSessionID` (128 random bits, base64url); `DeviceSecretHash` (`ds_hash`: base64url of the left 16 bytes of
-    SHA-256 over the device secret); `ReleasedClaimNames` (names, never values, of the claims released at login).
-  - `oauth2/utils/oauthutils.go`: `SeparateOIDCAndNonOIDCScopes` keeps `device_sso` with the OpenID scopes.
-  - `oauth2/authz/validator.go`, `oauth2/authz/service.go`: authorize applies `ValidateDeviceSSOScope`;
-    `newAuthorizationValidator` now takes a `nativeSSOEnabled` flag.
-  - `oauth2/par/service.go`: PAR applies `ValidateDeviceSSOScope` before storing the request.
-  - `config/config.go`: new field `NativeSSOEnabled`. **Nothing sets it yet**, so Native SSO stays off at run time
-    even when eSignet passes a provider.
-  - Tests: `oauth2/authz/validator_native_sso_test.go` (4 cases), `oauth2/par/service_native_sso_test.go`
-    (5 cases), `oauth2/utils/oauthutils_native_sso_test.go` (2 cases); `oauth2/authz/validator_test.go` adjusted
-    to the new constructor.
-  - Measured 2026-10-04 on these files:
-    `bash scripts/go-test.sh thunder/backend ./internal/oauth/oauth2/authz/ ./internal/oauth/oauth2/par/ ./internal/oauth/oauth2/utils/ ./internal/oauth/oauth2/nativesso/ --changed-cover`
-    printed 4 packages, 470 tests, 0 failed; `nativesso.go` 0/34 statements covered (the package has no tests of
-    its own yet). `go-lint.sh` was not run on these files.
-- **Still to do**
-  0. Done 2026-10-05: `thunder/UPSTREAM.md` line 114 reworded (it matched the word list of
-     `scripts/repo-lint.sh`); `repo-lint: OK`.
-  1. Set `NativeSSOEnabled` in `oauth.Initialize` from the provider it receives (true only when the provider is
-     not nil), and pass the provider down to the authorization-code handler in `oauth2/granthandlers/`.
-  2. Unit tests for `nativesso.go` itself (`NewSessionID` length and uniqueness, `DeviceSecretHash` against a
-     fixed vector, `ReleasedClaimNames` with plain and opaque attributes, every `ValidateDeviceSSOScope` branch).
-  3. Carry `auth_id` onto the code record: `AuthorizationCode` (`oauth2/authz/model.go:23-47`) has no such field;
-     the value is `AuthZPostRequest.AuthID` (`authz/model.go:51`).
-  4. In the authorization-code handler, when the granted scopes contain `device_sso`: check the client again
-     (its settings can change between login and token request); require a DPoP proof (`invalid_request` for a
-     client without `dpop_bound_access_tokens`; DPoP-bound clients are already stopped with `invalid_dpop_proof`
-     by `oauth2/token/service.go:267-279`); `NewSessionID`; build `providers.DeviceSecretRequest` (`Validate()`
-     lists the required fields); call `GenerateDeviceSecret`; extend the attribute cache with
-     `ExtendAttributeCacheTTL` (`internal/attributecache/service.go:163`); add `sid` and `ds_hash` to the
-     id_token; return `device_secret`. A provider error gives `server_error` and no tokens.
-  5. Tests for the code grant: allowed client, client not allowed, missing DPoP proof, provider failure, no
-     `device_sso` (unchanged response).
+- **Done 2026-10-05** (commits `1a8a6e7`, `2a43b22`, `3dec587`; brought in from `wip/2026-10-04-stop` file by file,
+  the working-tree copies were identical to `4be5ec8`; the branch itself was not merged)
+  - Step 0: `thunder/UPSTREAM.md` line 114 reworded; `bash scripts/repo-lint.sh` prints `repo-lint: OK`.
+  - PAR and authorize reject `device_sso` with `invalid_scope` (client not allowed, no provider, no `openid`).
+  - `oauth.Initialize` takes the provider and sets `NativeSSOEnabled` (true only when it is not nil); the provider
+    reaches the authorization-code handler through `granthandlers.Initialize`. The standalone server passes nil.
+  - `AuthorizationCode.AuthID` is set for codes granted `device_sso`.
+  - Code grant with `device_sso`: client allowed again (`invalid_scope`), DPoP proof present (`invalid_request`),
+    new `sid`, `GenerateDeviceSecret`, attribute cache TTL set to the longest of device secret, access token and
+    refresh token (+60 s), `id_token` with `sid` and `ds_hash`, `device_secret` in the response; a provider or
+    cache failure gives `server_error` and no tokens. Details and test files: [../thunder/UPSTREAM.md](../thunder/UPSTREAM.md).
+  - Measured 2026-10-05:
+    - `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages,
+      2270 tests, 0 failed (1 skipped by upstream); changed lines 135/145 covered (93.1 %).
+    - `bash scripts/go.sh thunder/backend test -count=1 -v -run 'DeviceSSO|DeviceSecret|NativeSSO' ./internal/oauth/...`:
+      55 `PASS` lines, 0 `FAIL`, including client-not-allowed (PAR, authorize, code grant), missing-DPoP and
+      provider-failure cases.
+    - `bash scripts/go-lint.sh thunder/backend -- --timeout=30m`: `0 issues`, `OK`.
+  - Not done here: `internal/oauth/init.go` has no unit test of its own (covered only by the engine test
+    `TestNew_HappyPath`); no live test has run (WP-13); discovery metadata stays with WP-12.
+  - For WP-10: the token exchange can reuse `nativesso.DeviceSecretHash` and `ValidateDeviceSSOScope`, and the
+    handler field `deviceSecretProvider` pattern in `granthandlers/authorization_code.go`.
 - **Notes**
   - Resume from the branch without its `wip:` commit message (see
     [../CONTRIBUTING.md](../CONTRIBUTING.md#pick-up-a-task)).
