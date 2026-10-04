@@ -114,10 +114,10 @@ The following discovery-related `oauth:` keys have no env override; edit `deploy
 ```yaml
 oauth:
   allowed_subject_types: ["pairwise"]
-  allowed_grant_types: ["authorization_code"]
+  allowed_grant_types: ["authorization_code", "urn:ietf:params:oauth:grant-type:token-exchange"]
   allowed_response_types: ["code"]
   allowed_auth_methods: ["private_key_jwt"]
-  allowed_scopes: ["openid", "profile", "email", "phone"]
+  allowed_scopes: ["openid", "profile", "email", "phone", "device_sso"]
   allowed_claims: ["name", "address", "gender", "birthdate", "picture", "email", "phone_number"]
   default_scope_claims_mapping:
     openid: ["sub"]
@@ -148,6 +148,35 @@ Bearer-token scope enforcement on `/client-mgmt/*` and `/system-info/*` is confi
 `endpoint`/`method`/`scope` `scope_mapping` list — see `deployment.yaml` for the full list, which
 includes mappings for the deprecated `/client-mgmt/oidc-client` and `/client-mgmt/oauth-client`
 aliases. Enforcement only activates when both `issuer_url` and `jwks_url` are non-empty.
+
+### Native SSO for mobile apps
+
+OpenID Connect Native SSO for Mobile Apps 1.0 lets apps of one vendor share a login on a device: the first app
+asks for the `device_sso` scope and receives a `device_secret` with its tokens; a sibling app then trades that
+app's id_token and device secret for its own tokens at the token endpoint (token-exchange grant, RFC 8693). The
+`device_sso` scope and the token-exchange grant in the lists above enable it server-wide; each client still needs
+them in its own registration (see [12. Per-client configuration](#12-per-client-configuration)).
+
+| Variable | YAML key | Default | Meaning |
+|---|---|---|---|
+| `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | `oauth.native_sso.id_token_max_age_seconds` | `0` | Oldest id_token (seconds since its `iat`) accepted in the exchange; `0` means no cap beyond the device secret and its session |
+| `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `oauth.native_sso.scope_exceeded_error` | `interaction_required` | Error for an exchange asking for more scopes than the device secret carries: `interaction_required` or `invalid_scope` |
+| `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | `oauth.native_sso.exchange_only` | `true` in `deployment.yaml` | Allow the token-exchange grant only with a device secret as `actor_token` |
+| `MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS` | `native_sso.device_secret_validity_seconds` | `28800` | Lifetime of a device secret, of its session record and of the cached claims of that login |
+| `MOSIP_ESIGNET_NATIVE_SSO_ENCRYPTION_KEY_REF_ID` | `native_sso.encryption_key_ref_id` | `DEVICE_SECRET` | Key (under `OIDC_SERVICE`) the device secret is encrypted to (RSA-OAEP-256, A256GCM); created at the first start |
+| `MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID` | `native_sso.signing_key_ref_id` | `EC_SECP256R1_SIGN` | Key (under `OIDC_SERVICE`) that signs the device secret (ES256, `typ: ds+jwt`) |
+
+- The `oauth.native_sso` keys are the engine's own settings; the top-level `native_sso` keys are read only by
+  eSignet's device secret provider (`internal/engine/device_secret_provider.go`).
+- Start-up fails when `native_sso.signing_key_ref_id` equals `jwt.preferred_key_id` (the key that signs
+  id_tokens), when it equals the encryption key, or when the validity is not positive. Separate keys and the
+  `ds+jwt` type keep an id_token from being accepted as a device secret.
+- A device secret holds no user identifier or claim value. The user, the relying party and the cached claims
+  stay in a session record in the runtime store (namespace `nativesso:session`) that ends with the device
+  secret; with the in-memory store a restart ends every Native SSO session.
+- A client may request `device_sso` only when its `additionalConfig.allowed_authorization_scopes` lists it.
+  Never add `device_sso` to the top-level `scope_claims`: every key of that map becomes an allowed scope of
+  every client.
 
 ## 5. Cache and runtime store
 
@@ -388,5 +417,5 @@ narrower per-profile validation — use `/client-mgmt/client` for new integratio
 | `redirectUris` | ≥1, unique, ≤1024 chars; wildcards (`*`/`**`) only as whole path segments |
 | `additionalConfig` | allow-listed keys only: `userinfo_response_type`, `id_token_response_type`, `consent_expire_in_mins`, `signup_banner_required`, `forgot_pwd_link_required`, `require_pushed_authorization_requests`, `dpop_bound_access_tokens`, `require_pkce`, `purpose`, `allowed_authorization_scopes` |
 | `clientId` / `clientName` / `relyingPartyId` / `logoUri` | ≤50 / ≤256 / ≤50 / ≤1024 chars |
-| `grantTypes` | must be exactly `authorization_code` |
+| `grantTypes` | `authorization_code` and/or `urn:ietf:params:oauth:grant-type:token-exchange` (the second for an app that signs in with another app's device secret), no duplicates |
 | `clientAuthMethods` | must be exactly `private_key_jwt` |

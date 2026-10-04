@@ -84,7 +84,7 @@ layout (`internal/engine/` providers, `internal/config/` settings with `MOSIP_ES
 | Work package | Change | Status |
 |---|---|---|
 | WP-03 | Unchanged import (`4eac1cc`); `replace` line pointing at `../../thunder/backend` (`3a0e127`) | done |
-| WP-08 | Device Secret Provider (signed, then encrypted device secret with eSignet's keymanager; session records in the runtime store), Native SSO settings, client registration for the token-exchange grant and the `device_sso` scope | planned |
+| WP-08 | Device Secret Provider (signed, then encrypted device secret with eSignet's keymanager; session records in the runtime store), Native SSO settings, client registration for the token-exchange grant and the `device_sso` scope | done (unit tests; not yet run against the live stack) |
 | WP-14 | Native SSO in `docs/esignet-openapi.yaml` and a "Native SSO" folder in the Postman collection | planned |
 
 ## Results
@@ -96,3 +96,12 @@ Measured on 2026-10-04 in the `golang:1.26-bookworm` container (Go 1.26.8), afte
 - `bash scripts/go-test.sh esignet/esignet-service ./...`: 29 packages, 1437 tests: 1437 passed, 0 skipped,
   0 failed (upstream's own tests, unchanged, now compiled against `../thunder/backend` with the Native SSO
   provider contract of WP-02).
+
+Measured on 2026-10-05 after the WP-08 changes (same container):
+
+- `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover`: 29 packages, 1537 tests: 1537 passed,
+  0 skipped, 0 failed; changed lines 166/181 statements covered (91.7 %), `internal/engine/device_secret_provider.go`
+  128/132 (97.0 %).
+- `bash scripts/go-lint.sh esignet/esignet-service`: 0 issues.
+- Not run yet: a login against the running service (the local stack is work package WP-06), so the start-up
+  creation of the `DEVICE_SECRET` key in Postgres is checked only by unit tests with an in-memory key store.
