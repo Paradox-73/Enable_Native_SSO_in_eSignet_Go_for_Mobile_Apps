@@ -1,0 +1,10 @@
+# Build context for deploy/esignet.Dockerfile is the repository root: send only the two Go modules.
+*
+!thunder/backend
+!esignet/esignet-service
+**/*.exe
+**/*.test
+**/coverage.out
+**/.env
+**/.env.*
+thunder/backend/tests

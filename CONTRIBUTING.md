@@ -131,8 +131,9 @@ bash scripts/verify-family-signing.sh                      # family-signing: OK 
 
 ## Local stack and ports
 
-The project's own stack (eSignet built from this repository, `deploy/`, `scripts/with-stack.sh`) does not exist
-yet; it is task WP-06 in [docs/STATUS.md](docs/STATUS.md). Ports already chosen for it:
+The project's own stack (`deploy/`, compose project `ps03-native-sso`): eSignet built from this repository with the
+in-repo Thunder, Postgres, the mock identity system and the oidc-ui login pages. Details:
+[deploy/README.md](deploy/README.md).
 
 | Port on your machine | Service |
 |---|---|
@@ -140,24 +141,21 @@ yet; it is task WP-06 in [docs/STATUS.md](docs/STATUS.md). Ports already chosen 
 | 38300 | oidc-ui login pages |
 | 38082 | mock identity system |
 | 38455 | Postgres |
-| 38379 | Redis (only for an optional run with a shared store) |
+| 38379 | Redis (reserved; the stack uses the in-memory store) |
 | 38990-38999 | spare, for test servers |
 | 5584 / 5585 | emulator console / adb (serial `emulator-5584`) |
 
-Until WP-06 is done, the unchanged upstream stack (released eSignet 2.0.0 images, not this repository's code) shows
-the login pages and the seeded user. It uses ports 5455, 8082, 8080 and 3000, which must be free:
-
 ```bash
-docker compose -f esignet/docker-compose/docker-compose.yaml up -d
-curl http://localhost:8080/health                                   # ok
-curl http://localhost:8080/.well-known/openid-configuration          # issuer http://localhost:8080
-docker compose -f esignet/docker-compose/docker-compose.yaml down -v # stop and delete its data
+bash scripts/with-stack.sh bash e2e/run.sh   # up, stack smoke, the live e2e tests, always down -v
+bash deploy/stack.sh up | smoke | status | logs | down
 ```
 
+- `with-stack.sh` holds the `docker-stack` lock while the stack runs; `PS03_KEEP_STACK=1` leaves it running.
+- Postgres and keystore passwords are generated on first use into `$PS03_RUN_DIR/stack.env`, outside git.
 - Seeded user (upstream [esignet/docker-compose/README.md](esignet/docker-compose/README.md)): UIN `1774231323`,
   PIN `545411`, OTP `111111`.
-- On 2026-10-04 the team ran a copy of this file with the ports moved to 38455, 38082, 38088 and 38300: health,
-  discovery and JWKS answered, start to teardown 48 s.
+- 2026-10-05: `with-stack.sh bash e2e/run.sh -run 'TestE2E_FAPI2Login|TestE2E_PSUTProbe'` -> `stack smoke: PASS`,
+  `e2e: 2 passed, 0 failed`, 87 s from start to teardown.
 
 ## What runs end to end today
 
@@ -170,8 +168,9 @@ shells. What can be run, in order, with the result recorded on 2026-10-04:
 4. eSignet build and unit tests against the in-repo Thunder -> exit 0; 1437 tests, 0 failed.
 5. Android: `:oidc-client:test assembleDebug` -> `BUILD SUCCESSFUL`, 64 tests; `verify-family-signing.sh` -> one
    certificate for both APKs.
-6. Optional: the upstream stack above, and the login in a browser with the seeded user, following upstream's
-   "Running the OIDC Happy Flow".
+6. The local stack and the headless FAPI 2.0 login (PAR, PKCE, DPoP, `private_key_jwt`) against eSignet built from
+   this repository -> `stack smoke: PASS`, `e2e: 2 passed, 0 failed` (2026-10-05). In a browser: open the login
+   pages at <http://localhost:38300> after starting an authorization request.
 7. The unfinished WP-07 work on branch `wip/2026-10-04-stop`: its four test packages pass (470 tests, 0 failed,
    2026-10-04); see the WP-07 card in [docs/STATUS.md](docs/STATUS.md).
 
@@ -254,7 +253,7 @@ Go and Docker:
 - **eSignet cannot find `data/deployment.yaml`**: it reads it relative to the working directory; start it from
   `esignet/esignet-service/`.
 - **Upstream `esignet/esignet-service/Dockerfile` fails**: expected; it cannot see `../../thunder/backend`. The
-  project image needs a Dockerfile with the repository root as context (WP-06).
+  project image is built by `deploy/esignet.Dockerfile`, with the repository root as context.
 - **`verify-import.sh` needs the network** on a fresh clone: it fetches the pinned upstream commit into
   `$PS03_RUN_DIR/upstream-cache/` (or uses clones in `$PS03_UPSTREAM_DIR`).
 
