@@ -14,6 +14,7 @@ import (
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/authz/requestvalidator"
 	oauth2const "github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	oauth2model "github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/resourceindicators"
 	oauth2utils "github.com/thunder-id/thunderid/internal/oauth/oauth2/utils"
 	"github.com/thunder-id/thunderid/internal/system/log"
@@ -112,6 +113,12 @@ func (s *parService) HandlePushedAuthorizationRequest(
 
 	scope := params[oauth2const.RequestParamScope]
 	oidcScopes, nonOidcScopes := oauth2utils.SeparateOIDCAndNonOIDCScopes(scope, oauthApp.ScopeClaims)
+
+	// RFC 9126 2.1 validates a pushed request like an authorization request, so a client that may not
+	// use Native SSO is stopped here rather than after the user has logged in.
+	if errResp := nativesso.ValidateDeviceSSOScope(oidcScopes, oauthApp, s.cfg.NativeSSOEnabled); errResp != nil {
+		return nil, errResp.Error, errResp.ErrorDescription
+	}
 
 	// Validate up front that the request can bind to a resource server: an explicit resource must
 	// resolve, or (with no resource) either the request is OIDC-only or a default resource server is

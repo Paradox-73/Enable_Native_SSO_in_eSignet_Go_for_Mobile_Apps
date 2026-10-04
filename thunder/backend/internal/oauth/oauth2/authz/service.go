@@ -20,6 +20,7 @@ import (
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/authz/requestvalidator"
 	oauth2const "github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	oauth2model "github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/par"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/resourceindicators"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
@@ -73,7 +74,7 @@ func newAuthorizeService(
 		cfg:             cfg,
 		inboundClient:   actorProvider,
 		resourceService: resourceService,
-		authZValidator:  newAuthorizationValidator(),
+		authZValidator:  newAuthorizationValidator(cfg.NativeSSOEnabled),
 		authCodeStore:   authCodeStore,
 		authReqStore:    authReqStore,
 		parService:      parService,
@@ -830,6 +831,13 @@ func createAuthorizationCode(
 		return AuthorizationCode{}, errors.New("failed to generate authorization code")
 	}
 
+	// OpenID Connect Native SSO: the device secret issued at the code grant carries the id of this
+	// authorization request as auth_id. The assertion was bound to that request before this point.
+	var authID string
+	if nativesso.RequestsDeviceSSO(standardScopes) {
+		authID = claims.authorizationRequestID
+	}
+
 	return AuthorizationCode{
 		CodeID:              codeID,
 		Code:                code,
@@ -851,6 +859,7 @@ func createAuthorizationCode(
 		CompletedACR:        claims.completedACR,
 		DPoPJkt:             authRequestCtx.OAuthParameters.DPoPJkt,
 		TokenFamilyID:       tokenFamilyID,
+		AuthID:              authID,
 	}, nil
 }
 

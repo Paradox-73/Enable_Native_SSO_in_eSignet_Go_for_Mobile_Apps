@@ -44,6 +44,10 @@ type AuthorizationCode struct {
 	// assertion. It is stamped onto the access and refresh tokens issued for this code so revocation
 	// can target the whole family. Empty when the login flow issued no tfid (e.g. pre-rollout tokens).
 	TokenFamilyID string
+	// AuthID is the id of the authorization request (the login) the code was issued for. It is set only
+	// for a code granted the device_sso scope: the device secret carries it as auth_id (OpenID Connect
+	// Native SSO for Mobile Apps 1.0, statement task 5).
+	AuthID string
 }
 
 // AuthZPostRequest represents the request body for the authorization POST request.

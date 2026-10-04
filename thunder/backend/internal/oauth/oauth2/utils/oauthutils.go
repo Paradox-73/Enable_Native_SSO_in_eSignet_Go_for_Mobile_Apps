@@ -142,6 +142,10 @@ func GenerateAuthorizationCode() (string, error) {
 
 // SeparateOIDCAndNonOIDCScopes separates the given scopes into OIDC and non-OIDC scopes.
 // A scope is OIDC if it is a standard OIDC scope or the app's scope-to-claims mapping defines it.
+// device_sso (OpenID Connect Native SSO for Mobile Apps 1.0) is an OIDC scope too, although it is not
+// a standard one: it asks the authorization server for a device secret, so it must reach the
+// authorization code with the other OIDC scopes instead of being downscoped away as a resource-server
+// permission. It releases no claims (ResolveScopeClaims returns none for it).
 // Anything else is a permission scope for the resource servers.
 func SeparateOIDCAndNonOIDCScopes(scopes string, scopeClaimsMapping map[string][]string) ([]string, []string) {
 	scopeSlice := utils.ParseStringArray(scopes, " ")
@@ -151,7 +155,7 @@ func SeparateOIDCAndNonOIDCScopes(scopes string, scopeClaimsMapping map[string][
 	for _, scp := range scopeSlice {
 		_, isMapped := scopeClaimsMapping[scp]
 		_, isStandard := constants.StandardOIDCScopes[scp]
-		if isMapped || isStandard {
+		if isMapped || isStandard || scp == constants.ScopeDeviceSSO {
 			oidcScopes = append(oidcScopes, scp)
 		} else {
 			nonOidcScopes = append(nonOidcScopes, scp)

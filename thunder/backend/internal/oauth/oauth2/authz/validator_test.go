@@ -34,7 +34,7 @@ func (suite *AuthorizationValidatorTestSuite) SetupTest() {
 	})
 	suite.Require().NoError(err)
 
-	suite.validator = newAuthorizationValidator()
+	suite.validator = newAuthorizationValidator(false)
 
 	suite.oauthApp = &providers.OAuthClient{
 		ClientID:                "test-client-id",
@@ -50,7 +50,7 @@ func (suite *AuthorizationValidatorTestSuite) TearDownTest() {
 }
 
 func (suite *AuthorizationValidatorTestSuite) TestnewAuthorizationValidator() {
-	validator := newAuthorizationValidator()
+	validator := newAuthorizationValidator(false)
 	assert.NotNil(suite.T(), validator)
 	assert.Implements(suite.T(), (*AuthorizationValidatorInterface)(nil), validator)
 }

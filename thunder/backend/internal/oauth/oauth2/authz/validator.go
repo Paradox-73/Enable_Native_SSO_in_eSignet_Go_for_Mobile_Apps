@@ -9,8 +9,10 @@ import (
 
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/authz/requestvalidator"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/resourceindicators"
 	"github.com/thunder-id/thunderid/internal/system/log"
+	"github.com/thunder-id/thunderid/internal/system/utils"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 )
 
@@ -21,11 +23,14 @@ type AuthorizationValidatorInterface interface {
 }
 
 // authorizationValidator implements the AuthorizationValidatorInterface for validating OAuth2 authorization requests.
-type authorizationValidator struct{}
+type authorizationValidator struct {
+	// nativeSSOEnabled is true when the engine has a DeviceSecretProvider, so device_sso may be requested.
+	nativeSSOEnabled bool
+}
 
 // newAuthorizationValidator creates a new instance of authorizationValidator.
-func newAuthorizationValidator() AuthorizationValidatorInterface {
-	return &authorizationValidator{}
+func newAuthorizationValidator(nativeSSOEnabled bool) AuthorizationValidatorInterface {
+	return &authorizationValidator{nativeSSOEnabled: nativeSSOEnabled}
 }
 
 // validateInitialAuthorizationRequest validates the initial authorization request parameters.
@@ -55,6 +60,12 @@ func (av *authorizationValidator) validateInitialAuthorizationRequest(ctx contex
 	}
 
 	if errResp := resourceindicators.ValidateResourceURIs(msg.Resources); errResp != nil {
+		return true, errResp.Error, errResp.ErrorDescription
+	}
+
+	// OpenID Connect Native SSO: only clients allowed device_sso may ask for a device secret (task 2).
+	scopes := utils.ParseStringArray(queryParams.Get(constants.RequestParamScope), " ")
+	if errResp := nativesso.ValidateDeviceSSOScope(scopes, oauthApp, av.nativeSSOEnabled); errResp != nil {
 		return true, errResp.Error, errResp.ErrorDescription
 	}
 

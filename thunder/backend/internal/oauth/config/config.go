@@ -19,6 +19,10 @@ type Config struct {
 	JWT                    engineconfig.JWTConfig
 	OAuth                  engineconfig.OAuthConfig
 	GateClient             engineconfig.GateClientConfig
+	// NativeSSOEnabled reports whether OpenID Connect Native SSO for Mobile Apps is on, which is the
+	// case only when the engine has a DeviceSecretProvider. It is not read from any yaml: oauth.Initialize
+	// derives it from the provider it receives, so the flag and the provider cannot disagree.
+	NativeSSOEnabled bool
 }
 
 // FromServerRuntime builds OAuth configuration from the global server runtime, seeding the
