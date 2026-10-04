@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/thunder-id/thunderid/internal/attributecache"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/dpop"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
@@ -20,6 +21,7 @@ import (
 	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 	"github.com/thunder-id/thunderid/tests/mocks/actorprovidermock"
+	"github.com/thunder-id/thunderid/tests/mocks/attributecachemock"
 	"github.com/thunder-id/thunderid/tests/mocks/devicesecretprovidermock"
 	"github.com/thunder-id/thunderid/tests/mocks/oauth/oauth2/tokenservicemock"
 	"github.com/thunder-id/thunderid/tests/mocks/resourcemock"
@@ -43,6 +45,7 @@ type TokenExchangeNativeSSOTestSuite struct {
 	tokenValidator *tokenservicemock.TokenValidatorInterfaceMock
 	actorProvider  *actorprovidermock.ActorProviderMock
 	dsProvider     *devicesecretprovidermock.DeviceSecretProviderMock
+	attrCache      *attributecachemock.AttributeCacheServiceInterfaceMock
 	childApp       *providers.OAuthClient
 	hubApp         *providers.OAuthClient
 	dsClaims       *providers.DeviceSecretClaims
@@ -51,6 +54,7 @@ type TokenExchangeNativeSSOTestSuite struct {
 	ctx            context.Context
 	now            time.Time
 	builtAccess    []*tokenservice.AccessTokenBuildContext
+	builtID        []*tokenservice.IDTokenBuildContext
 }
 
 func TestTokenExchangeNativeSSOSuite(t *testing.T) {
@@ -62,13 +66,15 @@ func (s *TokenExchangeNativeSSOTestSuite) SetupTest() {
 	s.tokenValidator = tokenservicemock.NewTokenValidatorInterfaceMock(s.T())
 	s.actorProvider = actorprovidermock.NewActorProviderMock(s.T())
 	s.dsProvider = devicesecretprovidermock.NewDeviceSecretProviderMock(s.T())
+	s.attrCache = attributecachemock.NewAttributeCacheServiceInterfaceMock(s.T())
 	cfg := testhelpers.OAuthConfig()
 	s.handler = newTokenExchangeGrantHandler(s.tokenBuilder, s.tokenValidator,
-		resourcemock.NewResourceServiceInterfaceMock(s.T()), s.actorProvider, s.dsProvider,
+		resourcemock.NewResourceServiceInterfaceMock(s.T()), s.actorProvider, s.attrCache, s.dsProvider,
 		cfg).(*tokenExchangeGrantHandler)
 	s.now = time.Now()
 	s.handler.now = func() time.Time { return s.now }
 	s.builtAccess = nil
+	s.builtID = nil
 
 	s.childApp = &providers.OAuthClient{
 		ClientID:              nssoChildClientID,
@@ -141,6 +147,28 @@ func (s *TokenExchangeNativeSSOTestSuite) expectAccessToken() {
 			return &model.TokenDTO{Token: "child-access-token", TokenType: constants.TokenTypeDPoP,
 				Scopes: c.Scopes, ClientID: c.ClientID, Subject: c.Subject}, nil
 		})
+}
+
+func (s *TokenExchangeNativeSSOTestSuite) expectAttributes() {
+	s.attrCache.EXPECT().GetAttributeCache(mock.Anything, testCacheID).Return(&attributecache.AttributeCache{
+		ID:         testCacheID,
+		Attributes: map[string]interface{}{"email": "asha@example.com", "name": "Asha", "phone_number": "+91"},
+	}, nil)
+}
+
+func (s *TokenExchangeNativeSSOTestSuite) expectChildIDToken() {
+	s.tokenBuilder.EXPECT().BuildIDToken(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, c *tokenservice.IDTokenBuildContext) (*model.TokenDTO, error) {
+			s.builtID = append(s.builtID, c)
+			return &model.TokenDTO{Token: "child-id-token"}, nil
+		})
+}
+
+// expectIssue sets up the attribute cache and the token builder for a successful exchange.
+func (s *TokenExchangeNativeSSOTestSuite) expectIssue() {
+	s.expectAttributes()
+	s.expectAccessToken()
+	s.expectChildIDToken()
 }
 
 // expectChecksPass sets up every collaborator for a request that passes all checks up to issuance.
@@ -247,7 +275,7 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_ExchangeOnlyBlocksGeneri
 // access token for the second app with the device secret's scope minus device_sso (rule R21).
 func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_Success() {
 	s.expectChecksPass()
-	s.expectAccessToken()
+	s.expectIssue()
 
 	resp, errResp := s.handle()
 
@@ -373,7 +401,7 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_IDTokenBindi
 func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_ExpiredIDTokenInsideCap() {
 	s.handler.cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = 3600
 	s.expectChecksPass()
-	s.expectAccessToken()
+	s.expectIssue()
 	_, errResp := s.handle()
 	s.Nil(errResp)
 }
@@ -455,6 +483,7 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_NoDPoPProof(
 
 func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_TokenBuildFails() {
 	s.expectChecksPass()
+	s.expectAttributes()
 	s.tokenBuilder.EXPECT().BuildAccessToken(mock.Anything, mock.Anything).Return(nil, errors.New("signing failed"))
 	_, errResp := s.handle()
 	s.assertError(errResp, constants.ErrorServerError)

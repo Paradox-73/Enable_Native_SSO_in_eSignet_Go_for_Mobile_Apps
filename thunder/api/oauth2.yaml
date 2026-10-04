@@ -226,6 +226,24 @@ paths:
         ThunderID access token. Optional `scope` and `resource` parameters further narrow the granted
         scopes and audience; `resource` must be a subset of the assertion's own `resource` claim when
         the assertion carries one. No refresh token is issued for this grant.
+
+        OpenID Connect Native SSO for Mobile Apps 1.0: when the server has a device secret provider,
+        a token exchange with `actor_token_type=urn:openid:params:token-type:device-secret` lets an
+        app of the same vendor obtain its own tokens from the login of the first app. The request
+        carries the first app's `id_token` as `subject_token` (`subject_token_type`
+        `urn:ietf:params:oauth:token-type:id_token`), its `device_secret` as `actor_token`, exactly one
+        `audience` equal to the issuer, and a DPoP proof signed with the key the device secret is bound
+        to. The `id_token` may be expired; its `ds_hash` and `sid` must match the device secret. Both
+        clients must belong to the same organization unit and allow the `device_sso` scope. The
+        optional `scope` must include `openid`, must not include `device_sso`, and must be within the
+        scope granted to the first app; without it, that granted scope (minus `device_sso`) is used.
+        The response has a DPoP-bound access token (`token_type=DPoP`,
+        `issued_token_type=urn:ietf:params:oauth:token-type:access_token`) and an `id_token` for the
+        requesting app with the same `sub` and `sid`. A scope wider than the granted one answers
+        `interaction_required` (or `invalid_scope` when `oauth.native_sso.scope_exceeded_error` is
+        `invalid_scope`), naming the missing scope values; the app then runs its own authorization
+        request so the user can consent. The OpenID Provider metadata then carries
+        `native_sso_supported: true` and lists `device_sso` in `scopes_supported`.
       tags:
         - Token
       requestBody:
@@ -258,7 +276,11 @@ paths:
                 scope: "openid profile email"
                 id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
         "400":
-          description: Bad Request — invalid grant, missing parameters, or unsupported grant type.
+          description: >-
+            Bad Request — invalid grant, missing parameters, or unsupported grant type. A Native SSO
+            token exchange also answers `invalid_target` (audience is not the issuer),
+            `unauthorized_client` (client without `device_sso`), `invalid_scope` and
+            `interaction_required` (scope wider than the first app's grant).
           content:
             application/json:
               schema:
@@ -704,7 +726,10 @@ components:
           description: The actor token for token exchange (RFC 8693).
         actor_token_type:
           type: string
-          description: The type URI of the actor token.
+          description: >-
+            The type URI of the actor token. `urn:openid:params:token-type:device-secret` selects the
+            OpenID Connect Native SSO token exchange; the older
+            `urn:x-oath:params:oauth:token-type:device-secret` is rejected with `invalid_request`.
         requested_token_type:
           type: string
           description: >-

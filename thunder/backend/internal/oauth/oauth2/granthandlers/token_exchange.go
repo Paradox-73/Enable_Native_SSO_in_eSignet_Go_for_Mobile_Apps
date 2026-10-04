@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thunder-id/thunderid/internal/attributecache"
 	oauthconfig "github.com/thunder-id/thunderid/internal/oauth/config"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/dpop"
@@ -30,6 +31,8 @@ type tokenExchangeGrantHandler struct {
 	resourceService providers.ResourceServerProvider
 	// actorProvider looks up the client a Native SSO device secret was issued to.
 	actorProvider providers.ActorProvider
+	// attributeCache holds the user attributes of the login a Native SSO device secret belongs to.
+	attributeCache attributecache.AttributeCacheServiceInterface
 	// deviceSecretProvider validates the device secret of an OpenID Connect Native SSO token exchange;
 	// nil when Native SSO is off.
 	deviceSecretProvider providers.DeviceSecretProvider
@@ -44,6 +47,7 @@ func newTokenExchangeGrantHandler(
 	tokenValidator tokenservice.TokenValidatorInterface,
 	resourceService providers.ResourceServerProvider,
 	actorProvider providers.ActorProvider,
+	attributeCache attributecache.AttributeCacheServiceInterface,
 	deviceSecretProvider providers.DeviceSecretProvider,
 	cfg oauthconfig.Config,
 ) GrantHandlerInterface {
@@ -52,6 +56,7 @@ func newTokenExchangeGrantHandler(
 		tokenValidator:       tokenValidator,
 		resourceService:      resourceService,
 		actorProvider:        actorProvider,
+		attributeCache:       attributeCache,
 		deviceSecretProvider: deviceSecretProvider,
 		cfg:                  cfg,
 	}

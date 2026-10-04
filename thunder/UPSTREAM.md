@@ -123,11 +123,23 @@ Design decisions in this step:
   so removing `device_sso` from the first client stops sharing at once.
 - `ds_hash` and `sid` are compared in constant time; error descriptions never carry tokens or user data.
 
-### Planned
+### Native SSO scope rules, second-app tokens and discovery (work package WP-12)
 
-| Work package | Change |
+| Change | File (under `backend/internal/oauth/` unless noted) |
 |---|---|
-| WP-12 | Scope-subset rules, re-consent signal, Child App `id_token` and claims, discovery metadata |
+| `ValidateGrant` (Native SSO branch): a requested `scope` with `device_sso` or without `openid` is `invalid_scope` | `oauth2/granthandlers/token_exchange_native_sso.go` |
+| After the DPoP binding check: no scope gives the device secret's scope without `device_sso`; an equal or narrower scope is issued as requested; any value outside it answers `oauth.native_sso.scope_exceeded_error` (default `interaction_required`, else `invalid_scope`) with the missing values in `error_description` (the re-consent signal) | same |
+| Second-app tokens: access token with the login's attribute-cache id (`aci`) and the request's DPoP key; `id_token` with `aud` = requesting client, same `sub`, `sid`, `acr`, `auth_time`, no `ds_hash`, no `nonce`; user attributes limited to the claims released to the first app and released by the resolved scope under the requesting client's scope mapping; an opaque `_jwt` attribute token is passed on; an expired attribute cache is `invalid_grant` | same; the handler now also receives the attribute cache service (`provider.go`, `token_exchange.go`) |
+| OpenID Provider metadata: `native_sso_supported: true` and `device_sso` in `scopes_supported` only when a provider is configured and the token-exchange grant is allowed; otherwise `device_sso` is removed from `scopes_supported` even if configured | `oauth2/discovery/service.go`, `model.go` |
+| Token endpoint description, `actor_token_type` and the 400 answer document the Native SSO exchange | `thunder/api/oauth2.yaml` |
+
+Design decisions in this step:
+
+- The scope check runs after every binding check (design section 11, step 13), so `interaction_required` is given
+  only to an app that holds a genuine device secret and the first app's DPoP key.
+- `grant_types_supported` is not changed: the token-exchange grant appears there exactly when it is allowed, and
+  `native_sso_supported` is false when it is not.
+
 
 ## Tests and checks
 
@@ -188,6 +200,23 @@ Results measured on 2026-10-05 for WP-10:
   99/100, `validator_native_sso.go` 35/35.
 - `go.sh thunder/backend test -count=1 -v -run NativeSSO ./internal/oauth/oauth2/granthandlers/`: 73 `PASS` lines
   (55 of them in the token-exchange suite), 0 `FAIL`.
+- `go-lint.sh thunder/backend -- --timeout=30m`: 0 issues.
+
+Unit tests added for WP-12:
+
+| Test file (under `backend/internal/oauth/oauth2/`) | Checks |
+|---|---|
+| `granthandlers/token_exchange_native_sso_scope_test.go` | `device_sso` in the exchange and no `openid`: `invalid_scope`; wider scope: `interaction_required` naming the missing values, `invalid_scope` by setting, and only after the binding checks; narrower and default scope; second-app access token and `id_token` fields; claim filtering by both apps; opaque attributes; attribute-cache errors; `id_token` build failure |
+| `discovery/discovery_native_sso_test.go` | flag and `device_sso` with a provider; listed once; unrestricted grants; nothing without a provider or without the token-exchange grant |
+
+Results measured on 2026-10-05 for WP-12:
+
+- `go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages, 2363 tests, 0 failed (1
+  skipped by upstream); 341 of 352 statements on changed lines covered (96.9 %); `token_exchange_native_sso.go`
+  151/152, `discovery/service.go` 13/13.
+- `go.sh thunder/backend test -count=1 -v -run 'NativeSSO|Discovery' ./internal/oauth/...`: 149 `PASS` lines, 0
+  `FAIL`.
+- `openapi-lint.sh thunder/api/oauth2.yaml`: 0 errors, 13 warnings (the same 13 as the import), `OK`.
 - `go-lint.sh thunder/backend -- --timeout=30m`: 0 issues.
 
 Results measured on 2026-10-04 for the contract step:

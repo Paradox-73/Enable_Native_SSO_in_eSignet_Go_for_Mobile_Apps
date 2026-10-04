@@ -43,4 +43,7 @@ type OIDCProviderMetadata struct {
 	ClaimsParameterSupported             bool     `json:"claims_parameter_supported"`
 	EndSessionEndpoint                   string   `json:"end_session_endpoint,omitempty"`
 	AcrValuesSupported                   []string `json:"acr_values_supported,omitempty"`
+	// NativeSSOSupported is the native_sso_supported metadata of OpenID Connect Native SSO for Mobile
+	// Apps 1.0 (section 5); present only when Native SSO is on.
+	NativeSSOSupported bool `json:"native_sso_supported,omitempty"`
 }

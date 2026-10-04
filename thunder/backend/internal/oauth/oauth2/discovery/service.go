@@ -91,7 +91,7 @@ func (ds *discoveryService) GetOIDCMetadata(ctx context.Context) (*OIDCProviderM
 	oidcProviderMetadata := &OIDCProviderMetadata{
 		OAuth2AuthorizationServerMetadata:    *oauth2Meta,
 		UserInfoEndpoint:                     ds.getUserInfoEndpoint(),
-		ScopesSupported:                      ds.getAllowedScopes(),
+		ScopesSupported:                      ds.getOIDCScopesSupported(),
 		SubjectTypesSupported:                ds.getAllowedSubjectTypes(),
 		IDTokenSigningAlgValuesSupported:     signingAlgs,
 		UserInfoSigningAlgValuesSupported:    signingAlgs,
@@ -107,6 +107,7 @@ func (ds *discoveryService) GetOIDCMetadata(ctx context.Context) (*OIDCProviderM
 	if ds.cfg.OAuth.Logout.IsEnabled() {
 		oidcProviderMetadata.EndSessionEndpoint = ds.getEndSessionEndpoint()
 	}
+	oidcProviderMetadata.NativeSSOSupported = ds.isNativeSSOSupported()
 
 	return oidcProviderMetadata, nil
 }
@@ -149,6 +150,28 @@ func (ds *discoveryService) getRegistrationEndpoint() string {
 
 func (ds *discoveryService) getAllowedScopes() []string {
 	return ds.cfg.OAuth.AllowedScopes
+}
+
+// isNativeSSOSupported reports whether OpenID Connect Native SSO can be used: the engine has a
+// DeviceSecretProvider and the token-exchange grant is allowed (an empty allow list allows every grant),
+// so the token-exchange handler that accepts device secrets exists (Native SSO 5; rules R03, R24).
+func (ds *discoveryService) isNativeSSOSupported() bool {
+	grants := ds.cfg.OAuth.AllowedGrantTypes
+	return ds.cfg.NativeSSOEnabled &&
+		(len(grants) == 0 || slices.Contains(grants, string(providers.GrantTypeTokenExchange)))
+}
+
+// getOIDCScopesSupported returns the allowed scopes with device_sso listed exactly when Native SSO is
+// supported: added when a deployment did not list it, and removed when Native SSO is off, because the
+// authorization endpoint then refuses it (rule R03). The configured list itself is never modified.
+func (ds *discoveryService) getOIDCScopesSupported() []string {
+	scopes := slices.DeleteFunc(slices.Clone(ds.getAllowedScopes()), func(scope string) bool {
+		return scope == constants.ScopeDeviceSSO
+	})
+	if ds.isNativeSSOSupported() {
+		scopes = append(scopes, constants.ScopeDeviceSSO)
+	}
+	return scopes
 }
 
 func (ds *discoveryService) getAllowedResponseTypes() []string {

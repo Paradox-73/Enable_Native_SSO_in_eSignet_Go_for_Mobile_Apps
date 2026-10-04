@@ -10,12 +10,14 @@ import (
 	"slices"
 	"time"
 
+	"github.com/thunder-id/thunderid/internal/attributecache"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/dpop"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/tokenservice"
+	oauth2utils "github.com/thunder-id/thunderid/internal/oauth/oauth2/utils"
 	"github.com/thunder-id/thunderid/internal/system/log"
 	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
@@ -50,7 +52,12 @@ const (
 	errDescNSSOOtherVendor       = "The client may not share the login of the client of the device secret"
 	errDescNSSONoDPoPKey         = "The device secret is not bound to a DPoP key"
 	errDescNSSORevocationUnknown = "Token revocation status could not be verified"
-	errDescNSSOFailed            = "Failed to generate token"
+	errDescNSSODeviceSSOInScope  = "The device_sso scope cannot be requested in a token exchange"
+	errDescNSSOScopeWithoutOIDC  = "Native SSO requires the openid scope"
+	errDescNSSOScopeExceeded     = "The requested scope exceeds the scope granted to the first app; " +
+		"user consent is needed for: "
+	errDescNSSOAttributesGone = "The user attributes of the login session are no longer available"
+	errDescNSSOFailed         = "Failed to generate token"
 )
 
 // validateNativeSSOGrant applies the request-shape rules of OpenID Connect Native SSO for Mobile Apps 1.0
@@ -100,6 +107,17 @@ func (h *tokenExchangeGrantHandler) validateNativeSSORequest(tokenRequest *model
 	if len(tokenRequest.Audiences) != 1 || tokenRequest.Audiences[0] != h.cfg.JWT.Issuer {
 		return &model.ErrorResponse{Error: constants.ErrorInvalidTarget, ErrorDescription: errDescNSSOAudience}
 	}
+	// Native SSO 4.1 and statement task 10b: a requested scope must include openid and must not include
+	// device_sso, which only an authorization-code grant may carry (rule R16). No scope is allowed and
+	// means the scope granted to the first app.
+	if requested := tokenservice.ParseScopes(tokenRequest.Scope); len(requested) > 0 {
+		if slices.Contains(requested, constants.ScopeDeviceSSO) {
+			return invalidScopeError(errDescNSSODeviceSSOInScope)
+		}
+		if !slices.Contains(requested, constants.ScopeOpenID) {
+			return invalidScopeError(errDescNSSOScopeWithoutOIDC)
+		}
+	}
 	return nil
 }
 
@@ -143,7 +161,13 @@ func (h *tokenExchangeGrantHandler) handleNativeSSOGrant(ctx context.Context, to
 		return nil, errResp
 	}
 
-	return h.issueNativeSSOTokens(ctx, tokenRequest, oauthApp, dsClaims)
+	// Step 13: scope rules (statement task 10a, bonus B1).
+	scopes, errResp := h.resolveNativeSSOScopes(tokenRequest.Scope, dsClaims.Scopes)
+	if errResp != nil {
+		return nil, errResp
+	}
+
+	return h.issueNativeSSOTokens(ctx, tokenRequest, oauthApp, dsClaims, scopes)
 }
 
 // validateDeviceSecret asks the DeviceSecretProvider to validate the device secret and maps its outcome
@@ -253,32 +277,146 @@ func (h *tokenExchangeGrantHandler) checkSameVendor(ctx context.Context, oauthAp
 	return nil
 }
 
-// issueNativeSSOTokens issues the requesting app's access token for the login of the device secret
-// (Native SSO 4.4): the same user, the scope granted with the device secret without device_sso, and
-// bound to the DPoP key of this request, which step 12 proved is the key of the device secret
-// (statement task 8, decision D3).
+// resolveNativeSSOScopes applies the scope rules of design section 12 to the scope requested in the
+// exchange, given the scope granted with the device secret:
+//   - no scope: the granted scope without device_sso (RFC 8693 2.1 makes scope optional; rule R17);
+//   - equal or narrower: allowed, the response carries what was issued (statement task 10a; rule R17);
+//   - any value outside the granted scope: the exchange fails with interaction_required, or invalid_scope
+//     when oauth.native_sso.scope_exceeded_error says so (statement task 10a, Native SSO 4.3 step 6 and
+//     4.4; rule R15). interaction_required is the re-consent signal of bonus B1: the second app then runs
+//     its own authorization request with prompt=consent. The description names the missing scope values
+//     only, so the app can tell the user which permission it needs.
+//
+// The generic token exchange silently drops scopes the subject token lacks; this branch fails instead.
+func (h *tokenExchangeGrantHandler) resolveNativeSSOScopes(
+	requestedScope string, deviceSecretScopes []string,
+) ([]string, *model.ErrorResponse) {
+	granted := grantedNativeSSOScopes(deviceSecretScopes)
+	requested := tokenservice.ParseScopes(requestedScope)
+	if len(requested) == 0 {
+		return granted, nil
+	}
+
+	scopes := make([]string, 0, len(requested))
+	var missing []string
+	for _, scope := range requested {
+		switch {
+		case slices.Contains(scopes, scope) || slices.Contains(missing, scope):
+		case slices.Contains(granted, scope):
+			scopes = append(scopes, scope)
+		default:
+			missing = append(missing, scope)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, &model.ErrorResponse{
+			Error:            h.cfg.OAuth.NativeSSO.ScopeExceededErrorCode(),
+			ErrorDescription: errDescNSSOScopeExceeded + tokenservice.JoinScopes(missing),
+		}
+	}
+	return scopes, nil
+}
+
+// issueNativeSSOTokens issues the second app's tokens for the login of the device secret (Native SSO
+// 4.4, rule R23):
+//   - access token: the same user, the resolved scope, the attribute-cache id (aci) of the login so that
+//     userinfo answers with the claims the user released, and bound to the DPoP key of this request,
+//     which step 12 proved is the key of the device secret (statement task 8, decision D3);
+//   - id_token: aud is the second app, the same sub, sid, acr and auth_time as the login, and no ds_hash
+//     (no device secret is issued to the second app);
+//   - user attributes: only the claims both released to the first app (the device secret's claims) and
+//     released by the resolved scope under the second app's own scope-to-claims mapping.
 func (h *tokenExchangeGrantHandler) issueNativeSSOTokens(ctx context.Context, tokenRequest *model.TokenRequest,
-	oauthApp *providers.OAuthClient, dsClaims *providers.DeviceSecretClaims,
+	oauthApp *providers.OAuthClient, dsClaims *providers.DeviceSecretClaims, scopes []string,
 ) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "TokenExchangeGrantHandler"))
 
-	scopes := grantedNativeSSOScopes(dsClaims.Scopes)
+	attrs, errResp := h.nativeSSOUserAttributes(ctx, oauthApp, dsClaims, scopes)
+	if errResp != nil {
+		return nil, errResp
+	}
+
 	userSubConfig := oauthApp.UserAccessTokenConfig()
 	accessToken, err := h.tokenBuilder.BuildAccessToken(ctx, &tokenservice.AccessTokenBuildContext{
-		Subject:        dsClaims.Subject,
-		Audiences:      []string{oauthApp.ResolveDefaultAudience(tokenRequest.ClientID)},
-		ClientID:       tokenRequest.ClientID,
-		Scopes:         scopes,
-		GrantType:      string(providers.GrantTypeTokenExchange),
-		OAuthApp:       oauthApp,
-		ValidityPeriod: userSubConfig.ValidityPeriodOrZero(),
-		DPoPJkt:        dpop.GetJkt(ctx),
+		Subject:           dsClaims.Subject,
+		Audiences:         []string{oauthApp.ResolveDefaultAudience(tokenRequest.ClientID)},
+		ClientID:          tokenRequest.ClientID,
+		Scopes:            scopes,
+		SubjectAttributes: tokenservice.FilterAttributesByAllowList(attrs, userSubConfig),
+		AttributeCacheID:  dsClaims.AttributeCacheID,
+		GrantType:         string(providers.GrantTypeTokenExchange),
+		OAuthApp:          oauthApp,
+		ValidityPeriod:    userSubConfig.ValidityPeriodOrZero(),
+		DPoPJkt:           dpop.GetJkt(ctx),
 	})
 	if err != nil {
 		logger.Error(ctx, "Failed to generate the Native SSO access token", log.Error(err))
 		return nil, nativeSSOServerError()
 	}
-	return &model.TokenResponseDTO{AccessToken: *accessToken}, nil
+	response := &model.TokenResponseDTO{AccessToken: *accessToken}
+
+	if slices.Contains(scopes, constants.ScopeOpenID) {
+		idToken, err := h.tokenBuilder.BuildIDToken(ctx, &tokenservice.IDTokenBuildContext{
+			Subject:        dsClaims.Subject,
+			Audience:       tokenRequest.ClientID,
+			Scopes:         scopes,
+			UserAttributes: attrs,
+			AuthTime:       dsClaims.AuthTime,
+			OAuthApp:       oauthApp,
+			CompletedACR:   dsClaims.ACR,
+			SessionID:      dsClaims.SessionID,
+		})
+		if err != nil {
+			logger.Error(ctx, "Failed to generate the Native SSO id_token", log.Error(err))
+			return nil, nativeSSOServerError()
+		}
+		response.IDToken = *idToken
+	}
+	return response, nil
+}
+
+// nativeSSOUserAttributes returns the cached user attributes of the login, limited to the claims the
+// second app may receive. A login whose attribute cache has expired answers invalid_grant: its session
+// can no longer issue tokens with the user's claims. An opaque attribute token from the identity system
+// (providers.RawJWTAttributeKey, as in eSignet) is passed on unchanged; the identity system filters it.
+func (h *tokenExchangeGrantHandler) nativeSSOUserAttributes(ctx context.Context, oauthApp *providers.OAuthClient,
+	dsClaims *providers.DeviceSecretClaims, scopes []string,
+) (map[string]interface{}, *model.ErrorResponse) {
+	attrs := make(map[string]interface{})
+	if dsClaims.AttributeCacheID == "" {
+		return attrs, nil
+	}
+	if h.attributeCache == nil {
+		return nil, nativeSSOServerError()
+	}
+	cache, svcErr := h.attributeCache.GetAttributeCache(ctx, dsClaims.AttributeCacheID)
+	if svcErr != nil {
+		if svcErr.Code == attributecache.ErrorAttributeCacheNotFound.Code {
+			return nil, &model.ErrorResponse{
+				Error:            constants.ErrorInvalidGrant,
+				ErrorDescription: errDescNSSOAttributesGone,
+			}
+		}
+		return nil, nativeSSOServerError()
+	}
+	if cache == nil {
+		return attrs, nil
+	}
+
+	allowed := make(map[string]bool)
+	for _, scope := range scopes {
+		for _, claim := range oauth2utils.ResolveScopeClaims(scope, oauthApp.ScopeClaims) {
+			if slices.Contains(dsClaims.Claims, claim) {
+				allowed[claim] = true
+			}
+		}
+	}
+	for name, value := range cache.Attributes {
+		if allowed[name] || name == providers.RawJWTAttributeKey {
+			attrs[name] = value
+		}
+	}
+	return attrs, nil
 }
 
 // grantedNativeSSOScopes returns the scope granted with a device secret without device_sso: the
@@ -308,6 +446,10 @@ func constantTimeEqual(a, b string) bool {
 
 func invalidRequest(description string) *model.ErrorResponse {
 	return &model.ErrorResponse{Error: constants.ErrorInvalidRequest, ErrorDescription: description}
+}
+
+func invalidScopeError(description string) *model.ErrorResponse {
+	return &model.ErrorResponse{Error: constants.ErrorInvalidScope, ErrorDescription: description}
 }
 
 func nativeSSOServerError() *model.ErrorResponse {
