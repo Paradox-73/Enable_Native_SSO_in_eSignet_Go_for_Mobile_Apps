@@ -20,6 +20,14 @@ var allowedClaims = map[string]struct{}{
 	"phone_number": {}, "picture": {}, "address": {},
 }
 
+// allowedGrantTypes are the grant types a client may register. The token-exchange grant (RFC
+// 8693) is how an app obtains its own tokens with another app's device secret (OpenID Connect
+// Native SSO for Mobile Apps 1.0, 4).
+var allowedGrantTypes = map[string]struct{}{
+	"authorization_code":                              {},
+	"urn:ietf:params:oauth:grant-type:token-exchange": {},
+}
+
 var allowedACRAll = map[string]struct{}{
 	"mosip:idp:acr:static-code":    {},
 	"mosip:idp:acr:generated-code": {},
@@ -421,7 +429,7 @@ func validateGrantTypes(grants []string, minItems, maxItems int) error {
 		return validationErr("invalid_grant_type")
 	}
 	for _, g := range grants {
-		if g != "authorization_code" {
+		if _, ok := allowedGrantTypes[g]; !ok {
 			return validationErr("invalid_grant_type")
 		}
 	}

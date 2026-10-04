@@ -82,7 +82,7 @@ func (p *actorProvider) GetOAuthClientByClientID(
 		ID:                      client.ClientID,
 		OUID:                    client.RpID,
 		ClientID:                client.ClientID,
-		GrantTypes:              []providers.GrantType{providers.GrantTypeAuthorizationCode},
+		GrantTypes:              getGrantTypes(client.GrantTypes),
 		RedirectURIs:            client.RedirectURIs,
 		ResponseTypes:           []providers.ResponseType{providers.ResponseTypeCode},
 		TokenEndpointAuthMethod: providers.TokenEndpointAuthMethodPrivateKeyJWT,
@@ -270,6 +270,22 @@ func extractJWKs(jwk string) []json.RawMessage {
 		return jwks.Keys
 	}
 	return []json.RawMessage{json.RawMessage(jwk)}
+}
+
+// getGrantTypes maps a client's registered grant types to the engine's. A client registered
+// before grant types other than authorization_code were accepted, or with none at all, keeps
+// authorization_code; a value the engine does not know is dropped rather than passed on.
+func getGrantTypes(registered []string) []providers.GrantType {
+	grantTypes := make([]providers.GrantType, 0, len(registered))
+	for _, g := range registered {
+		if grantType := providers.GrantType(g); grantType.IsValid() {
+			grantTypes = append(grantTypes, grantType)
+		}
+	}
+	if len(grantTypes) == 0 {
+		return []providers.GrantType{providers.GrantTypeAuthorizationCode}
+	}
+	return grantTypes
 }
 
 // getAllowedScopes combines both OIDC scopes and authorization scopes
