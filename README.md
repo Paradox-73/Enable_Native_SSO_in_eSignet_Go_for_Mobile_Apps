@@ -55,6 +55,14 @@ Running the stack, the apps and the demo: *planned*; the steps will be in `docs/
 
 Details, outputs and measured run times: [scripts/README.md](scripts/README.md).
 
+## Status and contributing
+
+- [docs/STATUS.md](docs/STATUS.md): every task with its status (DONE, PARTIAL, TODO), the remaining work as task
+  cards with acceptance checks, how to split it between people, and the definition of done. It is updated with
+  every merged task, so it is newer than the status note at the top of this file.
+- [CONTRIBUTING.md](CONTRIBUTING.md): tools, one-time setup, build and test commands, ports, conventions, how to
+  pick up a task, troubleshooting.
+
 ## Licence
 
 Team code: MIT ([LICENSE](LICENSE)). Imported code keeps its own licence: Thunder Apache-2.0
