@@ -105,3 +105,15 @@ Unit tests added for the contract:
 | `internal/oauth/oauth2/constants/constants_test.go` | protocol names; `device_sso` is not a standard scope; the device-secret type is not a generic token type |
 | `internal/oauth/oauth2/model/token_test.go` | `device_secret` is in the JSON only when set |
 | `internal/oauth/oauth2/token/service_test.go` | the token service copies the device secret into the response |
+
+Results measured on 2026-10-04 for the contract step:
+
+- `verify-import.sh thunder`: 1680 files, 0 differ, 0 missing, 0 extra.
+- `go-test.sh thunder/backend ./internal/oauth/... ./pkg/...`: 31 packages, 2214 tests, 0 failed (1 skipped by
+  upstream); 22 of 22 statements on changed lines covered.
+- Both mockery configurations regenerated with no change to the committed mocks.
+- `internal/system/i18n/core/defaults.go` matches the output of upstream's `tools/i18n-extractor` at the same
+  commit (the generator of that file, run from the upstream clone).
+- `go-lint.sh thunder/backend` (golangci-lint v1.64.8, upstream's config, changed lines): 0 issues. On a busy
+  machine the loading step needed more than the default 15 minutes: `bash scripts/go-lint.sh thunder/backend --
+  --timeout=30m`.
