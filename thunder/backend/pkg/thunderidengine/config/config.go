@@ -267,6 +267,10 @@ type OAuthConfig struct {
 
 	TokenRevocation OAuthTokenRevocationConfig `yaml:"token_revocation" json:"token_revocation"`
 	Logout          LogoutConfig               `yaml:"logout" json:"logout"`
+
+	// NativeSSO holds the OpenID Connect Native SSO for Mobile Apps settings. Engine-only: the
+	// standalone server's yaml OAuth section does not carry it.
+	NativeSSO NativeSSOConfig `yaml:"native_sso" json:"native_sso"`
 }
 
 // SendServerErrorsToClientEnabled reports whether server errors reach the client, defaulting to
@@ -348,6 +352,40 @@ type TokenExchangeConfig struct {
 	// "none" (default) issues an independent token with no tfid; "inherit" copies the subject
 	// token's tfid so the exchanged token is revoked with that token family.
 	TokenFamily string `yaml:"token_family" json:"token_family"`
+}
+
+// Values of NativeSSOConfig.ScopeExceededError.
+const (
+	// NativeSSOScopeExceededInteractionRequired answers interaction_required, which tells the app to
+	// run its own login so the user can consent to the extra scopes (Native SSO 4.3, step 6).
+	NativeSSOScopeExceededInteractionRequired = "interaction_required"
+	// NativeSSOScopeExceededInvalidScope answers invalid_scope (RFC 6749 5.2).
+	NativeSSOScopeExceededInvalidScope = "invalid_scope"
+)
+
+// NativeSSOConfig holds the settings of OpenID Connect Native SSO for Mobile Apps 1.0. They apply
+// only when the engine has a DeviceSecretProvider (thunderidengine.WithDeviceSecretProvider); the
+// standalone server has none, so its yaml does not carry them.
+type NativeSSOConfig struct {
+	// IDTokenMaxAgeSeconds caps how old (since its iat) the id_token presented in a Native SSO token
+	// exchange may be. An expired id_token is accepted, because the device secret and its login
+	// session decide how long silent sign-in works (Native SSO 6.3); 0 means no cap beyond them.
+	IDTokenMaxAgeSeconds int64 `yaml:"id_token_max_age_seconds" json:"id_token_max_age_seconds"`
+	// ScopeExceededError is the error code of a token exchange that asks for scopes beyond those
+	// granted with the device secret: "interaction_required" (default) or "invalid_scope".
+	ScopeExceededError string `yaml:"scope_exceeded_error" json:"scope_exceeded_error"`
+	// ExchangeOnly limits the token-exchange grant to the Native SSO profile (a device secret as
+	// actor_token); other token exchanges are rejected with invalid_request.
+	ExchangeOnly bool `yaml:"exchange_only" json:"exchange_only"`
+}
+
+// ScopeExceededErrorCode returns the configured ScopeExceededError, or interaction_required when
+// it is not set.
+func (c NativeSSOConfig) ScopeExceededErrorCode() string {
+	if c.ScopeExceededError == "" {
+		return NativeSSOScopeExceededInteractionRequired
+	}
+	return c.ScopeExceededError
 }
 
 // FlowConfig holds the configuration details for the flow service.

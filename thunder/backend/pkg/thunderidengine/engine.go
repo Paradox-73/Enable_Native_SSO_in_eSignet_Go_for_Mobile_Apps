@@ -272,6 +272,9 @@ func validateEngineContext(ctx *engineContext) error {
 	if ctx.defaultAuthnProvider == nil {
 		return errors.New("thunderidengine: default authentication provider is not set")
 	}
+	if err := ctx.oauthConfig.NativeSSO.Validate(); err != nil {
+		return fmt.Errorf("thunderidengine: invalid OAuth configuration: %w", err)
+	}
 	return nil
 }
 
@@ -384,6 +387,8 @@ type engineContext struct {
 	authzProvider             providers.AuthorizationProvider
 	attestationProvider       providers.AttestationProvider
 	captchaValidationProvider providers.CaptchaValidationProvider
+	// deviceSecretProvider issues and checks Native SSO device secrets; nil turns Native SSO off.
+	deviceSecretProvider providers.DeviceSecretProvider
 
 	transactioner        providers.Transactioner
 	runtimeStoreProvider providers.RuntimeStoreProvider
@@ -569,4 +574,11 @@ func WithCaptchaValidationProvider(provider providers.CaptchaValidationProvider)
 // WithRuntimeCryptoProvider supplies the RuntimeCryptoProvider.
 func WithRuntimeCryptoProvider(provider kmprovider.RuntimeCryptoProvider) Option {
 	return func(c *engineContext) { c.runtimeCryptoSvc = provider }
+}
+
+// WithDeviceSecretProvider supplies the DeviceSecretProvider of OpenID Connect Native SSO for Mobile
+// Apps 1.0. Native SSO (the device_sso scope and the device-secret token exchange) is available only
+// when a provider is supplied; passing nil, or omitting this option, leaves it off.
+func WithDeviceSecretProvider(provider providers.DeviceSecretProvider) Option {
+	return func(c *engineContext) { c.deviceSecretProvider = provider }
 }

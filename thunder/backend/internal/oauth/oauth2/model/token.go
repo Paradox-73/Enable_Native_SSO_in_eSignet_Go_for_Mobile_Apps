@@ -36,6 +36,9 @@ type TokenResponse struct {
 	Scope           string `json:"scope,omitempty"`
 	IDToken         string `json:"id_token,omitempty"`
 	IssuedTokenType string `json:"issued_token_type,omitempty"`
+	// DeviceSecret is the device_secret of OpenID Connect Native SSO for Mobile Apps 1.0, returned
+	// with the tokens of an authorization-code grant that was granted the device_sso scope.
+	DeviceSecret string `json:"device_secret,omitempty"`
 }
 
 // TokenDTO represents the data transfer object for tokens.
@@ -63,4 +66,7 @@ type TokenResponseDTO struct {
 	AccessToken  TokenDTO
 	RefreshToken TokenDTO
 	IDToken      TokenDTO
+	// DeviceSecret is the Native SSO device secret issued with these tokens; Token is empty when
+	// none was issued.
+	DeviceSecret TokenDTO
 }

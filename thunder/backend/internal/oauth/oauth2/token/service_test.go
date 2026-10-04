@@ -313,6 +313,47 @@ func (suite *TokenServiceTestSuite) TestProcessTokenRequest_Success() {
 	assert.Equal(suite.T(), "Bearer", tokenResp.TokenType)
 	assert.Equal(suite.T(), int64(3600), tokenResp.ExpiresIn)
 	assert.Equal(suite.T(), "openid profile", tokenResp.Scope)
+	assert.Empty(suite.T(), tokenResp.DeviceSecret)
+}
+
+func (suite *TokenServiceTestSuite) TestProcessTokenRequest_NativeSSO_ReturnsDeviceSecret() {
+	req := &model.TokenRequest{
+		ClientID:  "test-client-id",
+		GrantType: string(providers.GrantTypeAuthorizationCode),
+		Code:      "test-code",
+		Scope:     "openid device_sso",
+	}
+	app := suite.defaultApp()
+
+	suite.mockGrantProvider.ExpectedCalls = nil
+	suite.mockGrantProvider.
+		On("GetGrantHandler", providers.GrantTypeAuthorizationCode).
+		Return(suite.mockGrantHandler, nil)
+	suite.mockGrantHandler.On("ValidateGrant", mock.Anything, mock.Anything, app).Return(nil)
+	suite.mockScopeValidator.On("ValidateScopes", mock.Anything, "openid device_sso", "test-client-id").
+		Return("openid device_sso", nil)
+
+	tokenRespDTO := &model.TokenResponseDTO{
+		AccessToken: model.TokenDTO{
+			Token:     "access-token-123",
+			TokenType: "DPoP",
+			ExpiresIn: 3600,
+			Scopes:    []string{"openid", "device_sso"},
+		},
+		IDToken:      model.TokenDTO{Token: "id-token-123"},
+		DeviceSecret: model.TokenDTO{Token: "device-secret-123", ExpiresIn: 28800},
+	}
+	suite.mockGrantHandler.On("HandleGrant", mock.Anything, mock.Anything, app).Return(tokenRespDTO, nil)
+
+	svc := suite.newService()
+	tokenResp, errResp := svc.ProcessTokenRequest(context.Background(), req, app)
+
+	suite.Require().Nil(errResp)
+	suite.Require().NotNil(tokenResp)
+	assert.Equal(suite.T(), "access-token-123", tokenResp.AccessToken)
+	assert.Equal(suite.T(), "id-token-123", tokenResp.IDToken)
+	assert.Equal(suite.T(), "device-secret-123", tokenResp.DeviceSecret)
+	assert.Equal(suite.T(), "openid device_sso", tokenResp.Scope)
 }
 
 func (suite *TokenServiceTestSuite) TestProcessTokenRequest_DPoPProof_Verified_PropagatesJktToHandler() {

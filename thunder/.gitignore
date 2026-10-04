@@ -1,0 +1,6 @@
+# SQLite files that Thunder's own unit tests create next to their packages (for example
+# backend/internal/oauth/oauth2/dcr/test.db). Upstream ignores the same patterns in its root .gitignore,
+# which is outside this import's allow-list.
+*.db
+*.db-shm
+*.db-wal

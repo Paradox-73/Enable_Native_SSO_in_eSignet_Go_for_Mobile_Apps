@@ -536,6 +536,24 @@ const (
 	NamespaceWebAuthn       RuntimeStoreNamespace = "webauthn:session"
 )
 
+// NamespaceNativeSSOSession holds the login-session records of OpenID Connect Native SSO for Mobile
+// Apps 1.0, one per device secret, keyed by session id (the sid claim). A DeviceSecretProvider that
+// keeps its sessions in the engine's runtime store uses this namespace, so that ending a session
+// (deleting or expiring its record) stops every device secret issued for it.
+const NamespaceNativeSSOSession RuntimeStoreNamespace = "nativesso:session"
+
+// Names defined by OpenID Connect Native SSO for Mobile Apps 1.0 that both the engine and a
+// DeviceSecretProvider implementation need.
+const (
+	// ScopeDeviceSSO is the scope a native app requests to receive a device secret (Native SSO 3.1).
+	// It is deliberately not one of the standard OIDC scopes: it releases no claims, and a server
+	// grants it only to clients whose allowed scopes include it.
+	ScopeDeviceSSO = "device_sso"
+	// TokenTypeDeviceSecret is the RFC 8693 token type of a device secret sent as actor_token
+	// (Native SSO 4.1).
+	TokenTypeDeviceSecret = "urn:openid:params:token-type:device-secret" //nolint:gosec // token type, not a credential
+)
+
 // Error constants
 var (
 	// ErrRuntimeStoreKeyNotFound to identify key not found error in the runtime store providers

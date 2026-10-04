@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
+	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 )
 
 // OAuth2 request parameters.
@@ -154,6 +155,11 @@ const (
 	TokenTypeIdentifierIDJAG TokenTypeIdentifier = "urn:ietf:params:oauth:token-type:id-jag"
 )
 
+// TokenTypeIdentifierDeviceSecret is the actor_token_type of the OpenID Connect Native SSO token
+// exchange (Native SSO 4.1). It is kept out of supportedTokenTypeIdentifiers so that the generic
+// token exchange keeps rejecting it; only the Native SSO profile may accept it.
+const TokenTypeIdentifierDeviceSecret = TokenTypeIdentifier(providers.TokenTypeDeviceSecret)
+
 // supportedTokenTypeIdentifiers is the single source of truth for all supported token type identifiers.
 var supportedTokenTypeIdentifiers = []TokenTypeIdentifier{
 	TokenTypeIdentifierAccessToken,
@@ -196,6 +202,10 @@ const (
 	ErrorUnknownUserID            string = "unknown_user_id"
 	ErrorInvalidBindingMessage    string = "invalid_binding_message"
 )
+
+// ErrorInteractionRequired is the OpenID Connect error code that asks the client to run an
+// interactive login, for example so the user can consent to more scopes (Native SSO 4.4).
+const ErrorInteractionRequired string = "interaction_required"
 
 // UnSupportedGrantTypeError is returned when an unsupported grant type is requested.
 var UnSupportedGrantTypeError = errors.New("unsupported_grant_type")
@@ -279,6 +289,17 @@ const (
 	ClaimTokenFamilyID string = "tfid"
 )
 
+// Claim names of OpenID Connect Native SSO for Mobile Apps 1.0, carried by the id_token issued with a
+// device secret (Native SSO 3.4.1).
+const (
+	// ClaimSessionID is the login session the id_token and its device secret belong to. The name
+	// is the one OpenID Connect Front-Channel and Back-Channel Logout use for the session id.
+	ClaimSessionID string = "sid"
+	// ClaimDeviceSecretHash binds the id_token to its device secret: the base64url encoding of the
+	// left-most half of the SHA-256 hash of the device secret, built like at_hash.
+	ClaimDeviceSecretHash string = "ds_hash"
+)
+
 // SurfaceableClientSystemClaims is the fixed set of entity system-attribute keys that may be
 // surfaced as client-token claims.
 var SurfaceableClientSystemClaims = map[string]bool{
@@ -313,6 +334,11 @@ const (
 const (
 	ScopeOpenID = "openid"
 )
+
+// ScopeDeviceSSO is the scope that asks for a device secret (Native SSO 3.1). It is kept out of
+// StandardOIDCScopes, which the standalone server advertises and gives to every new client: a
+// server grants it only to clients whose allowed scopes include it, and it releases no claims.
+const ScopeDeviceSSO = providers.ScopeDeviceSSO
 
 const (
 	// SupportedClientAssertionType is the constant for supported client assertion type.

@@ -216,6 +216,29 @@ type AttestationProvider interface {
 	Verify(ctx context.Context, cfg *AttestationConfig, token string) (bool, *common.ServiceError)
 }
 
+// DeviceSecretProvider issues and checks the device secrets of OpenID Connect Native SSO for Mobile
+// Apps 1.0. The authorization server returns a device secret to the first app on a device that is
+// granted the device_sso scope; apps from the same vendor later present it as the actor_token of an
+// RFC 8693 token exchange to obtain their own tokens without a new login.
+//
+// The engine treats a device secret as opaque: its format, its protection and how its login session
+// is tracked belong to the provider. An engine built without a provider
+// (thunderidengine.WithDeviceSecretProvider) has Native SSO turned off.
+type DeviceSecretProvider interface {
+	// GenerateDeviceSecret returns a new device secret for an authorization-code grant that was
+	// granted the device_sso scope. DeviceSecretRequest.Validate lists the fields every request
+	// carries. Any error is reported to the client as server_error and no tokens are issued, because
+	// the id_token and the device secret are bound to each other (Native SSO 3.4).
+	GenerateDeviceSecret(ctx context.Context, req DeviceSecretRequest) (*DeviceSecret, *common.ServiceError)
+
+	// ValidateDeviceSecret checks a device secret presented as an actor_token and returns its claims
+	// when it is authentic, unexpired and its login session is still active. It returns
+	// ErrorInvalidDeviceSecret for a value that is malformed, forged, expired or from another
+	// issuer, ErrorDeviceSecretSessionEnded for a genuine value whose login session has ended, and
+	// a server error for an operational failure.
+	ValidateDeviceSecret(ctx context.Context, deviceSecret string) (*DeviceSecretClaims, *common.ServiceError)
+}
+
 // RuntimeStoreProvider defines the interface for runtime store operations.
 type RuntimeStoreProvider interface {
 	// Put stores a value in the runtime store with the specified key and TTL (time-to-live) in seconds.

@@ -171,6 +171,21 @@ func (c *TokenExchangeConfig) Validate() error {
 	}
 }
 
+// Validate checks the Native SSO settings. The zero value is valid and means the defaults.
+func (c *NativeSSOConfig) Validate() error {
+	if c.IDTokenMaxAgeSeconds < 0 {
+		return fmt.Errorf("native_sso: id_token_max_age_seconds must not be negative, got %d",
+			c.IDTokenMaxAgeSeconds)
+	}
+	switch c.ScopeExceededError {
+	case "", NativeSSOScopeExceededInteractionRequired, NativeSSOScopeExceededInvalidScope:
+		return nil
+	default:
+		return fmt.Errorf("native_sso: scope_exceeded_error must be empty, %q or %q, got %q",
+			NativeSSOScopeExceededInteractionRequired, NativeSSOScopeExceededInvalidScope, c.ScopeExceededError)
+	}
+}
+
 // GetServerURL constructs the server URL from the server configuration.
 // It uses PublicURL if set, otherwise constructs from hostname, port, and scheme.
 func GetServerURL(server *ServerConfig) string {

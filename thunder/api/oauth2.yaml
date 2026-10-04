@@ -770,6 +770,14 @@ components:
         issued_token_type:
           type: string
           description: The type of the issued token (token exchange only).
+        device_secret:
+          type: string
+          description: >-
+            OpenID Connect Native SSO for Mobile Apps 1.0 device secret. Returned by the
+            `authorization_code` grant when the `device_sso` scope was granted and the server has a
+            device secret provider. Opaque to the client; another app of the same vendor presents it
+            as the `actor_token` of a token exchange, with `actor_token_type`
+            `urn:openid:params:token-type:device-secret`.
 
     PARRequest:
       type: object
