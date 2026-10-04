@@ -15,9 +15,9 @@ repository claims a result that was not run, and every measured result carries i
 
 | Document | Answers | State |
 |---|---|---|
-| `design.md` | How Native SSO fits eSignet Go and Thunder: flows, data, decisions, spec references | planned |
-| `threat-model.md` | What can go wrong and what stops it | planned |
-| `diagrams/` | Architecture and sequence diagrams (Mermaid sources) | planned |
+| [design.md](design.md) | How Native SSO fits eSignet Go and Thunder: flows, data, decisions, spec references | draft (2026-10-04) |
+| [threat-model.md](threat-model.md) | What can go wrong and what stops it | draft (2026-10-04) |
+| [diagrams/](diagrams/README.md) | Architecture and sequence diagrams (Mermaid sources and PNGs) | draft (2026-10-04) |
 | `changes.md` | Every change to upstream code, by statement task, with its commit | planned |
 | `ux.md` | App screens, states and accessibility | planned |
 

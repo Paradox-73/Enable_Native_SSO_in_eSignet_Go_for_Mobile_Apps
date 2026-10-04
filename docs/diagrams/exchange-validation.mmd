@@ -1,0 +1,30 @@
+flowchart TD
+  start(["POST /oauth2/token, token-exchange grant"]) --> a["Client authentication (private_key_jwt)"]
+  a -- fail --> e1["invalid_client"]
+  a --> c["Client allows the token-exchange grant"]
+  c -- no --> e3["unauthorized_client"]
+  c --> d["Request shape: token types, actor_token present, old urn:x-oath URN refused"]
+  d -- bad --> e4["invalid_request"]
+  d --> f["audience equals the issuer"]
+  f -- no --> e5["invalid_target"]
+  f --> g["scope: has openid, no device_sso"]
+  g -- bad --> e6["invalid_scope"]
+  g --> b["DPoP proof: well formed, signature, htm, htu, iat, jti not seen"]
+  b -- fail --> e2["invalid_dpop_proof"]
+  b --> d2["Child App allows device_sso"]
+  d2 -- no --> e3
+  d2 --> h["ValidateDeviceSecret: decrypt, typ, signature, iss, exp"]
+  h -- fail --> e4
+  h --> i["Session record for sid alive"]
+  i -- ended --> e7["invalid_grant"]
+  i --> j["id_token: signature, iss, aud; expiry not required"]
+  j -- fail --> e4
+  j --> k["ds_hash and sid match the device secret"]
+  k -- mismatch --> e4
+  k --> l["Same relying party, Super App still allows device_sso"]
+  l -- no --> e4
+  l --> m["cnf.jkt equals the DPoP key thumbprint"]
+  m -- no --> e7
+  m --> n["Requested scope within the granted scope"]
+  n -- wider --> e8["interaction_required (setting: invalid_scope)"]
+  n --> ok(["200: tokens for the Child App"])

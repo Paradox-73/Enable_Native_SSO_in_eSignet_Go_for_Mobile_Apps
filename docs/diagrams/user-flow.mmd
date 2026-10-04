@@ -1,0 +1,17 @@
+flowchart TD
+  s1["1. Open the Super App"] --> s2["2. Tap Sign in with eSignet"]
+  s2 --> s3["3. eSignet login page in a Custom Tab"]
+  s3 --> s4["4. Choose Login with OTP"]
+  s4 --> s5["5. Enter UIN, Send OTP"]
+  s5 --> s6["6. Enter OTP, Submit"]
+  s6 --> s7["7. First login: consent screen with claims and scopes"]
+  s7 --> s8["8. Allow"]
+  s8 --> s9["9. Super App home"]
+  s9 --> s10["10. Open the Child App, tap Sign in"]
+  s10 --> q1{"Super App signed in?"}
+  q1 -- no --> x1["Child App: sign in to the Super App first"]
+  q1 -- yes --> q2{"Requested scope within the first consent?"}
+  q2 -- yes --> s11["11. Child App home, no prompt"]
+  q2 -- no --> x2["Bonus: re-consent on eSignet, then Child App home"]
+  s11 --> so["Super App: Sign out of all apps"]
+  so --> x1

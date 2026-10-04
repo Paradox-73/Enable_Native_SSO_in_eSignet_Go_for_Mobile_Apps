@@ -31,6 +31,7 @@ Go always runs in the `golang:1.26-bookworm` Linux container, with the whole rep
 | `verify-import.sh <name> [--worktree] [--list-excluded]` / `--self-test` | prove an import is unchanged | `verify-import: <name>: N files, N same, 0 differ, 0 missing, 0 extra` |
 | `repo-lint.sh` / `--self-test` | words, keys, licence headers, line endings, sizes | `repo-lint: OK` |
 | `install-hooks.sh` | point git at `scripts/hooks` and enable long paths (local config) | `install-hooks: core.hooksPath=scripts/hooks` |
+| `docs-check.sh <file.md>...` / `--self-test` | links, statement-task traceability, threat coverage, test ids, diagram copies | `docs-check: 0 broken links; tasks traced 11/11; threats with mitigation and test N/N` |
 
 `<module>` is a folder with a `go.mod`, relative to the repository root, for example `thunder/backend`,
 `esignet/esignet-service`, `e2e` or `.`; `<name>` is an import from `scripts/imports/` (`thunder`, `esignet`).

@@ -1,0 +1,22 @@
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant C as Child App (Health Card)
+  participant H as Super App: FamilySsoService
+  participant T as eSignet Go: Thunder engine
+  participant B as Custom Tab: eSignet UI
+
+  C->>H: getSsoBundle(), signDpopProof(POST, token endpoint)
+  C->>T: Token exchange, scope openid email phone
+  T->>T: phone is outside the scope granted to the Super App
+  T-->>C: 400 interaction_required, missing scope named in error_description
+  C->>U: "Health Card needs your phone number. Confirm on eSignet."
+  U->>C: Continue
+  C->>T: POST /oauth2/par with its own keys, prompt=consent, scope openid email phone
+  T-->>C: 201 request_uri
+  C->>B: Open /oauth2/authorize with request_uri
+  B->>U: Login again (no browser session in eSignet Go), then consent for phone
+  U->>B: Allow
+  B-->>C: Redirect with code
+  C->>T: POST /oauth2/token: authorization_code with its own DPoP key
+  T-->>C: Tokens for Health Card with the wider scope

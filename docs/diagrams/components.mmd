@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph phone["Android device"]
+    hub["Super App (Hub)<br/>FAPI 2.0 client<br/>Keystore: DPoP key, client key<br/>encrypted token store"]
+    svc["FamilySsoService<br/>AIDL bound service<br/>signature permission"]
+    child["Child App (Health Card)<br/>own client key<br/>encrypted token store"]
+    tab["Chrome Custom Tab"]
+    hub --- svc
+    child -- "bind: getSsoBundle, signDpopProof" --> svc
+    hub -- "login pages" --> tab
+  end
+  subgraph esignet["eSignet Go process"]
+    thunder["Thunder engine<br/>PAR, authorize, token, token exchange,<br/>discovery, JWKS, userinfo"]
+    prov["DeviceSecretProvider<br/>(new, in eSignet)"]
+    actor["ActorProvider<br/>clients and policy"]
+    consent["ConsentProvider"]
+    km["keymanager<br/>SignRaw, JWTEncrypt, JWTDecrypt"]
+    store[("Runtime store<br/>in-memory or Redis")]
+    thunder -- "Generate / Validate" --> prov
+    thunder --> actor
+    thunder --> consent
+    prov --> km
+    prov -- "session records" --> store
+  end
+  ui["oidc-ui<br/>login, OTP, consent"]
+  db[("Postgres<br/>clients, consent, keys")]
+  ids["Identity system<br/>(mock)"]
+  hub -- "PAR, code grant" --> thunder
+  child -- "token exchange" --> thunder
+  tab --> ui
+  ui -- "flow execute" --> thunder
+  actor --> db
+  km --> db
+  thunder -- "OTP, authenticate, claims" --> ids

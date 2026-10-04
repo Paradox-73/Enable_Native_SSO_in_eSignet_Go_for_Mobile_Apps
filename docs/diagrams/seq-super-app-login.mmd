@@ -1,0 +1,39 @@
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant H as Super App (Hub)
+  participant B as Custom Tab: eSignet UI
+  participant T as eSignet Go: Thunder engine
+  participant P as eSignet: DeviceSecretProvider
+  participant K as eSignet: keymanager
+  participant S as Runtime store
+  participant I as Identity system (mock)
+
+  U->>H: Tap "Sign in with eSignet"
+  H->>H: Load DPoP key and client key (Android Keystore), new PKCE verifier, state, nonce
+  H->>T: POST /oauth2/par: scope openid profile email device_sso, code_challenge, client_assertion, DPoP proof
+  T->>T: private_key_jwt, device_sso in allowed_authorization_scopes (task 2), bind code to DPoP jkt
+  T-->>H: 201 request_uri
+  H->>B: Open /oauth2/authorize with client_id and request_uri
+  U->>B: Login with OTP, enter UIN, Send OTP
+  B->>T: /flow/execute (send OTP)
+  T->>I: Send OTP
+  I-->>U: OTP
+  U->>B: Enter OTP, Submit
+  B->>T: /flow/execute (verify OTP)
+  T->>I: Authenticate, fetch consented claims
+  B->>U: Consent screen: claims and scopes
+  U->>B: Allow
+  B-->>H: Redirect to the app scheme with code, state, iss
+  H->>T: POST /oauth2/token: authorization_code, code_verifier, client_assertion, DPoP proof
+  T->>T: Client auth, DPoP proof, PKCE, code bound to this DPoP key
+  T->>T: device_sso granted: client still allows it (task 2), DPoP jkt present, mint sid
+  T->>P: GenerateDeviceSecret: client, auth_id, sid, scope, acr, claims, jkt (task 5)
+  P->>K: SignRaw: inner JWS, ES256, typ ds+jwt
+  P->>K: JWTEncrypt: outer JWE, RSA-OAEP-256 + A256GCM
+  P->>S: Save session record for sid, TTL = device secret lifetime
+  P-->>T: device_secret, expires_at
+  T->>T: ds_hash over device_secret, access token with cnf.jkt, id_token with sid and ds_hash
+  T-->>H: 200 access_token, token_type DPoP, id_token, device_secret (task 6)
+  H->>H: Check id_token (signature, iss, aud, nonce, ds_hash), store all three encrypted
+  H->>U: Home screen
