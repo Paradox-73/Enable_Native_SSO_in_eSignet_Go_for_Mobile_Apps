@@ -1,0 +1,88 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+package config
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	engineconfig "github.com/thunder-id/thunderid/pkg/thunderidengine/config"
+)
+
+const (
+	// defaultDeviceSecretValiditySeconds is how long a device secret, its login-session record
+	// and the cached user attributes of that login live (OpenID Connect Native SSO for Mobile
+	// Apps 1.0, 6.3): one working day.
+	defaultDeviceSecretValiditySeconds = 28800
+
+	// defaultDeviceSecretEncryptionKeyRefID is the reference id, under OIDCServiceAppID, of the
+	// RSA Component Encryption Key the device secret JWE is encrypted to. keymanager creates it
+	// on the first GetCertificate call.
+	defaultDeviceSecretEncryptionKeyRefID = "DEVICE_SECRET"
+
+	// defaultDeviceSecretSigningKeyRefID is the reference id, under OIDCServiceAppID, of the EC
+	// P-256 key the inner device secret JWS is signed with (ES256).
+	defaultDeviceSecretSigningKeyRefID = "EC_SECP256R1_SIGN"
+)
+
+// NativeSSOConfig holds esignet's own settings for OpenID Connect Native SSO for Mobile Apps 1.0,
+// read only by the device secret provider (internal/engine/device_secret_provider.go). The
+// protocol settings live in the engine's oauth.native_sso group (engineconfig.NativeSSOConfig),
+// which AppConfig.OAuth hands to the engine unchanged.
+type NativeSSOConfig struct {
+	// DeviceSecretValiditySeconds is the lifetime of a device secret and of its session record.
+	DeviceSecretValiditySeconds int64 `yaml:"device_secret_validity_seconds"`
+	// EncryptionKeyRefID names the Component Encryption Key the device secret is encrypted to.
+	EncryptionKeyRefID string `yaml:"encryption_key_ref_id"`
+	// SigningKeyRefID names the EC P-256 key that signs the inner device secret JWS. It must not
+	// be the key that signs the engine's tokens, so that an id_token can never pass as a device
+	// secret signature and the other way round (RFC 8725, 3.12).
+	SigningKeyRefID string `yaml:"signing_key_ref_id"`
+}
+
+// Validate rejects settings the device secret provider cannot work with. tokenSigningKeyRefID is
+// the reference id of the key that signs the engine's tokens (AppConfig.JWT.PreferredKeyID).
+func (c NativeSSOConfig) Validate(tokenSigningKeyRefID string) error {
+	if c.DeviceSecretValiditySeconds <= 0 {
+		return errors.New("native_sso.device_secret_validity_seconds must be positive")
+	}
+	if strings.TrimSpace(c.EncryptionKeyRefID) == "" {
+		return errors.New("native_sso.encryption_key_ref_id is required")
+	}
+	if strings.TrimSpace(c.SigningKeyRefID) == "" {
+		return errors.New("native_sso.signing_key_ref_id is required")
+	}
+	if c.SigningKeyRefID == tokenSigningKeyRefID {
+		return fmt.Errorf("native_sso.signing_key_ref_id %q must differ from the token signing key", c.SigningKeyRefID)
+	}
+	if c.SigningKeyRefID == c.EncryptionKeyRefID {
+		return fmt.Errorf("native_sso.signing_key_ref_id and encryption_key_ref_id must differ, both are %q",
+			c.SigningKeyRefID)
+	}
+	return nil
+}
+
+// applyNativeSSODefaults resolves the native_sso and oauth.native_sso settings in the documented
+// precedence order: MOSIP_ESIGNET_NATIVE_SSO_* env var, then deployment.yaml, then the default.
+func applyNativeSSODefaults(cfg *AppConfig) {
+	cfg.NativeSSO.DeviceSecretValiditySeconds = int64(envIntOrConfigOrDefault(
+		"MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS",
+		int(cfg.NativeSSO.DeviceSecretValiditySeconds), defaultDeviceSecretValiditySeconds))
+	cfg.NativeSSO.EncryptionKeyRefID = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_ENCRYPTION_KEY_REF_ID",
+		cfg.NativeSSO.EncryptionKeyRefID, defaultDeviceSecretEncryptionKeyRefID)
+	cfg.NativeSSO.SigningKeyRefID = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID",
+		cfg.NativeSSO.SigningKeyRefID, defaultDeviceSecretSigningKeyRefID)
+
+	// 0 means no age cap on the exchanged id_token beyond the device secret and its session.
+	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = int64(envIntOrConfigOrDefault(
+		"MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS", int(cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds), 0))
+	cfg.OAuth.NativeSSO.ScopeExceededError = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR",
+		cfg.OAuth.NativeSSO.ScopeExceededError, engineconfig.NativeSSOScopeExceededInteractionRequired)
+	cfg.OAuth.NativeSSO.ExchangeOnly = envBoolOrConfig("MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY",
+		cfg.OAuth.NativeSSO.ExchangeOnly)
+}

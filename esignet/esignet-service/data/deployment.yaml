@@ -133,10 +133,15 @@ oauth:
     allowed_algs: ["ES256", "PS256", "ES384", "ES512", "EdDSA", "RS256"]
     max_jti_length: 256
   allowed_subject_types: ["pairwise"]
-  allowed_grant_types: ["authorization_code"]
+  # The token-exchange grant (RFC 8693) carries OpenID Connect Native SSO: an app trades another
+  # app's id_token and device secret for its own tokens. A client also needs it in its grantTypes.
+  allowed_grant_types: ["authorization_code", "urn:ietf:params:oauth:grant-type:token-exchange"]
   allowed_response_types: ["code"]
   allowed_auth_methods: ["private_key_jwt"]
-  allowed_scopes: ["openid","profile","email","phone"]
+  # device_sso asks for a device secret (Native SSO 3.1). A client may request it only when its
+  # additional_config.allowed_authorization_scopes lists it; never add it to scope_claims below,
+  # whose keys become every client's allowed scopes.
+  allowed_scopes: ["openid","profile","email","phone","device_sso"]
   allowed_claims: ["name","address","gender","birthdate","picture","email","phone_number"]
   default_scope_claims_mapping: 
     openid: ["sub"]
@@ -148,6 +153,22 @@ oauth:
     enabled: false
   logout:
     enabled: false  
+  # OpenID Connect Native SSO for Mobile Apps 1.0, read by the engine. Env overrides:
+  # MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS, MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR,
+  # MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY (see internal/config/native_sso.go).
+  native_sso:
+    id_token_max_age_seconds: 0                 # 0: no cap beyond the device secret and its session
+    scope_exceeded_error: interaction_required  # or invalid_scope
+    exchange_only: true                         # token exchange only with a device secret
+
+# Device secrets of OpenID Connect Native SSO, read by the device secret provider. Env overrides:
+# MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS, _ENCRYPTION_KEY_REF_ID and
+# _SIGNING_KEY_REF_ID with the same prefix. Both keys live under OIDC_SERVICE; the signing key
+# must differ from jwt.preferred_key_id (start-up fails otherwise).
+native_sso:
+  device_secret_validity_seconds: 28800  # device secret, session record and cached claims
+  encryption_key_ref_id: DEVICE_SECRET    # RSA-OAEP-256 JWE key, created on first start
+  signing_key_ref_id: EC_SECP256R1_SIGN   # ES256 key of the inner JWS
 
 security_config:
   issuer_url: ""  # override via MOSIP_ESIGNET_SECURITY_ISSUER_URL

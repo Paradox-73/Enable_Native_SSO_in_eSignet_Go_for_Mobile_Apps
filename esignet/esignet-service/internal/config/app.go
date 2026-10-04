@@ -118,6 +118,7 @@ type AppConfig struct {
 	SupportedSigningAlgorithms []string                         `yaml:"supported_signing_algorithms"`
 	SupportedEncAlgorithms     []string                         `yaml:"supported_enc_algorithms"`
 	AllowedOriginRegex         string                           `yaml:"allowed_origin_regex"`
+	NativeSSO                  NativeSSOConfig                  `yaml:"native_sso"`
 	PProfConfig                PProfConfig                      `yaml:"-"`
 }
 
@@ -394,6 +395,7 @@ func applyDefaults(cfg *AppConfig) {
 	cfg.OAuth.TokenRevocation.Enabled = boolPtr(false)
 	cfg.OAuth.Logout.Enabled = boolPtr(false)
 	cfg.OAuth.DPoP.Leeway = envIntOrConfigOrDefault("MOSIP_ESIGNET_DPOP_LEEWAY", cfg.OAuth.DPoP.Leeway, 10)
+	applyNativeSSODefaults(cfg)
 
 	if cfg.SecurityConfig.RequestTimeLeewaySecs <= 0 {
 		cfg.SecurityConfig.RequestTimeLeewaySecs = defaultRequestTimeLeewaySecs
