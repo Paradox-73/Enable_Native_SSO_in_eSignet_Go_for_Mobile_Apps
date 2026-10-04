@@ -52,7 +52,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-05 | platform | Design document and threat model | WP-01 | DONE | `e052436` |
 | WP-06 | platform | Local stack and headless FAPI 2.0 login | WP-03 | DONE | `bf5a1b2`, this file's update |
 | WP-07 | thunder | Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (T1, T2, T5, T6) | WP-02 | DONE | `1a8a6e7`, `2a43b22`, `3dec587` |
-| WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | TODO | |
+| WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | DONE | `9314b2b`, `64e5c9e`, `f8a58e0`, `6aff73e` |
 | WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | TODO | |
 | WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | TODO | |
 | WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | TODO | |
@@ -216,7 +216,53 @@ commit of that folder.
   - Contract reference: [design.md section 8](design.md#8-device-secret-provider-contract); error codes:
     [design.md section 13](design.md#13-error-table).
 
-### WP-08 eSignet: Device Secret Provider, Native SSO settings and client registration (T4)
+### WP-08 eSignet: Device Secret Provider, Native SSO settings and client registration (T4) (DONE)
+
+- **Result (2026-10-05, on `6aff73e`, measured in a clean clone of that commit)**
+  - `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover`: 29 packages, 1537 tests: 1537 passed,
+    0 failed; `device_secret_provider.go` 128/132 changed statements (97.0 %); all changed lines 166/181 (91.7 %).
+    The uncovered lines are the start-up wiring in `cmd/esignet/main.go` (3/14) and 4 `json.Marshal` error
+    branches that cannot fail.
+  - `bash scripts/go.sh esignet/esignet-service test -count=1 -v -run 'DeviceSecret|GrantType' ./internal/...`:
+    85 `--- PASS` lines (3 suites, 25 test methods, 57 sub-cases), 0 failed. Cases: round trip, every claim
+    present (and no `sub`, `ou_id`, attribute-cache id or `auth_time` inside), `typ` `JWT` or absent rejected,
+    `alg` PS256 rejected, an id_token presented plain or encrypted to the device-secret key rejected, tampered
+    ciphertext, another server's encryption key, another server's signing key, expired, issued in the future,
+    wrong issuer, missing claims, malformed inner token, deleted / unknown / ended session, session of another
+    login or client, store and key failures (server error), generation failures leave no session record,
+    reused `sid`, valid and invalid grant types, grant-type mapping.
+  - `bash scripts/go-lint.sh esignet/esignet-service`: 0 issues. `bash scripts/repo-lint.sh`: `repo-lint: OK`.
+  - Live check: `bash scripts/with-stack.sh bash e2e/run.sh -run TestE2E_FAPI2Login` with these changes:
+    `stack smoke: PASS`, `--- PASS: TestE2E_FAPI2Login`, `e2e: 1 passed, 0 failed`. So eSignet starts with
+    the provider, creates the `DEVICE_SECRET` key in Postgres and the plain FAPI login still works. A login with
+    `device_sso` was not run (WP-13).
+- **What was built**
+  - `internal/engine/device_secret_provider.go`: `NewDeviceSecretProvider(cfg, signatureSvc, cryptoSvc,
+    runtimeStore, clock)` returns an error for bad settings (main stops). Signing uses
+    `signature.Service.ResolveSigner` + `SignWithKey` (what `SignRaw` does inside), so the header `kid` (hex
+    certificate thumbprint, as in eSignet's JWKS) always names the key that signed. Encryption:
+    `cryptomanager.JWTEncrypt`. The session record is written last, with `PutIfNotExists`.
+  - `ValidateDeviceSecret` returns `ErrorInvalidDeviceSecret` for anything wrong with the value (also a session
+    record of another login or client), `ErrorDeviceSecretSessionEnded` when the record is gone or past its end,
+    and a server error for key-store, signature-key or runtime-store failures.
+  - Settings: `internal/config/native_sso.go` (eSignet's `native_sso.*` plus `MOSIP_ESIGNET_NATIVE_SSO_*`
+    overrides for both groups); start-up fails if the signing key equals `jwt.preferred_key_id` or the encryption
+    key. `data/deployment.yaml`: `device_sso` in `oauth.allowed_scopes`, the token-exchange grant in
+    `oauth.allowed_grant_types`, `oauth.native_sso` with `exchange_only: true`, and `native_sso`. Documented in
+    `esignet/docs/configuration.md` (section 4, "Native SSO for mobile apps", and section 12).
+  - The `DEVICE_SECRET` key is created by a separate `provisionDeviceSecretKey` called right after
+    `provisionKeyHierarchy` in `cmd/esignet/main.go` (same effect as the card asked, but testable with a fake).
+  - Client registration accepts `urn:ietf:params:oauth:grant-type:token-exchange`; the actor provider passes each
+    client's registered grant types (unknown values dropped, `authorization_code` when none remain).
+- **Notes for the next tasks**
+  - WP-10 and WP-12: `DeviceSecretClaims.Scopes` contains `device_sso` (the token's `scope` claim leaves it out
+    and `ValidateDeviceSecret` adds it back, so the claims equal the issuing request). Remove it when computing
+    the default scope of the exchange (T10a).
+  - `Subject`, `OUID`, `AttributeCacheID` and `AuthTime` in the claims come from the session record, not from
+    the device secret.
+  - `VerifyRaw` checks against the current signing certificate only, so rotating `EC_SECP256R1_SIGN` ends every
+    device secret signed with the old key; the encryption key keeps working after rotation (found by `kid`).
+  - No change to the Thunder provider contract was needed.
 
 - **Goal**
   - `esignet/esignet-service/internal/engine/device_secret_provider.go`, constructor
