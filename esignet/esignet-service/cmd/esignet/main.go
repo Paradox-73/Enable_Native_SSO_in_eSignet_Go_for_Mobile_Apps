@@ -123,6 +123,13 @@ func main() {
 	if err := provisionKeyHierarchy(keyMgrSvc); err != nil {
 		logger.Fatal("failed to provision key hierarchy", applog.Error(err))
 	}
+	if err := provisionDeviceSecretKey(context.Background(), keyMgrSvc, appCfg.NativeSSO); err != nil {
+		logger.Fatal("failed to provision device secret key", applog.Error(err))
+	}
+	deviceSecretProvider, err := engine.NewDeviceSecretProvider(appCfg, sigSvc, cryptoSvc, runtimeStore, nil)
+	if err != nil {
+		logger.Fatal("native sso settings", applog.Error(err))
+	}
 
 	keyMgrHandler := keymanager.NewHandler(keyMgrSvc, logger)
 	keyMgrHandler.RegisterRoutes(mux, securityMiddleware)
@@ -175,6 +182,7 @@ func main() {
 		thunderidengine.WithCaptchaValidationProvider(engine.NewCaptchaProvider(&appCfg.CaptchaConfig, commonHTTPClient)),
 		thunderidengine.WithRuntimeCryptoProvider(engine.NewRuntimeCryptoProvider(appCfg, keyMgrSvc, sigSvc, cryptoSvc, authnProvider)),
 		thunderidengine.WithOriginConfig(originConfig),
+		thunderidengine.WithDeviceSecretProvider(deviceSecretProvider),
 	)
 
 	addr := fmt.Sprintf(":%d", appCfg.Port)
@@ -362,6 +370,23 @@ func provisionKeyHierarchy(svc *keymanager.Service) error {
 	}
 	if err := generateKey(svc, config.OIDCPartnerAppID, keymanager.RefIDRSA2048, ""); err != nil {
 		return fmt.Errorf("provision %s component master key: %w", config.OIDCPartnerAppID, err)
+	}
+	return nil
+}
+
+// certificateProvisioner is the part of keymanager.Service that provisionDeviceSecretKey uses.
+type certificateProvisioner interface {
+	GetCertificate(ctx context.Context, appID, refID string) (keymanager.KeyPairResponse, error)
+}
+
+// provisionDeviceSecretKey creates (on first start) or resolves the Component Encryption Key the
+// device secrets of OpenID Connect Native SSO are encrypted to, so that a key problem stops
+// start-up instead of failing the first login that asks for device_sso. Unlike the keys above,
+// a Component Encryption Key is created by GetCertificate, not by GenerateMasterKey.
+func provisionDeviceSecretKey(ctx context.Context, km certificateProvisioner, nativeSSO config.NativeSSOConfig) error {
+	if _, err := km.GetCertificate(ctx, config.OIDCServiceAppID, nativeSSO.EncryptionKeyRefID); err != nil {
+		return fmt.Errorf("provision %s device secret encryption key %s: %w",
+			config.OIDCServiceAppID, nativeSSO.EncryptionKeyRefID, err)
 	}
 	return nil
 }
