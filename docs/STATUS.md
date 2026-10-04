@@ -50,7 +50,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-03 | esignet | eSignet: unchanged import of v2.0.0 and build against the in-repo Thunder | WP-02 | DONE | `4eac1cc`, `3a0e127`, `1bd6fd0` |
 | WP-04 | android | Android project, shared signing and the OpenID Connect client library | WP-01 | DONE | `691de72`, `a3727cd` |
 | WP-05 | platform | Design document and threat model | WP-01 | DONE | `e052436` |
-| WP-06 | platform | Local stack and headless FAPI 2.0 login | WP-03 | TODO | |
+| WP-06 | platform | Local stack and headless FAPI 2.0 login | WP-03 | DONE | `bf5a1b2`, this file's update |
 | WP-07 | thunder | Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (T1, T2, T5, T6) | WP-02 | DONE | `1a8a6e7`, `2a43b22`, `3dec587` |
 | WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | TODO | |
 | WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | TODO | |
@@ -90,7 +90,31 @@ and `ANDROID_HOME` set (see [../CONTRIBUTING.md](../CONTRIBUTING.md#android)); o
 instead of `./gradlew`. Upstream file references with a line number (`file.go:123`) point at the unchanged import
 commit of that folder.
 
-### WP-06 Local stack and headless FAPI 2.0 login
+### WP-06 Local stack and headless FAPI 2.0 login (DONE)
+
+- **Result (2026-10-05, 04:49 IST, on `main` after `bf5a1b2`)**
+  - `bash scripts/with-stack.sh bash e2e/run.sh -run 'TestE2E_FAPI2Login|TestE2E_PSUTProbe'` printed
+    `stack smoke: PASS` (8 of 8 checks), `--- PASS: TestE2E_FAPI2Login`, `--- PASS: TestE2E_PSUTProbe`,
+    `psut-scope: relying-party (same relying party: sub equal=true; other relying party: sub equal=false)` and
+    `e2e: 2 passed, 0 failed`; exit 0; 87 s from start to teardown (`stack up` ready in 37 s, image cached).
+  - Afterwards `docker ps -q --filter label=com.docker.compose.project=ps03-native-sso` printed nothing.
+  - `repo-lint: OK`; `go-lint.sh e2e -- --build-tags e2e` 0 issues; `go vet -tags e2e ./...` clean. First image
+    build 78 s.
+  - The image was built from the working tree, which then held uncommitted WP-07 changes in `thunder/`.
+- **PSUT answer for WP-12 and WP-15**: `sub` is per relying party. Two clients registered with the same
+  `relyingPartyId` got the same `sub` for the seeded user; a client of another relying party got another one.
+- **Decisions and findings**
+  - The `private_key_jwt` client assertion's `aud` must be the issuer (`http://localhost:38088`) at PAR and token
+    (Thunder `clientauth.go`, FAPI 2.0 Security Profile 5.3.2.1). The upstream Postman collection uses the endpoint
+    URL and gets `invalid_client` / `Invalid client assertion`.
+  - ES256 works for the client key (EC P-256 JWK at registration) and for DPoP at PAR, token and userinfo; the
+    access token is a JWT with `cnf.jkt` equal to the DPoP key thumbprint; userinfo without a proof answers 401.
+  - Postgres has no named data volume: `postgres:bookworm` (now Postgres 18) exits when a volume is mounted at
+    `/var/lib/postgresql/data`. The eSignet keystore lives in the `keystore` volume, deleted by `down -v`.
+  - hCaptcha: the login page loads `https://js.hcaptcha.com`, so the box cannot work offline; a browser check
+    with the network cut was not run (see `deploy/README.md`).
+  - Not built: the `dev` compose profile (fallback `go run`), not needed because the image builds in 78 s; Redis
+    on 38379 (the stack uses the in-memory store).
 
 - **Goal**
   - `deploy/compose.yaml`, compose project `ps03-native-sso`: Postgres on 38455, mock identity system 0.14.0 on
