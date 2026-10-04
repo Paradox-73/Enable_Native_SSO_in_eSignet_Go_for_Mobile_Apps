@@ -56,7 +56,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | PARTIAL | `72b2528`, `b1ec211` |
 | WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | DONE | `13d17ac` |
 | WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | TODO | |
-| WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | TODO | |
+| WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | DONE | `6bc7644` |
 | WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | TODO | |
 | WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | TODO | |
 | WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | TODO | |
@@ -461,7 +461,7 @@ commit of that folder.
     `INSTALL_FAILED_DUPLICATE_PERMISSION` (expected).
   - Contract and error codes: [../android/README.md](../android/README.md#the-binder-contract-sso-contract).
 
-### WP-12 Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1)
+### WP-12 Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) (DONE)
 
 - **Goal**
   - T10a: the requested scope must be a subset of the device secret's scope and include `openid`; no scope means
@@ -491,6 +491,33 @@ commit of that folder.
     fails as T10a asks, and the same answer starts the re-consent bonus.
   - Read the WP-06 PSUT probe result first: if `sub` differs per client, the Child App's `sub` rule must be
     revisited ([design.md section 16](design.md#16-decisions-d1-d11), D7).
+- **Done 2026-10-05** (commit `6bc7644`)
+  - T10a: no scope gives the device secret's scope without `device_sso`; equal or narrower is issued as asked;
+    any value outside it answers `interaction_required` (or `invalid_scope` by `scope_exceeded_error`), with only
+    the missing scope values in `error_description`. T10b: `device_sso` in the exchange, or no `openid`:
+    `invalid_scope`.
+  - B1 server side: the `interaction_required` answer is the re-consent signal; it is given only after every
+    binding check passed. The Child App's re-consent flow is WP-15.
+  - Child App tokens: access token with `aci` and the Hub's DPoP key; `id_token` with `aud` = Child App, same
+    `sub`, `sid`, `acr`, `auth_time`, no `ds_hash`; claims limited to those released to Hub and released by the
+    Child App's scope; an expired attribute cache answers `invalid_grant`.
+  - Discovery: `native_sso_supported: true` and `device_sso` in `scopes_supported` only with a provider and the
+    token-exchange grant allowed; `thunder/api/oauth2.yaml` documents the exchange (the file has no discovery
+    path). Details: [../thunder/UPSTREAM.md](../thunder/UPSTREAM.md).
+  - Measured 2026-10-05:
+    - `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages,
+      2363 tests, 0 failed (1 skipped by upstream); changed lines 341/352 covered (96.9 %).
+    - `bash scripts/go.sh thunder/backend test -count=1 -v -run 'NativeSSO|Discovery' ./internal/oauth/...`:
+      149 `PASS` lines, 0 `FAIL`, including superset (both settings), `device_sso` in the exchange, narrower
+      scope, Child App `id_token` and discovery cases.
+    - `bash scripts/openapi-lint.sh thunder/api/oauth2.yaml`: 0 errors, 13 warnings (same as the import), `OK`.
+    - `bash scripts/go-lint.sh thunder/backend -- --timeout=30m`: `0 issues`, `OK`.
+    - `bash scripts/go.sh esignet/esignet-service build -o /tmp/esignet ./cmd/esignet`: exit 0.
+  - Not done here: the WP-06 PSUT probe (`sub` per client) has not run, so the "same `sub`" rule is unchecked
+    live; no live test (WP-13).
+  - For WP-08: with eSignet's opaque attribute token (`_jwt`) Thunder cannot filter claim values; userinfo for a
+    Child App token returns what eSignet's identity system put in that token for the Hub login, so eSignet must
+    filter it by the access token's scope if a narrower Child App scope must hide claims.
 
 ### WP-13 Integration tests: live Native SSO suite for every rule, and CI workflow
 
