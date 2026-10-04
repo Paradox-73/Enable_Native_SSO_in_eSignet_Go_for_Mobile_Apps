@@ -54,7 +54,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-07 | thunder | Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (T1, T2, T5, T6) | WP-02 | DONE | `1a8a6e7`, `2a43b22`, `3dec587` |
 | WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | DONE | `9314b2b`, `64e5c9e`, `f8a58e0`, `6aff73e` |
 | WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | TODO | |
-| WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | TODO | |
+| WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | DONE | `13d17ac` |
 | WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | TODO | |
 | WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | TODO | |
 | WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | TODO | |
@@ -347,7 +347,7 @@ commit of that folder.
   - Package names stay `org.badmosip.nativesso.superapp` and `org.badmosip.nativesso.childapp`; the issuer comes
     from the Gradle property `ps03.issuer` (default `http://localhost:38088`).
 
-### WP-10 Thunder: token exchange with a device-secret actor token, validation (T9)
+### WP-10 Thunder: token exchange with a device-secret actor token, validation (T9) (DONE)
 
 - **Goal**
   - Accept `actor_token_type=urn:openid:params:token-type:device-secret` with
@@ -385,6 +385,23 @@ commit of that folder.
   - `urn:openid:params:token-type:device-secret` is deliberately not in the generic list of supported token types;
     only this branch accepts it, and only as `actor_token_type`.
   - Validation order: [design.md section 11](design.md#11-validation-order-at-the-token-exchange).
+- **Done 2026-10-05** (commit `13d17ac`)
+  - New branch in `granthandlers/token_exchange_native_sso.go`, selected by the device-secret `actor_token_type`;
+    all checks of the goal in the order of design section 11; details in
+    [../thunder/UPSTREAM.md](../thunder/UPSTREAM.md).
+  - New `TokenValidatorInterface.ValidateNativeSSOIDToken` (signature and issuer checked, `exp` not enforced);
+    the mock is rebuilt by mockery v3.5.5.
+  - Default scope: the device secret's scope without `device_sso` (eSignet's `ValidateDeviceSecret` returns it
+    with `device_sso`).
+  - Measured 2026-10-05:
+    - `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages,
+      2341 tests, 0 failed (1 skipped by upstream); changed lines 276/287 covered (96.2 %).
+    - `bash scripts/go.sh thunder/backend test -count=1 -v -run NativeSSO ./internal/oauth/oauth2/granthandlers/`:
+      73 `PASS` lines, 0 `FAIL` (55 in the token-exchange suite, covering T9 i, ii, iii.1-4, audience, same
+      vendor, expired id_token inside and outside the cap, the older URN).
+    - `bash scripts/go-lint.sh thunder/backend -- --timeout=30m`: `0 issues`, `OK`.
+    - `bash scripts/go.sh esignet/esignet-service build -o /tmp/esignet ./cmd/esignet`: exit 0.
+  - Not done here: scope subset rules, Child App `id_token` and claims (WP-12); no live test (WP-13).
 
 ### WP-11 App-to-app: Hub family SSO service and Health Card connection (T7)
 
