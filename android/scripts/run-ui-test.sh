@@ -9,8 +9,9 @@
 #   bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all
 #
 # - `all` runs, in this order: superapp SuperAppSignInTest (Hub signs in with sharing on, so it holds
-#   a device secret), childapp ChildAppSilentSignInTest, childapp ChildAppReconsentTest. The Health
-#   Card tests need the Hub sign-in of the first one. Prints `OK (3 tests)` when all pass.
+#   a device secret), childapp ChildAppSilentSignInTest, childapp ChildAppReconsentTest, childapp
+#   ChildAppSignOutTest (last: it signs Hub out). The Health Card tests need the Hub sign-in of the
+#   first one. Prints `OK (4 tests)` when all pass.
 # - Builds `:<app>:assembleDebug :<app>:assembleDebugAndroidTest` (skip with PS03_SKIP_BUILD=1; needs
 #   JAVA_HOME 17+), installs both APKs (uninstalls first when the signature differs), registers the
 #   app with eSignet (register-client.sh), then runs the class with `am instrument -w`.
@@ -94,7 +95,8 @@ if [ "$1" = all ]; then
   build superapp childapp
   passed=0
   failed=()
-  for pair in superapp:SuperAppSignInTest childapp:ChildAppSilentSignInTest childapp:ChildAppReconsentTest; do
+  pairs=(superapp:SuperAppSignInTest childapp:ChildAppSilentSignInTest childapp:ChildAppReconsentTest childapp:ChildAppSignOutTest)
+  for pair in "${pairs[@]}"; do
     if run_one "${pair%%:*}" "${pair#*:}"; then
       passed=$((passed + 1))
     else
@@ -105,7 +107,7 @@ if [ "$1" = all ]; then
   if [ ${#failed[@]} -eq 0 ]; then
     echo "OK ($passed tests)"
   else
-    echo "FAILED: ${failed[*]} ($passed of 3 passed)"
+    echo "FAILED: ${failed[*]} ($passed of ${#pairs[@]} passed)"
     exit 1
   fi
   exit 0
