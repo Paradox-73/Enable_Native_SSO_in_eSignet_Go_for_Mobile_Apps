@@ -146,9 +146,10 @@ Both **Initiate PAR** and **Exchange Code for Token** sign their own `private_ke
 
 The **Native SSO** folder runs OpenID Connect Native SSO for Mobile Apps 1.0 end to end against the local stack
 (`deploy/` at the repository root): a first app ("Hub") signs in with `device_sso` and receives a `device_secret`; a
-second app ("Health Card") of the same relying party signs in without a browser by token exchange. It has 31
+second app ("Health Card") of the same relying party signs in without a browser by token exchange. It has 34
 requests: setup (discovery check, four client registrations), the Hub sign-in, the Health Card exchange and userinfo,
-13 negative requests with tests, and a cleanup request.
+13 negative requests with tests, three revocation requests (only the Hub may revoke its device secret; the
+exchange fails afterwards), and a cleanup request.
 
 ### Run it in newman
 
@@ -158,7 +159,7 @@ bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh
 
 `with-stack.sh` starts the stack, runs the command and stops the stack. `run.sh` calls
 `newman run Go-eSignet.postman_collection.json -e "Go-eSignet Native SSO (local stack).postman_environment.json" --folder "Native SSO"`.
-It needs newman 6. Expected result: 31 requests, 0 failed.
+It needs newman 6. Expected result: 34 requests, 0 failed.
 
 ### Run it in the Postman app
 

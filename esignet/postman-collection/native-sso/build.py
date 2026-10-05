@@ -73,6 +73,8 @@ pm.test('scopes_supported lists device_sso', () => pm.expect(d.scopes_supported)
 pm.test('grant_types_supported lists token-exchange', () =>
   pm.expect(d.grant_types_supported).to.include('urn:ietf:params:oauth:grant-type:token-exchange'));
 pm.test('DPoP ES256 is supported', () => pm.expect(d.dpop_signing_alg_values_supported).to.include('ES256'));
+pm.test('revocation_endpoint is advertised (device secret revocation)', () =>
+  pm.expect(d.revocation_endpoint).to.eql(pm.environment.get('ns_issuer') + '/oauth2/revoke'));
 pm.test('client authentication is private_key_jwt only', () =>
   pm.expect(d.token_endpoint_auth_methods_supported).to.eql(['private_key_jwt']));
 """
@@ -511,6 +513,40 @@ pm.test('a DPoP-bound token used as Bearer is refused with 401', () => pm.respon
 """),
 ]
 
+# ----------------------------------------------------------------------------------------------
+# Revocation of the device secret (RFC 7009): only the Hub may end its session
+# ----------------------------------------------------------------------------------------------
+
+REVOKE_PRE = PRE + SIGN_HELPERS + r"""
+const who = '%(who)s';
+pm.variables.set('ns_rev_client_id', pm.environment.get('ns_' + who + '_id'));
+pm.variables.set('ns_rev_assertion', sign(who));
+"""
+
+REVOKE_BODY = form([("token", "{{ns_device_secret}}"), ("token_type_hint", "device_secret"),
+                    ("client_id", "{{ns_rev_client_id}}"), ("client_assertion_type", ASSERT_TYPE),
+                    ("client_assertion", "{{ns_rev_assertion}}")])
+
+revocation = [
+    item("Rev 01 Revoke the Hub device secret as the Health Card -> invalid_grant", "POST", ISS + "/oauth2/revoke",
+         pre=REVOKE_PRE % {"who": "card"}, body=REVOKE_BODY,
+         test=r"""
+pm.test('answers 400', () => pm.response.to.have.status(400));
+pm.test('error is invalid_grant', () => pm.expect(pm.response.json().error).to.eql('invalid_grant'));
+""",
+         description="The Health Card holds the device secret but it was issued to the Hub. Only the Hub may end the session (RFC 7009 2.1); nothing changes."),
+    item("Rev 02 Revoke the device secret as the Hub (sign out of all apps) -> 200", "POST", ISS + "/oauth2/revoke",
+         pre=REVOKE_PRE % {"who": "hub"}, body=REVOKE_BODY,
+         test=r"""
+pm.test('answers 200', () => pm.response.to.have.status(200));
+pm.test('body is empty (RFC 7009 2.2)', () => pm.expect(pm.response.text()).to.eql(''));
+""",
+         description="What Hub's \"Sign out of all apps\" sends. The server ends the login session of the device secret."),
+    exchange("Rev 03 Exchange after the revocation -> invalid_grant", "",
+             expect_error(400, "invalid_grant"),
+             "The session of the device secret has ended, so the Health Card can no longer sign in with it."),
+]
+
 cleanup = item(
     "99 Cleanup: remove keys and tokens from the environment", "GET", ISS + "/oauth2/jwks",
     pre=r"""
@@ -523,12 +559,13 @@ cleanup = item(
 
 FOLDER = {
     "name": "Native SSO",
-    "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, re-consent error, negative cases. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
+    "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, re-consent error, negative cases, revocation of the device secret. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
     "item": [
         {"name": "Setup", "item": setup},
         {"name": "Hub sign-in (first app)", "item": hub},
         {"name": "Health Card sign-in (second app)", "item": [exchange_ok, userinfo_card]},
         {"name": "Negative cases", "item": negatives},
+        {"name": "Revocation", "item": revocation},
         {"name": "Cleanup", "item": [cleanup]},
     ],
 }

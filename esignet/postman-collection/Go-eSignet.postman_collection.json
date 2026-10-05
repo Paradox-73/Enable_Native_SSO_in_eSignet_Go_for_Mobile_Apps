@@ -1770,7 +1770,7 @@
     },
     {
       "name": "Native SSO",
-      "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, re-consent error, negative cases. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
+      "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, re-consent error, negative cases, revocation of the device secret. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
       "item": [
         {
           "name": "00 Discovery shows Native SSO",
@@ -1795,6 +1795,8 @@
                   "pm.test('grant_types_supported lists token-exchange', () =>",
                   "  pm.expect(d.grant_types_supported).to.include('urn:ietf:params:oauth:grant-type:token-exchange'));",
                   "pm.test('DPoP ES256 is supported', () => pm.expect(d.dpop_signing_alg_values_supported).to.include('ES256'));",
+                  "pm.test('revocation_endpoint is advertised (device secret revocation)', () =>",
+                  "  pm.expect(d.revocation_endpoint).to.eql(pm.environment.get('ns_issuer') + '/oauth2/revoke'));",
                   "pm.test('client authentication is private_key_jwt only', () =>",
                   "  pm.expect(d.token_endpoint_auth_methods_supported).to.eql(['private_key_jwt']));"
                 ]
@@ -4065,6 +4067,265 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('a DPoP-bound token used as Bearer is refused with 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rev 01 Revoke the Hub device secret as the Health Card -> invalid_grant",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/revoke",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{ns_device_secret}}",
+                  "type": "text"
+                },
+                {
+                  "key": "token_type_hint",
+                  "value": "device_secret",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_rev_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_rev_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "The Health Card holds the device secret but it was issued to the Hub. Only the Hub may end the session (RFC 7009 2.1); nothing changes."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const who = 'card';",
+                  "pm.variables.set('ns_rev_client_id', pm.environment.get('ns_' + who + '_id'));",
+                  "pm.variables.set('ns_rev_assertion', sign(who));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error is invalid_grant', () => pm.expect(pm.response.json().error).to.eql('invalid_grant'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rev 02 Revoke the device secret as the Hub (sign out of all apps) -> 200",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/revoke",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{ns_device_secret}}",
+                  "type": "text"
+                },
+                {
+                  "key": "token_type_hint",
+                  "value": "device_secret",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_rev_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_rev_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "What Hub's \"Sign out of all apps\" sends. The server ends the login session of the device secret."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const who = 'hub';",
+                  "pm.variables.set('ns_rev_client_id', pm.environment.get('ns_' + who + '_id'));",
+                  "pm.variables.set('ns_rev_assertion', sign(who));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 200', () => pm.response.to.have.status(200));",
+                  "pm.test('body is empty (RFC 7009 2.2)', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rev 03 Exchange after the revocation -> invalid_grant",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "The session of the device secret has ended, so the Health Card can no longer sign in with it."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_grant', () => pm.expect(e.error).to.be.oneOf([\"invalid_grant\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
                 ]
               }
             }
