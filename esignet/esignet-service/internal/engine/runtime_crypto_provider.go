@@ -292,6 +292,29 @@ func (p *runtimeCryptoProvider) idSystemPublicKeys(ctx context.Context) []provid
 		applog.GetLogger().Warn(ctx, "failed to fetch ID system signing certificates", applog.String("error", svcErr.Code))
 		return nil
 	}
+	return idSystemKeyInfos(ctx, certs)
+}
+
+// RefreshIdentitySystemKeys fetches the ID system's signing keys again, bypassing the provider's
+// cache, when the provider supports it (shared.SigningCertificateRefresher); otherwise, or when
+// the fetch fails, it returns nil. The userinfo middleware calls it when the ID system's token
+// names a key that GetPublicKeys did not return.
+func (p *runtimeCryptoProvider) RefreshIdentitySystemKeys(ctx context.Context) []providers.PublicKeyInfo {
+	refresher, ok := p.authnProvider.(shared.SigningCertificateRefresher)
+	if !ok {
+		return nil
+	}
+	certs, svcErr := refresher.RefreshSigningCertificates(ctx)
+	if svcErr != nil {
+		applog.GetLogger().Warn(ctx, "failed to fetch ID system signing certificates again", applog.String("error", svcErr.Code))
+		return nil
+	}
+	return idSystemKeyInfos(ctx, certs)
+}
+
+// idSystemKeyInfos converts ID system certificates into providers.PublicKeyInfo entries,
+// skipping (and logging) certificates that do not parse.
+func idSystemKeyInfos(ctx context.Context, certs []shared.CertificateData) []providers.PublicKeyInfo {
 	keys := make([]providers.PublicKeyInfo, 0, len(certs))
 	for _, certData := range certs {
 		cert, err := keymanager.ParseCertPEM(certData.Certificate)

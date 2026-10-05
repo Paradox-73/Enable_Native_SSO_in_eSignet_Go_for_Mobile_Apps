@@ -439,6 +439,41 @@ func (ts *RuntimeCryptoProviderTestSuite) TestGetPublicKeys_ReturnsOwnKeyMergedW
 	ts.Assert().Equal("id-system-ref", keys[1].KeyID)
 }
 
+// refreshingAuthnProvider also implements shared.SigningCertificateRefresher.
+type refreshingAuthnProvider struct {
+	fakeAuthnProviderForCrypto
+	refreshed  []shared.CertificateData
+	refreshErr *common.ServiceError
+	refreshes  int
+}
+
+func (f *refreshingAuthnProvider) RefreshSigningCertificates(context.Context) ([]shared.CertificateData, *common.ServiceError) {
+	f.refreshes++
+	return f.refreshed, f.refreshErr
+}
+
+func (ts *RuntimeCryptoProviderTestSuite) TestRefreshIdentitySystemKeys() {
+	t := ts.T()
+	ctx := context.Background()
+
+	ts.Nil((&runtimeCryptoProvider{}).RefreshIdentitySystemKeys(ctx), "no ID system provider")
+	ts.Nil((&runtimeCryptoProvider{authnProvider: &fakeAuthnProviderForCrypto{}}).RefreshIdentitySystemKeys(ctx),
+		"a provider without a cache to bypass")
+
+	fresh := &refreshingAuthnProvider{refreshed: []shared.CertificateData{
+		{KeyID: "new-key", Certificate: testCertPEM(t, "new id-system key")},
+		{KeyID: "broken", Certificate: "not a certificate"},
+	}}
+	keys := (&runtimeCryptoProvider{authnProvider: fresh}).RefreshIdentitySystemKeys(ctx)
+	ts.Require().Len(keys, 1, "the unparsable certificate is skipped")
+	ts.Equal("new-key", keys[0].KeyID)
+	ts.Equal("PS256", keys[0].Algorithm)
+	ts.Equal(1, fresh.refreshes)
+
+	failing := &refreshingAuthnProvider{refreshErr: shared.CertificateFetchFailed}
+	ts.Nil((&runtimeCryptoProvider{authnProvider: failing}).RefreshIdentitySystemKeys(ctx))
+}
+
 func (ts *RuntimeCryptoProviderTestSuite) TestGetPublicKeys_NoIDSystemProvider_ReturnsOnlyOwnKey() {
 	t := ts.T()
 	p := &runtimeCryptoProvider{

@@ -148,13 +148,17 @@ func (j *JWT) Str(name string) string {
 }
 
 // VerifyWithJWKS checks the signature (PS256, RS256 or ES256) against the key in jwks whose
-// kid matches the header's kid.
+// kid matches the header's kid. A key that declares an alg must declare the header's alg, as a
+// FAPI 2.0 client requires.
 func (j *JWT) VerifyWithJWKS(jwks []map[string]any) error {
 	kid, _ := j.Header["kid"].(string)
 	alg, _ := j.Header["alg"].(string)
 	for _, k := range jwks {
 		if kid != "" && k["kid"] != kid {
 			continue
+		}
+		if keyAlg, ok := k["alg"].(string); ok && keyAlg != "" && keyAlg != alg {
+			return fmt.Errorf("JWKS key %q declares alg %q, token uses %q", kid, keyAlg, alg)
 		}
 		switch k["kty"] {
 		case "RSA":

@@ -183,7 +183,12 @@ them in its own registration (see [12. Per-client configuration](#12-per-client-
   requesting client and the result is signed with the `jwt.preferred_key_id` key (published in the JWKS). So a
   sibling app granted `openid email` does not read the name the first app's login released
   (`internal/httpmiddleware/userinfo_scope.go`). An encrypted userinfo token cannot be filtered and is
-  refused with `server_error`; tokens of other grants are passed through unchanged.
+  refused with `server_error`.
+- Userinfo of every grant is signed with the `jwt.preferred_key_id` key, with the `alg` and `kid` the JWKS
+  publishes for it (PS256 for the default `RSA_2048` key). The identity system's token (the MOSIP mock
+  identity system signs it with RS256, which FAPI 2.0 does not allow) is first verified against the identity
+  system key of the same `kid`, then signed again with its claims unchanged; a token that does not verify is
+  refused with `server_error`. A userinfo token encrypted for the client is passed on unchanged.
 
 ## 5. Cache and runtime store
 

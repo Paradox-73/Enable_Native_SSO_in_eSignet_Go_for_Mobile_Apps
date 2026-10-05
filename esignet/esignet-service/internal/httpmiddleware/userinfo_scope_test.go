@@ -8,9 +8,11 @@ package httpmiddleware
 
 import (
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -19,8 +21,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
+	jose "github.com/go-jose/go-jose/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
@@ -30,7 +34,9 @@ const (
 	testHubClient   = "hub-client"
 	testChildClient = "health-card-client"
 	testSigningKey  = "OIDC_SERVICE_SIGN"
+	testEngineKid   = "engine-key-id"
 	testThumbprint  = "engine-key-thumbprint"
+	testIDSystemKid = "identity-system"
 	tokenExchange   = "urn:ietf:params:oauth:grant-type:token-exchange"
 )
 
@@ -45,6 +51,7 @@ var testScopeClaims = map[string][]string{
 
 // fakeUserinfoSigner signs with an in-memory ES256 key and records the key reference it got.
 type fakeUserinfoSigner struct {
+	t         *testing.T
 	key       *ecdsa.PrivateKey
 	keysErr   error
 	signErr   error
@@ -57,7 +64,7 @@ func newFakeUserinfoSigner(t *testing.T) *fakeUserinfoSigner {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	return &fakeUserinfoSigner{key: key}
+	return &fakeUserinfoSigner{t: t, key: key}
 }
 
 func (f *fakeUserinfoSigner) GetPublicKeys(_ context.Context, filter providers.PublicKeyFilter) ([]providers.PublicKeyInfo, error) {
@@ -65,9 +72,12 @@ func (f *fakeUserinfoSigner) GetPublicKeys(_ context.Context, filter providers.P
 	if f.keysErr != nil {
 		return nil, f.keysErr
 	}
+	// The order and fields the engine's /oauth2/jwks is built from: the engine's key first, then
+	// the identity system's key, published with alg PS256 although that system signs with RS256.
 	return []providers.PublicKeyInfo{
-		{KeyID: "engine", Algorithm: "ES256", PublicKey: &f.key.PublicKey, Thumbprint: testThumbprint},
-		{KeyID: "identity-system", Algorithm: "RS256", Thumbprint: "identity-system-thumbprint"},
+		{KeyID: testEngineKid, Algorithm: "ES256", PublicKey: &f.key.PublicKey, Thumbprint: testThumbprint},
+		{KeyID: testIDSystemKid, Algorithm: "PS256", PublicKey: &idSystemKey(f.t).PublicKey,
+			Thumbprint: "identity-system-thumbprint"},
 	}, nil
 }
 
@@ -106,11 +116,45 @@ func b64JSON(t *testing.T, v any) string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-// unsignedJWT builds a compact JWS with a dummy signature: the filter never verifies the access
-// token (the engine already did) nor the identity system's token.
+var (
+	idSystemKeyOnce sync.Once
+	idSystemKeyVal  *rsa.PrivateKey
+)
+
+// idSystemKey is the identity system's RSA signing key, shared by every test.
+func idSystemKey(t *testing.T) *rsa.PrivateKey {
+	t.Helper()
+	idSystemKeyOnce.Do(func() {
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+		idSystemKeyVal = key
+	})
+	return idSystemKeyVal
+}
+
+// unsignedJWT builds a compact JWS with a dummy signature, used for access tokens: the
+// middleware does not verify them (the engine already did).
 func unsignedJWT(t *testing.T, claims map[string]any) string {
 	t.Helper()
-	return b64JSON(t, map[string]string{"alg": "RS256", "kid": "identity-system"}) + "." + b64JSON(t, claims) + ".c2ln"
+	return b64JSON(t, map[string]string{"alg": "RS256", "kid": testIDSystemKid}) + "." + b64JSON(t, claims) + ".c2ln"
+}
+
+// idSystemJWT signs claims the way the MOSIP mock identity system does: RS256 with its own key.
+func idSystemJWT(t *testing.T, alg jose.SignatureAlgorithm, kid string, claims map[string]any) string {
+	t.Helper()
+	opts := (&jose.SignerOptions{}).WithType("JWT")
+	if kid != "" {
+		opts = opts.WithHeader("kid", kid)
+	}
+	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: alg, Key: idSystemKey(t)}, opts)
+	require.NoError(t, err)
+	payload, err := json.Marshal(claims)
+	require.NoError(t, err)
+	jws, err := signer.Sign(payload)
+	require.NoError(t, err)
+	compact, err := jws.CompactSerialize()
+	require.NoError(t, err)
+	return compact
 }
 
 func accessToken(t *testing.T, grantType, scope, clientID string) string {
@@ -123,11 +167,15 @@ func accessToken(t *testing.T, grantType, scope, clientID string) string {
 // which released every claim of "openid profile email phone".
 func identitySystemUserinfo(t *testing.T) string {
 	t.Helper()
-	return unsignedJWT(t, map[string]any{
+	return idSystemJWT(t, jose.RS256, testIDSystemKid, identitySystemClaims())
+}
+
+func identitySystemClaims() map[string]any {
+	return map[string]any{
 		"iss": "http://mock-identity-system", "sub": "psut-1", "aud": testHubClient, "iat": 1700000000,
 		"name": "Siddharth K Mansour", "name#eng": "Siddharth K Mansour", "birthdate": "1987/11/25",
 		"email": "siddhartha.km@gmail.com", "phone_number": "+919427357934",
-	})
+	}
 }
 
 // engineUserinfo stands in for the engine's userinfo handler: 200 with the cached token as
@@ -180,7 +228,7 @@ func TestUserinfoScope_NativeSSONarrowerChildScopeHidesClaims(t *testing.T) {
 			body := rr.Body.String()
 			signer.verify(t, body)
 			header, claims := payloadOf(t, body)
-			assert.Equal(t, map[string]any{"alg": "ES256", "typ": "JWT", "kid": testThumbprint}, header)
+			assert.Equal(t, map[string]any{"alg": "ES256", "typ": "JWT", "kid": testEngineKid}, header)
 			assert.Equal(t, map[string]any{
 				"iss": "http://mock-identity-system", "sub": "psut-1", "aud": testChildClient, "iat": float64(1700000000),
 				"email": "siddhartha.km@gmail.com",
@@ -218,7 +266,7 @@ func TestUserinfoScope_NativeSSOOpenIDOnlyKeepsOnlyRegisteredClaims(t *testing.T
 
 func TestUserinfoScope_NativeSSOWithoutAudLeavesAudOut(t *testing.T) {
 	signer := newFakeUserinfoSigner(t)
-	kyc := unsignedJWT(t, map[string]any{"sub": "psut-1", "email": "a@b.c", "name": "A"})
+	kyc := idSystemJWT(t, jose.RS256, testIDSystemKid, map[string]any{"sub": "psut-1", "email": "a@b.c", "name": "A"})
 	rr := serveUserinfo(t, signer, engineUserinfo(kyc, http.StatusOK), http.MethodGet, UserinfoPath,
 		"DPoP "+accessToken(t, tokenExchange, "openid email", testChildClient))
 
@@ -237,9 +285,9 @@ func TestUserinfoScope_PassesThroughUnchanged(t *testing.T) {
 		wantStatus    int
 		wantBody      string
 	}{
-		{name: "authorization-code token", method: http.MethodGet, path: UserinfoPath,
+		{name: "authorization-code token, encrypted for the client", method: http.MethodGet, path: UserinfoPath,
 			authorization: "DPoP " + accessToken(t, "authorization_code", "openid email", testHubClient),
-			next:          engineUserinfo(kyc, http.StatusOK), wantStatus: http.StatusOK, wantBody: kyc},
+			next:          engineUserinfo("a.b.c.d.e", http.StatusOK), wantStatus: http.StatusOK, wantBody: "a.b.c.d.e"},
 		{name: "engine error", method: http.MethodGet, path: UserinfoPath,
 			authorization: "DPoP " + accessToken(t, tokenExchange, "openid email", testChildClient),
 			next:          engineUserinfo(`{"error":"invalid_token"}`, http.StatusUnauthorized),
@@ -276,6 +324,7 @@ func TestUserinfoScope_NoSignerPassesThrough(t *testing.T) {
 
 func TestUserinfoScope_RefusesWhatItCannotFilter(t *testing.T) {
 	exchangeToken := "DPoP " + accessToken(t, tokenExchange, "openid email", testChildClient)
+	codeToken := "DPoP " + accessToken(t, "authorization_code", "openid email", testHubClient)
 	cases := []struct {
 		name          string
 		authorization string
@@ -289,6 +338,22 @@ func TestUserinfoScope_RefusesWhatItCannotFilter(t *testing.T) {
 			body: "a." + base64.RawURLEncoding.EncodeToString([]byte("[1]")) + ".c"},
 		{name: "no signing key", authorization: exchangeToken, body: identitySystemUserinfo(t),
 			keysErr: errors.New("key store down")},
+		{name: "no signing key, authorization-code token", authorization: codeToken, body: identitySystemUserinfo(t),
+			keysErr: errors.New("key store down")},
+		{name: "header not JSON", authorization: codeToken,
+			body: base64.RawURLEncoding.EncodeToString([]byte("[1]")) + ".e30.c2ln"},
+		{name: "identity system signature does not verify", authorization: codeToken,
+			body: tamperedPayload(t, identitySystemUserinfo(t))},
+		{name: "identity system signature does not verify, token exchange", authorization: exchangeToken,
+			body: tamperedPayload(t, identitySystemUserinfo(t))},
+		{name: "unknown kid", authorization: codeToken,
+			body: idSystemJWT(t, jose.RS256, "some-other-key", identitySystemClaims())},
+		{name: "kid of the engine but signed with the identity system key", authorization: codeToken,
+			body: idSystemJWT(t, jose.RS256, testEngineKid, identitySystemClaims())},
+		{name: "no kid", authorization: codeToken, body: idSystemJWT(t, jose.RS256, "", identitySystemClaims())},
+		{name: "alg none", authorization: codeToken,
+			body: b64JSON(t, map[string]string{"alg": "none", "kid": testIDSystemKid}) + "." +
+				b64JSON(t, identitySystemClaims()) + "."},
 		{name: "signing fails", authorization: exchangeToken, body: identitySystemUserinfo(t),
 			signErr: errors.New("hsm down")},
 		{name: "no authorization header", body: identitySystemUserinfo(t)},
@@ -307,11 +372,156 @@ func TestUserinfoScope_RefusesWhatItCannotFilter(t *testing.T) {
 
 			assert.Equal(t, http.StatusInternalServerError, rr.Code)
 			assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
-			assert.JSONEq(t, `{"error":"server_error","error_description":"userinfo cannot be limited to the access token's scope"}`,
+			assert.JSONEq(t, `{"error":"server_error","error_description":"userinfo cannot be issued"}`,
 				rr.Body.String())
 			assert.NotContains(t, rr.Body.String(), "siddhartha")
 		})
 	}
+}
+
+// tamperedPayload swaps the payload of a signed token, keeping its header and signature.
+func tamperedPayload(t *testing.T, compact string) string {
+	t.Helper()
+	parts := strings.Split(compact, ".")
+	require.Len(t, parts, 3)
+	return parts[0] + "." + b64JSON(t, map[string]any{"sub": "someone-else"}) + "." + parts[2]
+}
+
+// jwksEntryFor returns the published key (as /oauth2/jwks lists it) whose kid is kid.
+func jwksEntryFor(t *testing.T, signer UserinfoSigner, kid string) providers.PublicKeyInfo {
+	t.Helper()
+	keys, err := signer.GetPublicKeys(context.Background(), providers.PublicKeyFilter{})
+	require.NoError(t, err)
+	for _, k := range keys {
+		if k.KeyID == kid {
+			return k
+		}
+	}
+	t.Fatalf("no published key with kid %q", kid)
+	return providers.PublicKeyInfo{}
+}
+
+// The authorization-code login (the Hub's own sign-in): the identity system's RS256 token is
+// checked and signed again with the engine's key, with the alg and kid of that key's published
+// entry; every claim is kept.
+func TestUserinfoScope_AuthorizationCodeTokenSignedWithPublishedAlgAndKid(t *testing.T) {
+	signer := newFakeUserinfoSigner(t)
+	rr := serveUserinfo(t, signer, engineUserinfo(identitySystemUserinfo(t), http.StatusOK), http.MethodGet, UserinfoPath,
+		"DPoP "+accessToken(t, "authorization_code", "openid profile email phone", testHubClient))
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "application/jwt", rr.Header().Get("Content-Type"))
+	body := rr.Body.String()
+	signer.verify(t, body)
+	header, claims := payloadOf(t, body)
+	published := jwksEntryFor(t, signer, header["kid"].(string))
+	assert.Equal(t, published.Algorithm, header["alg"], "alg must equal the published alg of the kid")
+	assert.Equal(t, testEngineKid, header["kid"])
+	assert.NotEqual(t, "RS256", header["alg"])
+	want := identitySystemClaims()
+	want["iat"] = float64(1700000000)
+	assert.Equal(t, want, claims, "claims and aud of an authorization-code login are kept")
+	assert.Equal(t, "ES256", signer.gotAlg)
+}
+
+// With the deployment's RSA signing key the rebuilt token is PS256, the alg /oauth2/jwks lists.
+func TestUserinfoScope_RSAEngineKeySignsPS256(t *testing.T) {
+	engineKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	signer := &rsaUserinfoSigner{t: t, key: engineKey}
+	for _, grant := range []string{"authorization_code", tokenExchange} {
+		t.Run(grant, func(t *testing.T) {
+			rr := serveUserinfo(t, signer, engineUserinfo(identitySystemUserinfo(t), http.StatusOK), http.MethodGet,
+				UserinfoPath, "DPoP "+accessToken(t, grant, "openid email", testChildClient))
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			header, _ := payloadOf(t, rr.Body.String())
+			published := jwksEntryFor(t, signer, header["kid"].(string))
+			assert.Equal(t, "PS256", header["alg"])
+			assert.Equal(t, published.Algorithm, header["alg"])
+			jws, err := jose.ParseSigned(rr.Body.String(), []jose.SignatureAlgorithm{jose.PS256})
+			require.NoError(t, err)
+			_, err = jws.Verify(&engineKey.PublicKey)
+			require.NoError(t, err)
+		})
+	}
+}
+
+// A token the engine signed itself with its key and published alg is passed on unchanged.
+func TestUserinfoScope_EngineSignedTokenPassesThrough(t *testing.T) {
+	signer := newFakeUserinfoSigner(t)
+	own := b64JSON(t, map[string]string{"alg": "ES256", "kid": testEngineKid}) + "." + b64JSON(t, map[string]any{"sub": "psut-1"}) + ".c2ln"
+	rr := serveUserinfo(t, signer, engineUserinfo(own, http.StatusOK), http.MethodGet, UserinfoPath,
+		"DPoP "+accessToken(t, "authorization_code", "openid", testHubClient))
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, own, rr.Body.String())
+}
+
+// refreshingSigner lists no identity system key until it is asked to fetch them again.
+type refreshingSigner struct {
+	*fakeUserinfoSigner
+	refreshed []providers.PublicKeyInfo
+	refreshes int
+}
+
+func (f *refreshingSigner) GetPublicKeys(ctx context.Context, filter providers.PublicKeyFilter) ([]providers.PublicKeyInfo, error) {
+	keys, err := f.fakeUserinfoSigner.GetPublicKeys(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	return keys[:1], nil
+}
+
+func (f *refreshingSigner) RefreshIdentitySystemKeys(context.Context) []providers.PublicKeyInfo {
+	f.refreshes++
+	return f.refreshed
+}
+
+// A key the identity system created after its keys were cached: the middleware asks for the keys
+// again once, and refuses the token when the key is still unknown.
+func TestUserinfoScope_UnknownKidFetchesIdentitySystemKeysAgain(t *testing.T) {
+	codeToken := "DPoP " + accessToken(t, "authorization_code", "openid email", testHubClient)
+
+	signer := &refreshingSigner{fakeUserinfoSigner: newFakeUserinfoSigner(t)}
+	signer.refreshed = []providers.PublicKeyInfo{{KeyID: testIDSystemKid, Algorithm: "PS256", PublicKey: &idSystemKey(t).PublicKey}}
+	rr := serveUserinfo(t, signer, engineUserinfo(identitySystemUserinfo(t), http.StatusOK), http.MethodGet, UserinfoPath, codeToken)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	signer.verify(t, rr.Body.String())
+	assert.Equal(t, 1, signer.refreshes)
+
+	stillUnknown := &refreshingSigner{fakeUserinfoSigner: newFakeUserinfoSigner(t)}
+	rr = serveUserinfo(t, stillUnknown, engineUserinfo(identitySystemUserinfo(t), http.StatusOK), http.MethodGet, UserinfoPath, codeToken)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, 1, stillUnknown.refreshes)
+
+	// A tampered token is refused even when the refresh finds its key.
+	known := &refreshingSigner{fakeUserinfoSigner: newFakeUserinfoSigner(t)}
+	known.refreshed = signer.refreshed
+	rr = serveUserinfo(t, known, engineUserinfo(tamperedPayload(t, identitySystemUserinfo(t)), http.StatusOK), http.MethodGet,
+		UserinfoPath, codeToken)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, 1, known.refreshes)
+}
+
+// rsaUserinfoSigner is the engine with an RSA signing key, published with alg PS256.
+type rsaUserinfoSigner struct {
+	t   *testing.T
+	key *rsa.PrivateKey
+}
+
+func (f *rsaUserinfoSigner) GetPublicKeys(context.Context, providers.PublicKeyFilter) ([]providers.PublicKeyInfo, error) {
+	return []providers.PublicKeyInfo{
+		{KeyID: "O10N-engine", Algorithm: "PS256", PublicKey: &f.key.PublicKey, Thumbprint: "O10N-engine"},
+		{KeyID: testIDSystemKid, Algorithm: "PS256", PublicKey: &idSystemKey(f.t).PublicKey},
+	}, nil
+}
+
+func (f *rsaUserinfoSigner) Sign(_ context.Context, _ providers.KeyRef, alg string, content []byte) ([]byte, error) {
+	if alg != "PS256" {
+		return nil, errors.New("unexpected alg " + alg)
+	}
+	digest := sha256.Sum256(content)
+	return rsa.SignPSS(rand.Reader, f.key, crypto.SHA256, digest[:], &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
 }
 
 func TestBufferedResponse_KeepsFirstStatusAndDefaultsToOK(t *testing.T) {

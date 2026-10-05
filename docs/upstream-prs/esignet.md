@@ -13,7 +13,7 @@ The import commit is `4eac1cc`; the team's changes are `git diff 4eac1cc -- esig
 | 1 | Token-exchange grant at client registration | `9314b2b` | `internal/clientmgmt/validate.go` accepts `urn:ietf:params:oauth:grant-type:token-exchange` (and refuses unknown grant types); `internal/engine/actor_provider.go` passes the client's grants to Thunder |
 | 2 | Settings | `64e5c9e` | `internal/config/native_sso.go`, `app.go`, `data/deployment.yaml`: `oauth.native_sso.*`, `native_sso.*` and the `MOSIP_ESIGNET_NATIVE_SSO_*` variables |
 | 3 | Device Secret Provider | `f8a58e0` | `internal/engine/device_secret_provider.go` (signed inner JWT, RSA-OAEP-256 JWE, session record in the runtime store), key provisioning and wiring in `cmd/esignet/main.go` |
-| 4 | Userinfo limited to the granted scope | `91cf6fe` | `internal/httpmiddleware/userinfo_scope.go`: an access token from a token exchange sees only the claims of its scope |
+| 4 | Userinfo limited to the granted scope | `91cf6fe` | `internal/httpmiddleware/userinfo_scope.go`: an access token from a token exchange sees only the claims of its scope; userinfo of every grant is signed with eSignet's key and the alg its JWKS entry declares (PS256), after the identity system's RS256 token is verified |
 | 5 | Documentation | `6aff73e`, `ba0e764` | `docs/configuration.md`, `docs/esignet-openapi.yaml`, the "Native SSO" folder of the Postman collection |
 
 ## Before opening the pull requests

@@ -149,6 +149,13 @@ func TestE2E_FAPI2Login(t *testing.T) {
 		if ui.Str("sub") != idt.Str("sub") {
 			t.Errorf("userinfo sub %q, id_token sub %q", ui.Str("sub"), idt.Str("sub"))
 		}
+		// Signed with a key of the JWKS, with the alg that key declares (FAPI 2.0: PS256 or ES256).
+		if err := ui.VerifyWithJWKS(jwks); err != nil {
+			t.Errorf("userinfo signature: %v", err)
+		}
+		if alg, _ := ui.Header["alg"].(string); alg != "PS256" && alg != "ES256" {
+			t.Errorf("userinfo alg %q, want PS256 or ES256", alg)
+		}
 	}
 
 	// The same access token without a DPoP proof must be refused.

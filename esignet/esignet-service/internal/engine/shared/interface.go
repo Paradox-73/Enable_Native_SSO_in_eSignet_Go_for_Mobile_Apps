@@ -24,3 +24,10 @@ type ConsolidatedAuthnProvider interface {
 	// GetSigningCertificates retrieves public keys used by the ID system to sign userinfo responses.
 	GetSigningCertificates(ctx context.Context) ([]CertificateData, *common.ServiceError)
 }
+
+// SigningCertificateRefresher is implemented by an ID system provider that caches its signing
+// certificates: it fetches them again, bypassing that cache. It is called when a userinfo token
+// names a key the cached list does not hold (the ID system created or rotated a key since).
+type SigningCertificateRefresher interface {
+	RefreshSigningCertificates(ctx context.Context) ([]CertificateData, *common.ServiceError)
+}

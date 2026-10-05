@@ -457,6 +457,40 @@ func (ts *AuthenticatorTestSuite) TestSendOTP() {
 	})
 }
 
+// A key the identity system created after the list was cached is found by the refresh, which
+// also replaces the cached list.
+func (ts *AuthenticatorTestSuite) TestRefreshSigningCertificates_BypassesAndReplacesCache() {
+	t := ts.T()
+	keys := `{"keyId":"key-1","certificateData":"cert-1"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"response":{"allCertificates":[` + keys + `]}}`))
+	}))
+	defer server.Close()
+	p := newTestProvider(t, "http://unused", "http://unused", "http://unused")
+	p.cfg.CertificateURL = server.URL
+
+	certs, svcErr := p.GetSigningCertificates(context.Background())
+	require.Nil(t, svcErr)
+	require.Len(t, certs, 1)
+
+	keys = `{"keyId":"key-1","certificateData":"cert-1"},{"keyId":"key-2","certificateData":"cert-2"}`
+	certs, svcErr = p.GetSigningCertificates(context.Background())
+	require.Nil(t, svcErr)
+	require.Len(t, certs, 1, "served from the cache")
+
+	certs, svcErr = p.RefreshSigningCertificates(context.Background())
+	require.Nil(t, svcErr)
+	require.Len(t, certs, 2)
+	certs, svcErr = p.GetSigningCertificates(context.Background())
+	require.Nil(t, svcErr)
+	require.Len(t, certs, 2, "the cache holds the refreshed list")
+
+	server.Close()
+	_, svcErr = p.RefreshSigningCertificates(context.Background())
+	require.NotNil(t, svcErr)
+}
+
 func (ts *AuthenticatorTestSuite) TestGetSigningCertificates() {
 	t := ts.T()
 

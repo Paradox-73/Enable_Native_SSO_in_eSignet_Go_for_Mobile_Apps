@@ -273,6 +273,20 @@ func (p *mockAuthnProvider) GetSigningCertificates(ctx context.Context) ([]share
 	return certs, nil
 }
 
+// RefreshSigningCertificates fetches the signing certificates again, bypassing the cache, and
+// caches the result (shared.SigningCertificateRefresher).
+func (p *mockAuthnProvider) RefreshSigningCertificates(ctx context.Context) ([]shared.CertificateData, *common.ServiceError) {
+	certs, svcErr := p.fetchSigningCertificates(ctx)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+	p.certsMu.Lock()
+	p.cachedCerts = certs
+	p.certsExpiry = time.Now().Add(signingCertsCacheTTL)
+	p.certsMu.Unlock()
+	return certs, nil
+}
+
 // fetchSigningCertificates performs the actual HTTP GET + JSON parse against
 // p.cfg.CertificateURL, unconditionally (no cache check).
 func (p *mockAuthnProvider) fetchSigningCertificates(ctx context.Context) ([]shared.CertificateData, *common.ServiceError) {
