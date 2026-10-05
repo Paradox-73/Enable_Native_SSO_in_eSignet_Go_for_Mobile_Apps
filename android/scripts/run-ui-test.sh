@@ -10,8 +10,9 @@
 #
 # - `all` runs, in this order: superapp SuperAppSignInTest (Hub signs in with sharing on, so it holds
 #   a device secret), childapp ChildAppSilentSignInTest, childapp ChildAppReconsentTest, childapp
-#   ChildAppSignOutTest (last: it signs Hub out). The Health Card tests need the Hub sign-in of the
-#   first one. Prints `OK (4 tests)` when all pass.
+#   ChildAppSignOutTest (it signs Hub out), childapp ChildAppHubMissingTest (last: it uninstalls Hub;
+#   the script installs Hub again afterwards). The Health Card tests need the Hub sign-in of the
+#   first one. Prints `OK (5 tests)` when all pass.
 # - Builds `:<app>:assembleDebug :<app>:assembleDebugAndroidTest` (skip with PS03_SKIP_BUILD=1; needs
 #   JAVA_HOME 17+), installs both APKs (uninstalls first when the signature differs), registers the
 #   app with eSignet (register-client.sh), then runs the class with `am instrument -w`.
@@ -97,7 +98,7 @@ if [ "$1" = all ]; then
   build superapp childapp
   passed=0
   failed=()
-  pairs=(superapp:SuperAppSignInTest childapp:ChildAppSilentSignInTest childapp:ChildAppReconsentTest childapp:ChildAppSignOutTest)
+  pairs=(superapp:SuperAppSignInTest childapp:ChildAppSilentSignInTest childapp:ChildAppReconsentTest childapp:ChildAppSignOutTest childapp:ChildAppHubMissingTest)
   for pair in "${pairs[@]}"; do
     if run_one "${pair%%:*}" "${pair#*:}"; then
       passed=$((passed + 1))
@@ -105,6 +106,8 @@ if [ "$1" = all ]; then
       failed+=("${pair#*:}")
     fi
   done
+  # ChildAppHubMissingTest uninstalled Hub: put it back, signed out, for the next run.
+  install_apk "$ANDROID_DIR/superapp/build/outputs/apk/debug/superapp-debug.apk" org.badmosip.nativesso.superapp
   ps03_log "screenshots: $screens"
   if [ ${#failed[@]} -eq 0 ]; then
     echo "OK ($passed tests)"

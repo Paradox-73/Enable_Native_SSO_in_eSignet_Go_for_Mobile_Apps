@@ -16,8 +16,9 @@ import org.junit.runner.RunWith
 /**
  * Bonus B1 on a real device: Health Card asks for the phone number, which Hub's login never
  * granted. eSignet answers the token exchange with `interaction_required`; Health Card shows its
- * consent screen; "Continue to eSignet" runs Health Card's own PAR login with `prompt=consent`
- * (UIN, a new OTP, Allow); Health Card comes back signed in with its own tokens and the new scope.
+ * consent screen; "Not now" keeps the Hub sign-in and says that nothing changed; "Continue to
+ * eSignet" runs Health Card's own PAR login with `prompt=consent` (UIN, a new OTP, Allow); Health
+ * Card comes back signed in with its own tokens and the new scope.
  */
 @RunWith(AndroidJUnit4::class)
 class ChildAppReconsentTest {
@@ -45,6 +46,16 @@ class ChildAppReconsentTest {
         assertTrue("the consent text does not name the phone number: $text", text.contains("phone number"))
         ui.screenshot("health-card-consent-screen")
 
+        // "Not now" keeps the Hub sign-in and says that nothing changed.
+        ui.waitFor("consent_decline_button").click()
+        assertEquals(ui.context.getString(R.string.error_consent_declined), ui.waitFor("notice_text").text)
+        ui.waitFor("home_name")
+        assertEquals(Binding.HUB, ui.services.authenticator.currentSession()?.binding)
+        ui.screenshot("health-card-consent-declined")
+        ui.step("consent declined; Hub sign-in kept")
+
+        ui.waitFor("add_phone_button").click()
+        ui.waitFor("consent_title")
         ui.waitFor("consent_continue_button").click()
         ui.step("continue to eSignet tapped")
         ui.loginInBrowser {
