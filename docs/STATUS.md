@@ -58,7 +58,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | TODO | |
 | WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | DONE | `6bc7644` |
 | WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | TODO | |
-| WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | TODO | |
+| WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | DONE | `ba0e764` |
 | WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | TODO | |
 | WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | TODO | |
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | TODO | |
@@ -558,8 +558,23 @@ commit of that folder.
   - Thunder rejects a missing DPoP proof from a DPoP-bound client with `invalid_dpop_proof` before any grant
     handler runs (`oauth2/token/service.go:267-279`); assert that, not `invalid_request`, for such clients.
 
-### WP-14 eSignet API documentation and Postman collection for Native SSO
+### WP-14 eSignet API documentation and Postman collection for Native SSO (DONE)
 
+- **Result (2026-10-05, on `main` after `91cf6fe`)**
+  - `bash scripts/openapi-lint.sh esignet/docs/esignet-openapi.yaml` printed `0 errors, 8 warnings (import 4eac1cc5: 0 errors, 8 warnings): OK`.
+  - The `python -c ...` count printed `31` (acceptance asks for 18 or more).
+  - `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` (newman 6.2.2, stack rebuilt
+    from `91cf6fe`): 31 requests, 62 test scripts, 116 assertions, 0 failed, 3.6 s; stack down afterwards
+    (`docker ps` for the project printed nothing). An earlier run against an image built before `91cf6fe` failed 1 of
+    116 (`Card 02`: userinfo of the Health Card token still had `name`); it passed after the rebuild.
+  - Keys, client assertions (ES256, `aud` = issuer) and DPoP proofs are made in pre-request scripts by
+    `esignet/postman-collection/native-sso/lib.js` (BigInt ES256 on CryptoJS; no `crypto.subtle`), so the folder
+    runs in newman. The upstream folders still need the Postman desktop app. The login screens are plain
+    `/flow/execute` requests; no browser step is needed. The README section "Native SSO" explains the mapping to
+    `e2e/client/fapi.go`.
+  - Observed and documented: userinfo answers a signed JWT; `iss` inside it is `http://localhost:8088/v1/esignet`
+    (mock identity setting), not the issuer. Not covered by the collection: the Health Card's own PAR login after
+    `interaction_required` (the Go e2e suite and `ChildAppReconsentTest` cover it).
 - **Goal**
   - `esignet/docs/esignet-openapi.yaml`: `device_sso` on PAR and authorize; `device_secret` in the token response;
     the token-exchange device-secret profile with parameters and error codes; discovery fields; client management
