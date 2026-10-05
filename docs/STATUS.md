@@ -53,14 +53,14 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-06 | platform | Local stack and headless FAPI 2.0 login | WP-03 | DONE | `bf5a1b2`, this file's update |
 | WP-07 | thunder | Thunder: `device_sso` checks, `sid`, device secret issuance and `ds_hash` at the code grant (T1, T2, T5, T6) | WP-02 | DONE | `1a8a6e7`, `2a43b22`, `3dec587` |
 | WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | DONE | `9314b2b`, `64e5c9e`, `f8a58e0`, `6aff73e` |
-| WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | PARTIAL | `72b2528`, `b1ec211` |
+| WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | DONE | `72b2528`, `b1ec211`, `9f6c100` |
 | WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | DONE | `13d17ac` |
-| WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | PARTIAL | `b5d52d6` |
+| WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | DONE | `b5d52d6`, `da537ac` |
 | WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | DONE | `6bc7644` |
 | WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | DONE | see card |
 | WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | DONE | `ba0e764` |
-| WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | PARTIAL | `fe17bf6` |
-| WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | PARTIAL | see card |
+| WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | DONE | `fe17bf6`, `da537ac` |
+| WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | DONE | see card |
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | DONE | see card |
 | WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | DONE | see card |
 
@@ -326,7 +326,25 @@ commit of that folder.
   - New Go files inside `esignet/` start with eSignet's MPL-2.0 notice block (copy it from an existing file).
   - Format reference: [design.md section 9](design.md#9-device-secret-format).
 
-### WP-09 Hub: Sign in with eSignet on the emulator, tokens stored encrypted (PARTIAL)
+### WP-09 Hub: Sign in with eSignet on the emulator, tokens stored encrypted (DONE)
+
+- **Done 2026-10-05, 17:00-17:45 IST** (fix `9f6c100`)
+  - First emulator run (earlier on 2026-10-05): `SuperAppSignInTest` failed. eSignet passed the mock identity
+    system's userinfo token through unchanged: signed RS256 with kid `O10N3ZzA...`, a key the JWKS lists with
+    `alg` PS256. Hub's `IssuerSignatureVerifier` requires the token alg to equal the key alg and rejected it
+    (correct: FAPI 2.0 does not allow RS256). The client check is unchanged.
+  - Fix in eSignet, `internal/httpmiddleware/userinfo_scope.go`: userinfo of every grant is verified against the
+    identity system key of its kid, then signed again with eSignet's `jwt.preferred_key_id` key using the `alg`
+    and `kid` of that key's JWKS entry (PS256 for `RSA_2048`). An unknown kid fetches the identity system's keys
+    once more, bypassing the mock provider's 5-minute cache (one full e2e run had failed all userinfo calls,
+    3 of 29 tests, before this; not reproduced in four later runs). Unit tests assert alg and kid equal the
+    JWKS entry, with the real crypto provider and an RSA key (`internal/engine/userinfo_signing_test.go`).
+    The e2e client now requires the JWKS alg to equal the token alg.
+  - Acceptance: `bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all` (eSignet image rebuilt), `source /e/Projects/MOSIP/toolchain/env.sh; use_java21; with_lock emulator env PS03_HELD_LOCKS=:emulator ...`, AVD `ps03_api34` (API 34, Chrome 113):
+    `SuperAppSignInTest` `OK (1 test)` in 27.4 s, in two runs in a row. Build: `BUILD SUCCESSFUL`.
+  - Also measured: eSignet `go-test.sh ./... --changed-cover` 1582 tests, 0 failed, changed lines 311/332 (93.7 %);
+    `go-lint.sh esignet/esignet-service` and `e2e` OK; e2e 29 passed, 0 failed; newman 31 requests, 116
+    assertions, 0 failed; `repo-lint: OK`.
 
 - **Result (2026-10-05, on `main` after `b1ec211`)**
   - `cd android && bash gradlew --no-daemon assembleDebug assembleDebugAndroidTest`: `BUILD SUCCESSFUL` in 1 min 7 s
@@ -445,7 +463,19 @@ commit of that folder.
     - `bash scripts/go.sh esignet/esignet-service build -o /tmp/esignet ./cmd/esignet`: exit 0.
   - Not done here: scope subset rules, Child App `id_token` and claims (WP-12); no live test (WP-13).
 
-### WP-11 App-to-app: Hub family SSO service and Health Card connection (T7) (PARTIAL)
+### WP-11 App-to-app: Hub family SSO service and Health Card connection (T7) (DONE)
+
+- **Done 2026-10-05, 17:05 and 17:40 IST** (fix `da537ac`)
+  - `bash android/scripts/build-apks.sh`: `BUILD SUCCESSFUL` three times (family, intruder, takeover).
+  - `bash android/scripts/with-emulator.sh bash android/scripts/run-family-tests.sh`, `source /e/Projects/MOSIP/toolchain/env.sh; use_java21; with_lock emulator env PS03_HELD_LOCKS=:emulator ...`, AVD `ps03_api34` (API 34, Chrome 113), twice:
+    `family-bind PASS`, `htu-allow-list PASS`, `signed-out PASS (ERROR_NOT_SIGNED_IN)`,
+    `intruder PASS (SecurityException)`, `takeover PASS (install refused: INSTALL_FAILED_DUPLICATE_PERMISSION)`.
+  - Takeover: on this run Android refused to install Hub while the other app defined the permission, so the
+    acceptance's `takeover PASS (rejected)` form (per-call check reached) did not occur; the script documents the
+    refused install as the other passing outcome, and `FamilySsoGateTest`/`FamilySsoServiceTest` cover the
+    per-call refusal on the JVM.
+  - Fixed on the way: the takeover step exited silently when `adb install` returned non-zero under
+    `set -e`/`pipefail`; it now reads the refusal and reports it.
 
 - **Result (2026-10-05, commit `b5d52d6`)**
   - Hub: `superapp/.../sso/FamilySsoService` (exported, guarded by the family permission, action
@@ -687,7 +717,21 @@ commit of that folder.
     section and point to the Go e2e suite for automated runs.
   - Edit the upstream files in place in their own `docs:` or `feat(esignet):` commits; never in an `import:` commit.
 
-### WP-15 Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1)
+### WP-15 Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) (DONE)
+
+- **Done 2026-10-05, 17:00 and 17:35 IST** (fix `da537ac`; server fix `9f6c100`)
+  - First emulator run (earlier on 2026-10-05): `ChildAppReconsentTest` was flaky, refused by Hub's rate limit
+    (30 calls per 60 s, unchanged). Cause: every check of Health Card opened one connection for the share
+    (version + bundle) and a second for the silent sign-in (version + bundle again), and `onCreate` and
+    `onResume` both started a check on launch, so a launch could run two silent sign-ins at once.
+  - Fix: `CardController.reconcile` signs in over the connection that read the share
+    (`CardAuthenticator.silentSignIn(calls, share, scope)`); a resume while a check runs is skipped. A launch now
+    costs 4 Hub calls (version, bundle, 2 proofs). New JVM tests count the calls; `childapp` 52 tests, 0 failed.
+  - Acceptance: `bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all`,
+    `source /e/Projects/MOSIP/toolchain/env.sh; use_java21; with_lock emulator env PS03_HELD_LOCKS=:emulator ...`, AVD `ps03_api34` (API 34, Chrome 113): `OK (3 tests)` twice in a row: `SuperAppSignInTest` (device secret, `ds_hash`) 27.4 s,
+    `ChildAppSilentSignInTest` 4.3 s, `ChildAppReconsentTest` 27.2 s. Screens in
+    `$PS03_RUN_DIR/evidence/2026-10-05/screens/`.
+  - Hub's family service log: the rate-limit line gives the count in the window; no line per admitted call.
 
 - **Result (2026-10-05, 06:12 IST, `fe17bf6`): PARTIAL; the only open item is the emulator run.**
   - Done: `childapp` `CardAuthenticator` (exchange with Hub's id_token and device secret, `audience` =
@@ -736,7 +780,15 @@ commit of that folder.
   - Pick the extra scope for the re-consent demo (for example `phone`) after checking eSignet's scope-to-claims
     mapping in `esignet/esignet-service/data/deployment.yaml`.
 
-### WP-16 End-to-end demo script (one command, repeatable) and video storyboard (PARTIAL)
+### WP-16 End-to-end demo script (one command, repeatable) and video storyboard (DONE)
+
+- **Done 2026-10-05, 17:06 and 17:45 IST**
+  - `bash scripts/demo/demo.sh --check` under `with_lock emulator` (`PS03_HELD_LOCKS=:emulator`), twice:
+    `stack smoke: PASS`, `e2e: 4 passed, 0 failed`, emulator booted (27 s, 57 s),
+    `device ready: Hub in front, 2 clients registered`, `demo ready`, `teardown ok`, in 128 s and 187 s
+    (limit 10 minutes). Afterwards `docker ps -q` listed no container and the emulator was stopped.
+  - Still open (not part of the acceptance): the on-device timing table of `docs/demo-script.md` from a
+    rehearsal by a person.
 
 - **Result (2026-10-05, 06:20 IST): PARTIAL; the only open item is the emulator run.**
   - Built: `scripts/demo/demo.sh` (`--check`, `--dry-run`, `--no-emulator`, `--skip-build`), `prepare-device.sh`,

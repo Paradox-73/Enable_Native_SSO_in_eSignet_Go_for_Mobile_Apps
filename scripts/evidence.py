@@ -173,7 +173,7 @@ def cmd_report(_):
     w("- **NOT RUN means the check was not executed**, for the reason listed under [Known limits](#known-limits); it is not a pass.")
     nr = [r["id"] for r in rows if r["section"] in ("agg", "matrix", "manual") and r["result"] == "NOT RUN"]
     w("- Not run: " + (", ".join("`%s`" % i for i in nr) if nr else "nothing") + ".")
-    w("- Emulator UI tests, the family tests on a device, the full demo check with the emulator, and the hosted CI run have not been run or seen: see limits L05 and L06.\n")
+    w("- Emulator rows (UI-*, DEMO-FULL and the `b` rows of the rule matrix) are set by hand from a dated emulator run; `--run` does not run the emulator.\n")
     w("## Environment\n")
     w("| Item | Value |\n|---|---|")
     for r in env: w("| %s | %s |" % (esc(r["id"]), esc(r["note"])))
@@ -188,7 +188,7 @@ def cmd_report(_):
     w("bash scripts/with-stack.sh bash e2e/run.sh")
     w("bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh")
     w("(cd android && bash gradlew --no-daemon :oidc-client:test :secure-store:testDebugUnitTest :superapp:testDebugUnitTest :childapp:testDebugUnitTest)")
-    w("bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all   # emulator: NOT RUN so far")
+    w("bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all   # emulator")
     w("```\n")
     w("## Results by check\n")
     w("| Id | Check | Command | Result | Date | Detail |\n|---|---|---|---|---|---|")
@@ -198,7 +198,7 @@ def cmd_report(_):
     w("## Rule matrix\n")
     w("Rules R01-R26 are the server rules and A01-A12 the app rules of [design.md section 20](design.md#20-rules-and-tests). "
       "A row is PASS only when every test named in its Unit, e2e and Android columns passed in the run recorded for it. "
-      "A rule that has both a JVM part and a device part has two rows (`a`, `b`); the device row is NOT RUN until an emulator run exists.\n")
+      "A rule that has both a JVM part and a device part has two rows (`a`, `b`); the device row is set from an emulator run.\n")
     w("| Rule | Task | Unit test | e2e test | Android test | Result | Date | Note |\n|---|---|---|---|---|---|---|---|")
     for r in mat:
         w("| %s | %s | %s | %s | %s | %s | %s | %s |" % (r["id"], esc(r["task"]), code(r["unit"]), code(r["e2e"]) if r["e2e"] != "unit only" else "unit only", code(r["android"]), r["result"], r["date"], esc(r["note"])))
