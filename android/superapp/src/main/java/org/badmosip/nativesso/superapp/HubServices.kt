@@ -16,6 +16,7 @@ import org.badmosip.nativesso.superapp.auth.HubAuthenticator
 import org.badmosip.nativesso.superapp.auth.HubConfig
 import org.badmosip.nativesso.superapp.keys.AndroidKeystoreKeys
 import org.badmosip.nativesso.superapp.keys.EcKeyJwsSigner
+import org.badmosip.nativesso.superapp.keys.ReplaceableSigner
 import org.badmosip.nativesso.superapp.sso.AndroidCallerLookup
 import org.badmosip.nativesso.superapp.sso.FamilyAccessLog
 import org.badmosip.nativesso.superapp.sso.FamilySsoGate
@@ -38,9 +39,11 @@ class HubApp : Application(), FamilySsoHost {
 class HubServices(context: Context) {
     val store: EncryptedFileStore = KeystoreSecureStore.create(context)
 
-    val dpopSigner: EcKeyJwsSigner = AndroidKeystoreKeys.signer(AndroidKeystoreKeys.DPOP_ALIAS) {
-        Log.i(TAG, "DPoP key: $it")
-    }
+    /** The DPoP key; "Sign out of all apps" deletes it and the next sign-in makes a new one. */
+    val dpopSigner = ReplaceableSigner(
+        load = { AndroidKeystoreKeys.signer(AndroidKeystoreKeys.DPOP_ALIAS) { Log.i(TAG, "DPoP key: $it") } },
+        delete = { AndroidKeystoreKeys.delete(AndroidKeystoreKeys.DPOP_ALIAS) },
+    )
 
     /** The client key; its `kid` is its RFC 7638 thumbprint, the same `kid` that is registered. */
     val clientSigner: EcKeyJwsSigner = AndroidKeystoreKeys.signer(AndroidKeystoreKeys.CLIENT_AUTH_ALIAS) {
@@ -66,6 +69,7 @@ class HubServices(context: Context) {
         clientSigner = clientSigner,
         store = store,
         log = { Log.i(TAG, it) },
+        forgetDpopKey = dpopSigner::destroy,
     )
 
     /** "Apps using this sign-in", shown on the home screen. */

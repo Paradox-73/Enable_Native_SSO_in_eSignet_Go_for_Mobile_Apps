@@ -17,8 +17,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,7 +36,11 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
@@ -58,7 +66,7 @@ class MainActivity : ComponentActivity() {
         // A redirect in the launch intent is handled once, not again after a rotation.
         model.start(if (savedInstanceState == null) redirectOf(intent) else null)
         setContent {
-            MaterialTheme {
+            HubTheme {
                 Surface(Modifier.fillMaxSize()) {
                     HubContent(model)
                 }
@@ -82,6 +90,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     @OptIn(ExperimentalComposeUiApi::class)
     private fun HubContent(model: HubViewModel) {
+        val startingText = stringResource(R.string.starting)
         val url = model.browserUrl
         LaunchedEffect(url) {
             if (url != null) {
@@ -93,6 +102,7 @@ class MainActivity : ComponentActivity() {
             modifier = Modifier
                 .semantics { testTagsAsResourceId = true }
                 .safeDrawingPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -102,7 +112,7 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.semantics { heading() },
             )
             when (val screen = model.screen) {
-                HubScreen.Starting -> CircularProgressIndicator()
+                HubScreen.Starting -> CircularProgressIndicator(Modifier.semantics { contentDescription = startingText })
                 is HubScreen.Welcome -> Welcome(model, screen.error)
                 is HubScreen.Working -> Working(screen.inBrowser, model::cancel)
                 is HubScreen.Home -> Home(screen.session, screen.familyApps, model::signOut)
@@ -114,36 +124,43 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun Welcome(model: HubViewModel, error: String?) {
     Text(stringResource(R.string.role), style = MaterialTheme.typography.bodyLarge)
+    // One TalkBack item for the label and the switch; the whole row is the touch target.
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("share_switch")
+            .toggleable(
+                value = model.shareWithFamily,
+                role = Role.Switch,
+                onValueChange = { model.shareWithFamily = it },
+            )
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(stringResource(R.string.share_switch), modifier = Modifier.weight(1f))
-        Switch(
-            checked = model.shareWithFamily,
-            onCheckedChange = { model.shareWithFamily = it },
-            modifier = Modifier.testTag("share_switch"),
-        )
+        Switch(checked = model.shareWithFamily, onCheckedChange = null)
     }
     Button(onClick = model::signIn, modifier = Modifier.fillMaxWidth().testTag("sign_in_button")) {
         Text(stringResource(R.string.sign_in))
     }
     if (error != null) {
-        Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error_text"))
+        Text(
+            error,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.testTag("error_text").semantics { liveRegion = LiveRegionMode.Polite },
+        )
     }
     LabelledValue(stringResource(R.string.issuer_label), BuildConfig.ISSUER)
 }
 
 @Composable
 private fun Working(inBrowser: Boolean, onCancel: () -> Unit) {
-    CircularProgressIndicator()
-    Text(
-        stringResource(if (inBrowser) R.string.working_browser else R.string.working),
-        modifier = Modifier.testTag("working_text"),
-    )
+    val text = stringResource(if (inBrowser) R.string.working_browser else R.string.working)
+    CircularProgressIndicator(Modifier.semantics { contentDescription = text })
+    Text(text, modifier = Modifier.testTag("working_text").semantics { liveRegion = LiveRegionMode.Polite })
     if (inBrowser) {
-        OutlinedButton(onClick = onCancel, modifier = Modifier.testTag("cancel_button")) {
+        OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().testTag("cancel_button")) {
             Text(stringResource(R.string.cancel))
         }
     }
@@ -176,17 +193,24 @@ private fun Home(session: TokenBundle, familyApps: List<FamilyAccess>, onSignOut
         )
     }
     LabelledValue(stringResource(R.string.issuer_label), session.issuer)
-    OutlinedButton(onClick = onSignOut, modifier = Modifier.testTag("sign_out_button")) {
+    OutlinedButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().testTag("sign_out_button")) {
         Text(stringResource(R.string.sign_out))
     }
 }
 
 @Composable
 private fun LabelledValue(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier.fillMaxWidth()) {
+    // Read by TalkBack as one item: "label, value".
+    Card(
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(value, style = MaterialTheme.typography.bodyMedium)
+            Text(value, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }

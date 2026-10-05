@@ -29,6 +29,10 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "ISSUER", "\"$issuer\"")
+        // client_id = this prefix + 12 hex characters of the client key's thumbprint (as in Hub):
+        // every install registers its own key (android/scripts/register-client.sh childapp).
+        buildConfigField("String", "CLIENT_ID_PREFIX", "\"ps03-card-\"")
+        buildConfigField("String", "REDIRECT_URI", "\"org.badmosip.nativesso.childapp://oauth/callback\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -71,15 +75,24 @@ android {
 dependencies {
     implementation(project(":sso-contract"))
     implementation(project(":oidc-client"))
+    implementation(project(":secure-store"))
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(platform(libs.androidx.compose.bom))
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.uiautomator)
 }

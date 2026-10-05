@@ -11,12 +11,13 @@ import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
+import com.nimbusds.jwt.SignedJWT
+import org.badmosip.nativesso.oidc.TokenHashes
 import org.badmosip.nativesso.superapp.auth.HubAuthenticator
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -34,7 +35,10 @@ import java.util.regex.Pattern
  * the client registered (`android/scripts/register-client.sh`); `android/scripts/run-ui-test.sh`
  * does all of it. Instrumentation arguments: `uin`, `otp`, `expectedName`.
  *
- * The sharing switch stays off: device_sso is asserted on the device in WP-15.
+ * The sharing switch ("Use this sign-in in my other apps") is turned on, so the login asks for
+ * `device_sso`: the stored bundle must hold a device secret, and the id_token must carry `sid` and a
+ * `ds_hash` that matches it (Native SSO 1.0 section 3.4.1). Health Card's UI tests
+ * (`ChildAppSilentSignInTest`, `ChildAppReconsentTest`) run after this test and use that sign-in.
  */
 @RunWith(AndroidJUnit4::class)
 class SuperAppSignInTest {
@@ -61,14 +65,17 @@ class SuperAppSignInTest {
     }
 
     @Test
-    fun signInWithEsignetShowsTheNameAndStoresEncryptedTokens() {
+    fun signInWithSharingShowsTheNameAndStoresAnEncryptedDeviceSecret() {
         context.startActivity(
             Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
         )
         val signIn = device.wait(Until.findObject(By.res("sign_in_button")), 30_000)
         assertNotNull("Hub's welcome screen did not appear", signIn)
         val share = device.findObject(By.res("share_switch"))
-        if (share != null && share.isChecked) share.click()
+        assertNotNull("the sharing switch is missing", share)
+        if (!share.isChecked) share.click()
+        assertTrue("the sharing switch did not turn on", device.wait(Until.hasObject(By.res("share_switch").checked(true)), 5_000))
+        screenshot("hub-welcome-sharing-on")
         signIn.click()
         step("sign-in tapped")
 
@@ -77,20 +84,26 @@ class SuperAppSignInTest {
         val name = device.wait(Until.findObject(By.res("home_name")), 30_000)
         assertNotNull("Hub's home screen did not appear", name)
         assertEquals(expectedName, name.text)
-        assertNotNull("sharing should show No", device.findObject(By.res("sharing_status"))?.findObject(By.text("No")))
         step("home screen shows the name")
+        screenshot("hub-home")
 
         // An encrypted token bundle with an id_token is on disk, in noBackupFilesDir.
         val session = app.services.authenticator.currentSession()
         assertNotNull("no stored session", session)
         assertEquals(3, session!!.idToken.split('.').size)
-        assertNull("the switch was off, so no device secret", session.deviceSecret)
+        val deviceSecret = session.deviceSecret
+        assertNotNull("the switch was on, so a device secret must be stored", deviceSecret)
+        val claims = SignedJWT.parse(session.idToken).jwtClaimsSet
+        assertEquals("ds_hash does not match the device secret", TokenHashes.dsHash(deviceSecret!!), claims.getStringClaim("ds_hash"))
+        assertNotNull("sid missing", claims.getStringClaim("sid"))
+        assertEquals(claims.getStringClaim("sid"), session.sessionId)
         val file = app.services.store.fileOf(HubAuthenticator.SESSION)
         assertTrue("$file missing", file.isFile)
         assertTrue("store outside noBackupFilesDir", file.canonicalPath.startsWith(context.noBackupFilesDir.canonicalPath))
         val raw = String(file.readBytes(), Charsets.ISO_8859_1)
         assertFalse("id_token readable on disk", raw.contains(session.idToken))
         assertFalse("access token readable on disk", raw.contains(session.accessToken))
+        assertFalse("device secret readable on disk", raw.contains(deviceSecret))
         assertFalse("JSON readable on disk", raw.contains("id_token"))
         step("encrypted token bundle verified (${file.length()} bytes)")
     }
@@ -169,6 +182,12 @@ class SuperAppSignInTest {
 
     private fun step(message: String) {
         Log.i(TAG, message)
+    }
+
+    /** Saved to ui-test/screens/; `android/scripts/run-ui-test.sh` copies them to the evidence folder. */
+    private fun screenshot(name: String) {
+        val dir = File(evidence, "screens").apply { mkdirs() }
+        runCatching { device.takeScreenshot(File(dir, "$name.png")) }
     }
 
     private companion object {

@@ -52,6 +52,7 @@ class HubAuthenticator(
     private val clock: Clock = Clock.systemUTC(),
     private val pendingLifetime: Duration = Duration.ofMinutes(10),
     private val log: (String) -> Unit = {},
+    private val forgetDpopKey: () -> Unit = {},
 ) {
     private val clientAuth = ClientAssertionFactory(config.clientId, clientSigner, clock = clock)
     private val dpop = DpopProofFactory(dpopSigner, clock)
@@ -202,11 +203,17 @@ class HubAuthenticator(
         null
     }
 
-    /** Forgets the tokens, the device secret, any login in progress and the family access list. */
+    /**
+     * "Sign out of all apps": forgets the tokens, the device secret, any login in progress and the
+     * family access list, and deletes the DPoP key ([forgetDpopKey]; a new one is made at the next
+     * sign-in). Every device secret and every family app token bound to the old key stops working,
+     * and the family service answers `ERROR_NOT_SIGNED_IN`.
+     */
     fun signOut() {
         store.delete(SESSION)
         store.delete(PENDING)
         store.delete(FAMILY_ACCESS)
+        forgetDpopKey()
         log("signed out")
     }
 

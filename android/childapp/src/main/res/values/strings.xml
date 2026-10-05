@@ -11,14 +11,57 @@
     <string name="super_app_missing">Not installed. Install Hub and sign in there first.</string>
     <string name="super_app_same_family">Installed, same certificate as this app</string>
     <string name="super_app_other_family">Installed, but signed with another certificate: it cannot share its sign-in</string>
-    <string name="hub_sign_in_label">Sign-in from Hub</string>
-    <string name="hub_checking">Asking Hub for its sign-in�</string>
+    <string name="about_label">About this app</string>
+
+    <string name="hub_checking">Asking Hub for its sign-in…</string>
     <string name="hub_check_again">Check again</string>
-    <string name="hub_available">Available (%1$s). Health Card can sign you in without a password or OTP.</string>
-    <string name="hub_not_signed_in">Not available. Sign in to Hub first, with \"Use this sign-in in my other apps\" turned on.</string>
+    <string name="hub_not_signed_in">Hub has no sign-in it shares. Open Hub, turn on \"Use this sign-in in my other apps\" and sign in.</string>
     <string name="hub_refused">Hub refused this app: it is not signed with the same certificate.</string>
     <string name="hub_timeout">Hub did not answer in time. Try again.</string>
     <string name="hub_rate_limited">Hub is busy. Try again in a minute.</string>
     <string name="hub_version">This Hub version cannot share its sign-in with this Health Card version. Update both apps.</string>
     <string name="hub_failed">Something went wrong while asking Hub. Try again.</string>
+
+    <string name="needs_hub_title">Sign in to Hub first</string>
+    <string name="open_hub">Open Hub</string>
+
+    <string name="working">Signing you in with Hub…</string>
+    <string name="working_browser">Finish on eSignet\'s page in the browser.</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="signed_in_as">Signed in as</string>
+    <string name="name_unknown">(name not shared)</string>
+    <string name="email_label">Email</string>
+    <string name="phone_label">Phone number</string>
+    <string name="not_shared">Not shared with Health Card</string>
+    <string name="how_label">How you signed in</string>
+    <string name="how_hub">With Hub\'s sign-in. No password or OTP was needed.</string>
+    <string name="how_own">With your own eSignet sign-in, after you gave the extra permission.</string>
+    <string name="add_phone">Add my phone number</string>
+    <string name="sign_out">Sign out of Health Card</string>
+
+    <string name="signed_out_text">You signed out of Health Card. Hub is still signed in.</string>
+    <string name="continue_with_hub">Continue with Hub</string>
+
+    <string name="consent_title">Health Card needs your permission</string>
+    <string name="consent_body">Health Card asks to see: %1$s. Your Hub sign-in did not include this, so eSignet must ask you first.</string>
+    <string name="consent_otp">eSignet keeps no browser session, so you will enter your ID and a new OTP on eSignet\'s page.</string>
+    <string name="consent_continue">Continue to eSignet</string>
+    <string name="consent_decline">Not now</string>
+    <string name="scope_phone">your phone number</string>
+    <string name="scope_email">your email address</string>
+    <string name="scope_profile">your name and profile</string>
+
+    <string name="try_again">Try again</string>
+    <string name="error_network">Cannot reach the eSignet server. Check the connection and try again.</string>
+    <string name="error_server_unavailable">The eSignet server is not available (HTTP %1$s). Try again later.</string>
+    <string name="error_hub_session_ended">Your Hub sign-in has ended. Open Hub and sign in again.</string>
+    <string name="error_server_refused">eSignet refused the sign-in (%1$s).</string>
+    <string name="error_security">The sign-in answer failed a security check (%1$s). Nothing was saved.</string>
+    <string name="error_response">eSignet sent an answer Health Card cannot use. Nothing was saved.</string>
+    <string name="error_hub">Hub could not be used right now (%1$s). Try again.</string>
+    <string name="error_consent_declined">You did not give the extra permission. Nothing changed.</string>
+    <string name="error_expired">The sign-in took too long. Please start again.</string>
+    <string name="error_mismatch">That sign-in is not the one in progress. Please start again.</string>
+    <string name="error_unexpected">Something went wrong. Please try again.</string>
 </resources>

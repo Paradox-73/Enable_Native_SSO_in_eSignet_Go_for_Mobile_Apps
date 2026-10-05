@@ -8,12 +8,13 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
   password or OTP, by sending Hub's id_token and device secret to eSignet in a token exchange.
 
 > **State on 2026-10-05.** Built and tested: the Gradle project, shared signing, the binder contract,
-> the `oidc-client` library (64 JVM tests), the `secure-store` module (13 JVM tests), Hub's
-> sign-in with eSignet and Hub's family single sign-on service (50 JVM and Robolectric tests), and
-> Health Card's connection to Hub (10 Robolectric tests). NOT RUN yet on the emulator:
-> `SuperAppSignInTest` (see [Hub sign-in](#hub-sign-in-with-esignet)) and the family steps (see
-> [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)). Health Card's token
-> exchange (silent sign-in) is the next work package.
+> the `oidc-client` library (64 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
+> with eSignet, the family single sign-on service, "Sign out of all apps" that deletes the DPoP key:
+> 54 JVM and Robolectric tests) and Health Card (silent sign-in by token exchange, re-consent,
+> sign-out, accessibility: 50 Robolectric and JVM tests). NOT RUN yet on the emulator:
+> `bash android/scripts/run-ui-test.sh all` (`SuperAppSignInTest`, `ChildAppSilentSignInTest`,
+> `ChildAppReconsentTest`, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)) and
+> the family steps (see [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)).
 
 ## Modules
 
@@ -23,7 +24,7 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 | `sso-contract` | Android library | `IFamilySso.aidl` and the `SsoBundle` parcelable, the permission, action and package names, error codes, a signing-certificate helper |
 | `secure-store` | Android library | `EncryptedFileStore`: one AES-256-GCM file per blob in `noBackupFilesDir`, key in Android Keystore (`KeystoreSecureStore`) |
 | `superapp` | Android app | Hub: sign-in with eSignet (Custom Tab, PAR, PKCE, DPoP, `private_key_jwt`), Keystore keys, encrypted token storage; the family single sign-on service (`sso/`); declares the family permission |
-| `childapp` | Android app | Health Card: asks Hub for its shared sign-in over the binder (`HubConnection`); declares the same permission and a `<queries>` entry for Hub |
+| `childapp` | Android app | Health Card: asks Hub for its shared sign-in over the binder (`HubConnection`), signs in by Native SSO token exchange with proofs from Hub, re-consent through its own PAR login with `prompt=consent`, its own Keystore keys and encrypted store; declares the same permission and `<queries>` entries for Hub and Custom Tabs |
 
 Toolchain: AGP 8.6.0, Gradle 8.7 (wrapper, checksum pinned), Kotlin 2.0.20, Jetpack Compose (BOM
 2024.09.02) with Material 3, Java 17 bytecode, compileSdk and targetSdk 34, minSdk 28 (Android 9:
@@ -113,7 +114,7 @@ Keys (`superapp/.../keys/`):
 
 | Key | Alias | Use |
 |---|---|---|
-| DPoP key, EC P-256 | `hub-dpop-es256` | every DPoP proof; the tokens and the device secret are bound to it (`cnf.jkt`) |
+| DPoP key, EC P-256 | `hub-dpop-es256` | every DPoP proof; the tokens and the device secret are bound to it (`cnf.jkt`). "Sign out of all apps" deletes it (`ReplaceableSigner`); the next sign-in makes a new one, so every device secret and Health Card token bound to the old key stops working |
 | client key, EC P-256 | `hub-client-auth-es256` | `private_key_jwt`; `kid` = its RFC 7638 thumbprint |
 | store key, AES-256-GCM | `secure-store-aes` | encrypts the store (module `secure-store`) |
 
@@ -139,35 +140,38 @@ builds allow it for `localhost` and `127.0.0.1` only (`src/debug/res/...`), for 
 
 ```bash
 source /e/Projects/MOSIP/toolchain/env.sh && use_java21
-bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh superapp SuperAppSignInTest
-# ... OK (1 test)
+bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all
+# ... OK (3 tests)
 ```
 
 | Script | What it does |
 |---|---|
 | `scripts/with-emulator.sh <cmd...>` | takes the `emulator` lock; boots AVD `ps03_api34` headless on port 5584 (`-gpu host`), waits for boot and network, `adb reverse` 38088 and 38300, turns Chrome's first-run screens off, runs the command, then cleans up and kills the emulator it started |
-| `scripts/register-client.sh [superapp]` | reads `files/client-registration.json` with `adb shell run-as` (starts the app once if needed) and registers the client through `POST /client-mgmt/client` (private_key_jwt, PAR, PKCE, DPoP, relying party `ps03-family`) |
-| `scripts/run-ui-test.sh <app> <Class>` | builds the app and test APKs, installs them, registers the client, runs the class with `am instrument`, saves logcat, the last screenshot and window dump to `$PS03_RUN_DIR/evidence/ui-<app>-<time>/` |
+| `scripts/register-client.sh [superapp\|childapp]` | reads `files/client-registration.json` with `adb shell run-as` (starts the app once if needed) and registers the client through `POST /client-mgmt/client` (private_key_jwt, PAR, PKCE, DPoP, relying party `ps03-family`, grants `authorization_code` and token exchange, `allowed_authorization_scopes` `device_sso`). A client_id registered before 2026-10-05 lacks the last two: reinstall the app (new key, new client_id) or start the stack from clean volumes |
+| `scripts/run-ui-test.sh <app> <Class>` | builds the app and test APKs, installs them, registers the client, runs the class with `am instrument`, saves logcat, the last screenshot and window dump to `$PS03_RUN_DIR/evidence/ui-<app>-<time>/` and the screenshots a test takes on purpose to `$PS03_RUN_DIR/evidence/<date>/screens/` |
+| `scripts/run-ui-test.sh all` | `SuperAppSignInTest`, then `ChildAppSilentSignInTest` and `ChildAppReconsentTest` (they use Hub's sign-in from the first); prints `OK (3 tests)` or `FAILED: <classes>` |
 
-`SuperAppSignInTest` (UI Automator): signs out, starts Hub, leaves the switch off, taps "Sign in with
+`SuperAppSignInTest` (UI Automator): signs out, starts Hub, turns "Use this sign-in in my other apps" on, taps "Sign in with
 eSignet", then in Chrome types UIN `1774231323`, taps the captcha box when there is one, "Get OTP",
 types OTP `111111`, "Verify" and "Allow", and expects Hub's home screen with the name
 `Siddharth K Mansour` (arguments `uin`, `otp`, `expectedName`; environment `PS03_TEST_UIN`,
 `PS03_TEST_OTP`, `PS03_TEST_NAME` in `run-ui-test.sh`). Then it checks the stored session has an
-id_token, the file is under `noBackupFilesDir`, and neither the id_token, the access token nor the
-JSON field names can be read in the file.
+id_token and a device secret whose `ds_hash` is in the id_token next to `sid`, the file is under
+`noBackupFilesDir`, and neither the id_token, the access token, the device secret nor the JSON field
+names can be read in the file.
 
 What the JVM tests cover:
 
 - `secure-store` (13): round trip, ciphertext only on disk, new IV per write, atomic replace, a
   changed ciphertext or IV byte, a file copied under another name, wrong magic or version, truncation,
   another key, delete, empty blob, name rules.
-- `superapp` (29 of its 50; the other 21 are listed under [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
+- `superapp` (33 of its 54; the other 21 are listed under [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
   PKCE pairing, client assertion audience and `kid`, DPoP proofs at PAR, token and userinfo with the
   right `htu`); `device_sso` on with the device secret kept after the `ds_hash` check; wrong `ds_hash`,
   wrong `nonce`, an unasked device secret, error redirects: nothing stored; `state` mismatch keeps the
   login pending; replay, expiry, another redirect URI; finishing in a new process from the same store;
-  userinfo failing or about another `sub`; sign-out; tokens unreadable in the encrypted file; records,
+  userinfo failing or about another `sub`; sign-out (which deletes the DPoP key, and a new key at the
+  next use: `ReplaceableSignerTest`); text contrast of both color schemes (`HubThemeTest`); tokens unreadable in the encrypted file; records,
   name rules, redirect matching, client_id rule; ES256 signatures from `EcKeyJwsSigner` verified by
   Nimbus and by `java.security`.
 
@@ -232,7 +236,8 @@ Health Card (`childapp/.../HubConnection.kt`):
   `BIND_REFUSED` (Android refused the bind: no permission), `CALLER_REFUSED` (Hub's per-call
   check), `TIMEOUT`, `RATE_LIMITED`, `VERSION_MISMATCH`, `FAILED`. The screen says what the user
   can do for each.
-- `HubDpopProofSource(service)` is the `DpopProofSource` the token exchange (next work package) uses.
+- `HubDpopProofSource(service)` is the `DpopProofSource` the token exchange and userinfo use (see
+  [Health Card](#health-card-silent-sign-in-re-consent-sign-out)).
 
 Test builds and scripts:
 
@@ -258,6 +263,96 @@ What the JVM and Robolectric tests cover:
   connection released, not signed in, each coded refusal, Android refusing the bind, Hub missing,
   the timeout, another contract version, proofs forwarded and an `htu` refusal surfaced, an
   uncoded exception passed through.
+
+## Health Card: silent sign-in, re-consent, sign-out
+
+Silent sign-in (`childapp/.../auth/CardAuthenticator.kt`, no Android code; `CardController.kt` holds
+the screen logic, also without Android types):
+
+1. Health Card opens and asks Hub (`HubConnection`) for its shared sign-in. None: the screen "Sign in
+   to Hub first" with the reason, "Open Hub" and "Check again".
+2. Token exchange through `oidc-client` (Native SSO 1.0 section 4.1): `subject_token` = Hub's id_token,
+   `actor_token` = the device secret, `audience` = the issuer, `scope=openid profile` (never
+   `device_sso`), Health Card's own `private_key_jwt`, and a DPoP proof signed by Hub's key through
+   Hub's service (the device secret is bound to that key; `use_dpop_nonce` is answered once with a new
+   proof from Hub).
+3. id_token checks: signature, `iss`, `aud` = Health Card's client_id, `at_hash`, and `sid` equal to
+   the `sid` of Hub's id_token. No device secret may come back. Any failure stores nothing.
+4. Userinfo with the new access token and a Hub-signed proof carrying `ath`: name, email (and phone
+   when granted) for the home screen.
+5. `CardSession` (tokens, scope, `sid`, Hub's `sid`, which key the token is bound to) in Health Card's
+   own encrypted store. No browser, no password, no OTP.
+
+Re-consent (bonus B1): "Add my phone number" asks the exchange for `openid profile phone`. Hub's
+login never had `phone`, so eSignet answers HTTP 400 `interaction_required` with "user consent is
+needed for: phone". Health Card shows "Health Card needs your permission" (which permission, and that
+eSignet will ask for the ID and a new OTP because it keeps no browser session):
+
+- "Continue to eSignet": Health Card's own PAR login (`prompt=consent`, its own DPoP key, PKCE,
+  `state`, `nonce`) in a Custom Tab; the redirect `org.badmosip.nativesso.childapp://oauth/callback`
+  comes back through `RedirectActivity`; code exchange, id_token checks with `nonce`, userinfo; the
+  session is now Health Card's own (`binding=OWN`).
+- "Not now", "Cancel" in the browser step, or "deny" on eSignet's page (`error=access_denied`): the
+  earlier sign-in stays and the screen says nothing changed.
+
+Sign-out:
+
+- Hub "Sign out of all apps" deletes Hub's tokens, device secret, access list and its DPoP key; Hub's
+  service then answers `ERROR_NOT_SIGNED_IN`.
+- Health Card asks Hub on every resume. Hub signed out or uninstalled: Health Card deletes its own
+  tokens and shows "Sign in to Hub first". Hub signed in again (another `sid`): Health Card signs in
+  again silently. Hub busy or slow: Health Card keeps its sign-in.
+- "Sign out of Health Card" deletes only Health Card's tokens; Health Card stays signed out (no
+  automatic sign-in) until the user taps "Continue with Hub".
+
+Errors and what the screen says: `invalid_grant` (Hub's login ended: open Hub), other OAuth errors
+with their code, HTTP errors without an OAuth body, no network, a failed security check (with the
+check's name), an unusable answer, Hub refusing or timing out (with the reason), consent declined, a
+login that took too long, a redirect that is not the login in progress.
+
+Health Card's keys (`childapp/.../keys/CardKeys.kt`, Android Keystore, StrongBox when present):
+`card-client-auth-es256` (`private_key_jwt`, client_id `ps03-card-` + 12 hex characters of SHA-256
+over its thumbprint, registered with `register-client.sh childapp`) and `card-dpop-es256` (only for
+its own consent login). Debug builds allow cleartext HTTP to `localhost` only, as Hub does.
+
+Accessibility, both apps: headings on titles; a label and its value are one TalkBack item; status
+lines and errors are polite live regions; progress indicators carry a description; Hub's sharing
+switch row is one toggle with the switch role; all buttons are full width and at least 48 dp high;
+every screen scrolls, so 200 % font size cuts nothing off; reading order is title, status, actions,
+then details; text colors reach at least 4.5:1 on their backgrounds in light and dark mode
+(`CardTheme.kt`, `HubTheme.kt`).
+
+What the Robolectric and JVM tests cover (`childapp`, 50 with `HubConnectionTest`):
+
+- `CardAuthenticatorTest` (15): the exchange form field by field, Health Card's client assertion,
+  both proofs verified with Hub's key (`htu`, `ath`), the stored session; a nonce challenge; ten
+  OAuth errors (`invalid_request`, `invalid_grant`, `invalid_target`, `unauthorized_client`,
+  `invalid_scope`, `invalid_dpop_proof`, `invalid_client`, `interaction_required`, `server_error`,
+  `temporarily_unavailable`) each storing nothing; HTTP 502 and a dead server; wrong `aud`, wrong or
+  missing `sid`; a Bearer token; Hub sharing nothing, refusing a proof, refusing the caller, not
+  installed; Hub signed in to another server; `interaction_required` to the consent login (`prompt`,
+  scope, Health Card's own key) and its result; refusal on eSignet's page; `state` mismatch; sign-out
+  and its mark; records.
+- `CardControllerTest` (13): silent sign-in on start; sharing off and Hub missing; seven server
+  answers, a security check and no network to their screens; Hub busy keeps the sign-in; re-consent
+  accepted (consent screen, browser URL, resume ignored during the login, own session with phone);
+  re-consent declined on the screen, on eSignet's page, by cancelling, and with no earlier sign-in;
+  Hub signing out clears both kinds of session; Hub's new login signs in again; user sign-out sticks
+  across restarts.
+- `CardScreensTest` (10, Compose on Robolectric, 200 % font on a 360 x 640 dp screen): every screen's
+  texts, headings, merged label-value items, live regions, the progress description, reading order,
+  and that every button is reachable, at least 48 dp high and runs its action, in light and dark.
+- `CardThemeTest` (2): the contrast formula and every text and background pair of both schemes.
+
+UI Automator tests (need the stack and the emulator; `run-ui-test.sh all` runs them after Hub's):
+
+- `ChildAppSilentSignInTest`: Hub shares its sign-in; Health Card opens on its home screen with the
+  name while a watcher checks every 200 ms that no browser comes to the front; the session is bound
+  to Hub's key with Hub's `sid`, no `device_sso`, encrypted on disk. Screenshot
+  `health-card-silent-sign-in.png`.
+- `ChildAppReconsentTest`: "Add my phone number", the consent screen (screenshot
+  `health-card-consent-screen.png`), "Continue to eSignet", UIN, a new OTP and "Allow" in Chrome,
+  then Health Card's own session with `phone` in its scope (screenshot `health-card-after-consent.png`).
 
 ## The client library (`oidc-client`)
 

@@ -15,7 +15,8 @@
     <string name="sharing_label">Sign-in shared with my other apps</string>
     <string name="sharing_on">Yes</string>
     <string name="sharing_off">No</string>
-    <string name="sign_out">Sign out</string>
+    <string name="sign_out">Sign out of all apps</string>
+    <string name="starting">Opening Hub…</string>
     <string name="family_apps_label">Apps using this sign-in</string>
     <string name="family_apps_none">None yet</string>
     <string name="family_app_row">%1$s, last %2$s</string>

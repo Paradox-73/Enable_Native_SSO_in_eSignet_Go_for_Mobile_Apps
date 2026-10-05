@@ -12,7 +12,9 @@
 # - Starts the app once if the file is not there yet and waits up to 60 s for it.
 # - POST $PS03_ISSUER/client-mgmt/client (default issuer http://localhost:38088): FAPI 2.0 client,
 #   private_key_jwt, PAR and PKCE required, DPoP-bound tokens, relying party `$PS03_RELYING_PARTY`
-#   (default ps03-family). A client_id that already exists counts as registered (the client_id is
+#   (default ps03-family). Both apps get the authorization-code and token-exchange grants and may ask
+#   for `device_sso` (additionalConfig.allowed_authorization_scopes): Hub to receive a device secret,
+#   Health Card because eSignet lets only a client allowed `device_sso` use one (Native SSO, rule R13). A client_id that already exists counts as registered (the client_id is
 #   derived from the key, so the same id means the same key).
 # - Prints `register-client: <client_id> ACTIVE` (or `already registered`). Uses ANDROID_SERIAL when set.
 set -euo pipefail
@@ -60,12 +62,13 @@ print(json.dumps({"requestTime": now, "request": {
     "userClaims": ["name", "email", "phone_number"],
     "authContextRefs": [info.get("acr") or "mosip:idp:acr:generated-code"],
     "publicKey": jwk,
-    "grantTypes": ["authorization_code"],
+    "grantTypes": ["authorization_code", "urn:ietf:params:oauth:grant-type:token-exchange"],
     "clientAuthMethods": ["private_key_jwt"],
     "additionalConfig": {
         "require_pushed_authorization_requests": True,
         "dpop_bound_access_tokens": True,
         "require_pkce": True,
+        "allowed_authorization_scopes": ["device_sso"],
     },
 }}))')
 client_id=$(printf '%s' "$info" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["client_id"])')

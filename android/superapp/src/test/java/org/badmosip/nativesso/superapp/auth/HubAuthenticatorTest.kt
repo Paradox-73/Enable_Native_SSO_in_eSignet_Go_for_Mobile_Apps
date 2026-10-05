@@ -57,6 +57,8 @@ class HubAuthenticatorTest {
         return EcKeyJwsSigner(pair.private, pair.public as ECPublicKey, kid)
     }
 
+    private var keysForgotten = 0
+
     private fun authenticator(store: org.badmosip.nativesso.securestore.BlobStore = this.store) = HubAuthenticator(
         config = HubConfig(issuer = esignet.issuer, clientId = clientId, redirectUri = redirectUri),
         http = http,
@@ -65,6 +67,7 @@ class HubAuthenticatorTest {
         store = store,
         clock = clock,
         log = { logs += it },
+        forgetDpopKey = { keysForgotten++ },
     )
 
     @Test
@@ -267,6 +270,7 @@ class HubAuthenticatorTest {
         assertNull(hub.currentSession())
         assertFalse(hub.hasPendingLogin())
         assertFalse(store.contains(HubAuthenticator.FAMILY_ACCESS))
+        assertEquals("sign out of all apps deletes the DPoP key", 1, keysForgotten)
     }
 
     @Test

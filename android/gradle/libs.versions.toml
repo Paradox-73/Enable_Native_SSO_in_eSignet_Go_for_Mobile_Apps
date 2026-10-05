@@ -31,6 +31,8 @@ okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestExtJunit" }
 androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
