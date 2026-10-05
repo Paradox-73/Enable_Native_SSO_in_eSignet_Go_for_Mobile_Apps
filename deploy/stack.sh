@@ -8,6 +8,7 @@
 #   bash deploy/stack.sh smoke    check health, discovery, JWKS, login pages; prints `stack smoke: PASS`
 #   bash deploy/stack.sh status   docker compose ps
 #   bash deploy/stack.sh logs [SERVICE...]   docker compose logs (no follow)
+#   bash deploy/stack.sh restart SERVICE...  recreate services with the current environment, wait healthy
 #   bash deploy/stack.sh down     stop everything and delete the volumes (database, keystore)
 #
 # - Passwords for Postgres and the eSignet keystore are generated on first use into
@@ -71,6 +72,16 @@ cmd_up() {
   echo "stack up: $PROJECT ready in $(( $(date +%s) - t0 )) s (issuer $ISSUER)"
 }
 
+# restart SERVICE...: recreates the named services from the built image, with the current
+# environment (for example PS03_DEVICE_SECRET_VALIDITY_SECONDS), and waits until they are healthy.
+cmd_restart() {
+  ensure_env
+  [ $# -ge 1 ] || ps03_die "restart: name the services (for example esignet)"
+  local t0; t0=$(date +%s)
+  compose up -d --no-build --no-deps --force-recreate --wait --wait-timeout "$UP_TIMEOUT_S" "$@" >&2     || { compose logs --tail 60 "$@" >&2 || true; ps03_die "restart of $* failed"; }
+  echo "stack restart: $* ready in $(( $(date +%s) - t0 )) s"
+}
+
 cmd_down() {
   if [ -s "$ENV_FILE" ]; then compose --profile '*' down -v --remove-orphans >&2
   else PS03_DB_PASSWORD=x PS03_KEYSTORE_PASSWORD=x docker compose -p "$PROJECT" \
@@ -112,6 +123,7 @@ command=$1; shift
 case $command in
   up) cmd_up ;;
   down) cmd_down ;;
+  restart) cmd_restart "$@" ;;
   smoke) cmd_smoke ;;
   status) ensure_env; compose ps ;;
   logs) ensure_env; compose logs --no-color "$@" ;;

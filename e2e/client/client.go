@@ -29,6 +29,8 @@ type Discovery struct {
 	PAREndpoint           string   `json:"pushed_authorization_request_endpoint"`
 	DPoPAlgs              []string `json:"dpop_signing_alg_values_supported"`
 	ScopesSupported       []string `json:"scopes_supported"`
+	GrantTypesSupported   []string `json:"grant_types_supported"`
+	NativeSSOSupported    bool     `json:"native_sso_supported"`
 }
 
 // Client talks to one eSignet issuer.

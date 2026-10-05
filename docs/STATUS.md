@@ -55,9 +55,9 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-08 | esignet | eSignet: Device Secret Provider, Native SSO settings and client registration (T4) | WP-03 | DONE | `9314b2b`, `64e5c9e`, `f8a58e0`, `6aff73e` |
 | WP-09 | android | Hub: Sign in with eSignet on the emulator, tokens stored encrypted | WP-04, WP-06 | PARTIAL | `72b2528`, `b1ec211` |
 | WP-10 | thunder | Thunder: token exchange with a device-secret actor token, validation (T9) | WP-07 | DONE | `13d17ac` |
-| WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | TODO | |
+| WP-11 | android | App-to-app: Hub family SSO service and Health Card connection (T7) | WP-09 | PARTIAL | `b5d52d6` |
 | WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | DONE | `6bc7644` |
-| WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | TODO | |
+| WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | DONE | see card |
 | WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | DONE | `ba0e764` |
 | WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | TODO | |
 | WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | TODO | |
@@ -445,7 +445,45 @@ commit of that folder.
     - `bash scripts/go.sh esignet/esignet-service build -o /tmp/esignet ./cmd/esignet`: exit 0.
   - Not done here: scope subset rules, Child App `id_token` and claims (WP-12); no live test (WP-13).
 
-### WP-11 App-to-app: Hub family SSO service and Health Card connection (T7)
+### WP-11 App-to-app: Hub family SSO service and Health Card connection (T7) (PARTIAL)
+
+- **Result (2026-10-05, commit `b5d52d6`)**
+  - Hub: `superapp/.../sso/FamilySsoService` (exported, guarded by the family permission, action
+    `org.badmosip.nativesso.action.FAMILY_SSO`) and `FamilySsoGate` (every rule of the goal, no Android types):
+    per-call caller check (allow-list Health Card + Hub's own current certificate via `PackageManager`), 30 calls
+    per uid per 60 s, bundle = id_token, device secret, issuer, scope (only for a sign-in made with sharing on),
+    DPoP proofs built and signed by Hub for `POST` token endpoint and `GET`/`POST` userinfo endpoint as discovered
+    at login (now stored in the session), "Apps using this sign-in" on the home screen, debug-only seeder
+    receiver guarded by `android.permission.DUMP`. Health Card: `HubConnection` (explicit bind, 5 s timeout,
+    reasons per failure), `HubDpopProofSource` for WP-15, sign-in screen showing whether Hub shares a sign-in.
+  - Measured 2026-10-05:
+    - `cd android && bash gradlew --no-daemon :oidc-client:test :secure-store:testDebugUnitTest :superapp:testDebugUnitTest :childapp:testDebugUnitTest assembleDebug assembleDebugAndroidTest`:
+      `BUILD SUCCESSFUL` in 36 s; `oidc-client` 64, `secure-store` 13, `superapp` 50 (21 new: `FamilySsoGateTest`
+      14 JVM, `FamilySsoServiceTest` 7 Robolectric), `childapp` 10 (`HubConnectionTest`, Robolectric); 0 failures.
+      The rejected caller with a different signature is tested in both new `superapp` classes.
+    - `bash android/scripts/build-apks.sh`: `BUILD SUCCESSFUL` three times (family, intruder, takeover) in 59 s;
+      `apksigner`: family APKs `a787b1f3...`, intruder and takeover `c5f3f72e...` (Android debug certificate);
+      `aapt2`: the intruder manifest does not declare the permission, the takeover manifest does.
+    - `bash android/scripts/verify-family-signing.sh`: `family-signing: OK`. `bash scripts/repo-lint.sh`: `OK`.
+  - **Open, the only item left**: `bash android/scripts/with-emulator.sh bash android/scripts/run-family-tests.sh`
+    is NOT RUN. The `emulator` lock (`/e/Projects/MOSIP/toolchain/locks/emulator`, from 03:58 IST) was still held
+    at 05:41 IST when everything else was done; it was not removed or bypassed. Untested on a device: the bind
+    itself, `SecurityException` for the intruder, the takeover sequence, the seeder broadcast (`-f 32` for a
+    stopped app) and the Health Card screen. Run it with `PS03_HELD_LOCKS=:emulator` when called inside the
+    toolchain's `with_lock emulator`.
+- **Decisions**
+  - Refusals cross the binder as `SecurityException` (caller not allowed) or `IllegalStateException` (other codes)
+    with the code in the message (`FamilySsoContract.exceptionFor`, `errorCodeOf`): `ServiceSpecificException`
+    is not in android-34's public `android.jar`.
+  - The caller check compares SHA-256 of the caller's current signing certificate with Hub's own through
+    `GET_SIGNING_CERTIFICATES` instead of `hasSigningCertificate(uid, ...)`; same rule, and Robolectric models it.
+  - A sign-in made with sharing off is not shared: `getSsoBundle()` is null and proofs are refused.
+  - `expiresAtEpochSec` is 0: Hub cannot read the expiry inside the encrypted device secret.
+  - Takeover step: if Android refuses to install Hub next to the app that defined the permission, the script
+    prints `takeover PASS (install refused: <code>)` instead of `(rejected)`; the per-call refusal of a
+    permission holder with another certificate is covered by the JVM and Robolectric tests either way.
+  - Robolectric 4.13 and `androidx.test:core` 1.6.1 added as test dependencies (MIT and Apache-2.0).
+
 
 - **Goal**
   - Hub `FamilySsoService` implementing `IFamilySso` (`android/sso-contract`): service guarded by
@@ -534,7 +572,61 @@ commit of that folder.
     Child App token returns what eSignet's identity system put in that token for the Hub login, so eSignet must
     filter it by the access token's scope if a narrower Child App scope must hide claims.
 
-### WP-13 Integration tests: live Native SSO suite for every rule, and CI workflow
+### WP-13 Integration tests: live Native SSO suite for every rule, and CI workflow (DONE)
+
+- **Result (2026-10-05, 05:38 IST, on `main` after `91cf6fe` plus this work)**
+  - `bash scripts/with-stack.sh bash e2e/run.sh`: `stack smoke: PASS`, phase 1 (27 tests), eSignet recreated
+    with a 20 s device secret lifetime (`stack restart: esignet ready in 7 s`), phase 2 (2 tests),
+    `e2e: 29 passed, 0 failed`, exit 0. Afterwards
+    `docker ps -q --filter label=com.docker.compose.project=ps03-native-sso` printed nothing.
+  - Evidence: `$PS03_RUN_DIR/evidence/e2e-20261005-053844/evidence.jsonl` (36 lines: test, rule, HTTP status,
+    `error`, `error_description`; no tokens). Logs: `$PS03_RUN_DIR/logs/e2e-20261005-053844-phase{1,2}.log`.
+  - `bash scripts/go-lint.sh e2e -- --build-tags e2e`: 0 issues; `go vet -tags e2e ./...` clean;
+    `bash scripts/repo-lint.sh`: `repo-lint: OK`.
+  - CI: `.github/workflows/ci.yml` (jobs `repo-lint`, `go-lint`, `go-unit`, `android-unit`, `e2e`). **NOT RUN**:
+    nothing was pushed, so no hosted run exists.
+- **Per-rule results (live, 2026-10-05)** (HTTP 400 unless noted)
+
+  | Rule | Live test | Result |
+  |---|---|---|
+  | R01 | `TestE2E_SuperAppLogin_IssuesDeviceSecret` | PASS: `device_secret` returned |
+  | R02 | `TestE2E_DeviceSSO_ClientNotAllowed` | PASS: PAR `invalid_scope`; the code-grant half is unit only (PAR refuses first) |
+  | R03 | none | unit only (needs a server without a provider) |
+  | R04 | `TestE2E_DeviceSecret_IsNestedJWE` | PASS: JWE header RSA-OAEP-256, A256GCM, `cty` JWT, `kid`; inner claims unit only (server key) |
+  | R05 | `TestE2E_IDToken_HasSIDAndDSHash` | PASS: signature, `sid`, `ds_hash` recomputed |
+  | R06 | `TestE2E_TokenResponse_Fields` | PASS: all fields, `token_type` DPoP, `cnf.jkt` = Hub key |
+  | R07 | `TestE2E_DeviceSSO_RequiresDPoP` | PASS: non-DPoP client `invalid_request`; DPoP-bound client `invalid_dpop_proof` |
+  | R08 | none | unit only (needs a failing provider) |
+  | R09 | `TestE2E_Exchange_TamperedDeviceSecret`, `TestE2E_Exchange_ExpiredDeviceSecret` | PASS: tampered ciphertext, id_token and access token in its place, and a device secret past its 20 s lifetime: `invalid_request` (the same secret gave 200 before) |
+  | R10 | `TestE2E_Exchange_OldURNRejected` | PASS: `urn:x-oath:` and the access-token type: `invalid_request` |
+  | R11 | `TestE2E_Exchange_DSHashMismatch` | PASS: `invalid_request` "ds_hash does not match" |
+  | R12 | `TestE2E_Exchange_SessionEnded` | PASS: after the eSignet restart, `invalid_grant`; the `sid`-only mismatch is unit only (needs a forged id_token; `ds_hash` is checked first) |
+  | R13 | `TestE2E_Exchange_ClientWithoutDeviceSSO` | PASS: without `device_sso`, and without the token-exchange grant: `unauthorized_client` |
+  | R14 | `TestE2E_Exchange_DPoPKeyMismatch`, `TestE2E_Exchange_NoDPoP` | PASS: other key `invalid_grant`; no proof `invalid_dpop_proof` |
+  | R15 | `TestE2E_Exchange_ScopeSuperset` | PASS: `interaction_required`, description names only `phone`; the `invalid_scope` setting is unit only |
+  | R16 | `TestE2E_Exchange_DeviceSSOInScope` | PASS: `invalid_scope` |
+  | R17 | `TestE2E_Exchange_NarrowerScope` | PASS: 200 with `openid email`; Health Card userinfo claims `aud,email,iss,sub` while Hub userinfo has `name,gender,birthdate` (WP-08 follow-up filter), signature verifies against the JWKS |
+  | R18 | `TestE2E_Exchange_WrongAudience` | PASS: `invalid_target` |
+  | R19 | `TestE2E_Exchange_OtherVendor` | PASS: `invalid_request` |
+  | R20 | `TestE2E_Exchange_ForgedIDToken` | PASS: signed by another key, and claims changed: `invalid_request` |
+  | R21 | `TestE2E_Exchange_ExpiredIDToken` | PASS: 200 after waiting out the real 120 s id_token (132 s); the age cap is unit only |
+  | R22 | `TestE2E_Exchange_DPoPReplay` | PASS: first 200, same proof again `invalid_dpop_proof` |
+  | R23 | `TestE2E_Exchange_ChildTokens`, `TestE2E_Exchange_SubMatchesDirectLogin` | PASS: `aud` Health Card, same `sub` and `sid`, no `ds_hash`, no `device_secret`, `cnf.jkt` = Hub key, userinfo 200; direct-login `sub` equal (sub per relying party) |
+  | R24 | `TestE2E_Discovery_NativeSSO` | PASS: `native_sso_supported: true`, `device_sso`, token-exchange grant |
+  | R25 | `TestE2E_ClientRegistration_TokenExchangeGrant` | PASS: accepted; unknown grant `invalid_grant_type` |
+  | R26 | `TestE2E_GenericExchangeRejected` | PASS: `invalid_request` |
+
+- **What was built**
+  - `e2e/nativesso_test.go`, `e2e/nativesso_fixture_test.go`: one shared Hub login (`openid profile email
+    device_sso`) of relying party `ps03-vendor-<random>`; extra clients per test (other relying party, no
+    `device_sso`, no token-exchange grant, no DPoP binding).
+  - `e2e/client`: `Authorize`, `PushAuthorization`, `TokenRequest` (DPoP optional), `TokenExchange`, registration
+    options (grant types, `allowed_authorization_scopes`, DPoP binding), discovery fields.
+  - `e2e/run.sh` without arguments runs both phases; phase 2 uses `deploy/stack.sh restart esignet` (new) with
+    `PS03_DEVICE_SECRET_VALIDITY_SECONDS` (new compose variable, default 28800). The Hub session passes between
+    phases in a state file under `$PS03_RUN_DIR/test-results`, deleted at the end.
+  - No Thunder bug was found; no Thunder change.
+
 
 - **Goal**
   - e2e tests for R01 to R26 against the running stack, each asserting its HTTP status and `error`

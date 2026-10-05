@@ -84,6 +84,8 @@ services:
       # native_sso_supported: true. Each Native SSO client registers the token-exchange grant itself.
       MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY: "true"
       MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR: interaction_required
+      # Shortened only by e2e/run.sh phase 2 (deploy/stack.sh restart), which waits a device secret out.
+      MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS: ${PS03_DEVICE_SECRET_VALIDITY_SECONDS:-28800}
     volumes:
       - keystore:/home/mosip/keystore
     healthcheck:

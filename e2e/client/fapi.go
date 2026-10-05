@@ -20,14 +20,32 @@ type Registration struct {
 	Key            *ECKey // the client's private_key_jwt key; its public JWK is registered
 	UserClaims     []string
 	ACRs           []string
+	// GrantTypes defaults to authorization_code only.
+	GrantTypes []string
+	// AllowedScopes becomes additionalConfig.allowed_authorization_scopes (for example device_sso).
+	AllowedScopes []string
+	// NoDPoPBinding registers the client without dpop_bound_access_tokens.
+	NoDPoPBinding bool
 }
 
-// RegisterClient creates a FAPI 2.0 client: private_key_jwt, PAR required, DPoP-bound tokens,
-// PKCE required.
+// RegisterClient creates a FAPI 2.0 client: private_key_jwt, PAR required, DPoP-bound tokens
+// (unless NoDPoPBinding), PKCE required.
 func (c *Client) RegisterClient(reg Registration) error {
 	pub := reg.Key.PublicJWK()
 	pub["kid"] = reg.Key.Kid
 	pub["use"] = "sig"
+	grants := reg.GrantTypes
+	if len(grants) == 0 {
+		grants = []string{"authorization_code"}
+	}
+	additional := map[string]any{
+		"require_pushed_authorization_requests": true,
+		"dpop_bound_access_tokens":              !reg.NoDPoPBinding,
+		"require_pkce":                          true,
+	}
+	if len(reg.AllowedScopes) > 0 {
+		additional["allowed_authorization_scopes"] = reg.AllowedScopes
+	}
 	body := map[string]any{
 		"requestTime": time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		"request": map[string]any{
@@ -40,13 +58,9 @@ func (c *Client) RegisterClient(reg Registration) error {
 			"userClaims":        reg.UserClaims,
 			"authContextRefs":   reg.ACRs,
 			"publicKey":         pub,
-			"grantTypes":        []string{"authorization_code"},
+			"grantTypes":        grants,
 			"clientAuthMethods": []string{"private_key_jwt"},
-			"additionalConfig": map[string]any{
-				"require_pushed_authorization_requests": true,
-				"dpop_bound_access_tokens":              true,
-				"require_pkce":                          true,
-			},
+			"additionalConfig":  additional,
 		},
 	}
 	r, err := c.PostJSON(c.Issuer+"/client-mgmt/client", body, nil)
@@ -102,6 +116,7 @@ type Tokens struct {
 	IDToken      string `json:"id_token"`
 	RefreshToken string `json:"refresh_token"`
 	Scope        string `json:"scope"`
+	DeviceSecret string `json:"device_secret"`
 	// Not from the token response:
 	State      string `json:"-"`
 	CodeIssuer string `json:"-"` // iss parameter of the authorization response (RFC 9207)
@@ -109,20 +124,60 @@ type Tokens struct {
 
 // Login runs PAR -> authorize -> /flow/execute steps -> /oauth2/auth/callback -> token.
 func (c *Client) Login(req LoginRequest) (*Tokens, error) {
+	code, err := c.Authorize(req)
+	if err != nil {
+		return nil, err
+	}
+	r, err := c.TokenRequest(req, code, req.DPoPKey)
+	if err != nil {
+		return nil, err
+	}
+	if r.Status != http.StatusOK {
+		return nil, fmt.Errorf("token: HTTP %d: %.400s", r.Status, r.Body)
+	}
+	var tok Tokens
+	if err := r.JSON(&tok); err != nil {
+		return nil, err
+	}
+	tok.State = code.State
+	tok.CodeIssuer = code.Issuer
+	return &tok, nil
+}
+
+// Code is an authorization code with what the token request needs.
+type Code struct {
+	Code     string
+	Verifier string // PKCE code_verifier
+	State    string
+	Issuer   string // iss parameter of the authorization response (RFC 9207)
+}
+
+// Authorize runs PAR -> authorize -> /flow/execute steps -> /oauth2/auth/callback and returns the
+// authorization code.
+func (c *Client) Authorize(req LoginRequest) (*Code, error) {
 	pkce := NewPKCE()
 	state := RandomString(12)
 	nonce := RandomString(12)
 
 	// 1. PAR (RFC 9126) with private_key_jwt, PKCE, dpop_jkt and a DPoP proof.
-	requestURI, err := c.par(req, pkce, state, nonce)
+	r, err := c.PushAuthorization(req, pkce, state, nonce)
 	if err != nil {
 		return nil, err
+	}
+	var par struct {
+		RequestURI string `json:"request_uri"`
+	}
+	if err := r.JSON(&par); err != nil {
+		return nil, err
+	}
+	if r.Status != http.StatusCreated && r.Status != http.StatusOK || par.RequestURI == "" {
+		return nil, fmt.Errorf("PAR: HTTP %d: %.400s", r.Status, r.Body)
 	}
 
 	// 2. Authorize: eSignet answers with a redirect to the login pages carrying authId and
 	//    executionId.
-	q := url.Values{"client_id": {req.Reg.ClientID}, "request_uri": {requestURI}}
-	r, err := c.Get(c.Disc.AuthorizationEndpoint+"?"+q.Encode(), nil)
+	q := url.Values{"client_id": {req.Reg.ClientID}, "request_uri": {par.RequestURI}}
+	r, err = c.Get(c.Disc.AuthorizationEndpoint+"?"+q.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -181,23 +236,17 @@ func (c *Client) Login(req LoginRequest) (*Tokens, error) {
 	if code == "" {
 		return nil, fmt.Errorf("callback redirect has no code: %s", ru)
 	}
-
-	// 5. Token with private_key_jwt, the PKCE verifier and a DPoP proof.
-	tok, err := c.token(req, code, pkce.Verifier)
-	if err != nil {
-		return nil, err
-	}
-	tok.State = state
-	tok.CodeIssuer = rq.Get("iss")
-	return tok, nil
+	return &Code{Code: code, Verifier: pkce.Verifier, State: state, Issuer: rq.Get("iss")}, nil
 }
 
-func (c *Client) par(req LoginRequest, pkce PKCE, state, nonce string) (string, error) {
+// PushAuthorization sends the PAR request and returns the answer as it is. Without req.DPoPKey
+// the request carries neither dpop_jkt nor a DPoP proof.
+func (c *Client) PushAuthorization(req LoginRequest, pkce PKCE, state, nonce string) (*Response, error) {
 	var lastNonce string
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := 0; ; attempt++ {
 		assertion, err := ClientAssertion(req.Reg.Key, req.Reg.ClientID, c.Issuer)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		form := url.Values{
 			"client_id":             {req.Reg.ClientID},
@@ -208,78 +257,69 @@ func (c *Client) par(req LoginRequest, pkce PKCE, state, nonce string) (string, 
 			"nonce":                 {nonce},
 			"code_challenge":        {pkce.Challenge},
 			"code_challenge_method": {"S256"},
-			"dpop_jkt":              {req.DPoPKey.Thumbprint()},
 			"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 			"client_assertion":      {assertion},
 		}
 		for k, vs := range req.ExtraPAR {
 			form[k] = vs
 		}
-		proof, err := DPoPProof(req.DPoPKey, http.MethodPost, c.Disc.PAREndpoint, "", lastNonce)
-		if err != nil {
-			return "", err
+		header := http.Header{}
+		if req.DPoPKey != nil {
+			form.Set("dpop_jkt", req.DPoPKey.Thumbprint())
+			proof, err := DPoPProof(req.DPoPKey, http.MethodPost, c.Disc.PAREndpoint, "", lastNonce)
+			if err != nil {
+				return nil, err
+			}
+			header.Set("DPoP", proof)
 		}
-		r, err := c.PostForm(c.Disc.PAREndpoint, form, http.Header{"DPoP": {proof}})
+		r, err := c.PostForm(c.Disc.PAREndpoint, form, header)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		if n := r.Header.Get("DPoP-Nonce"); n != "" && r.Status == http.StatusBadRequest && lastNonce == "" {
+		if n := r.Header.Get("DPoP-Nonce"); n != "" && r.Status == http.StatusBadRequest && attempt == 0 && req.DPoPKey != nil {
 			lastNonce = n
 			continue
 		}
-		var out struct {
-			RequestURI string `json:"request_uri"`
-			ExpiresIn  int    `json:"expires_in"`
-		}
-		if err := r.JSON(&out); err != nil {
-			return "", err
-		}
-		if r.Status != http.StatusCreated && r.Status != http.StatusOK || out.RequestURI == "" {
-			return "", fmt.Errorf("PAR: HTTP %d: %.400s", r.Status, r.Body)
-		}
-		return out.RequestURI, nil
+		return r, nil
 	}
-	return "", fmt.Errorf("PAR: server kept asking for a new DPoP nonce")
 }
 
-func (c *Client) token(req LoginRequest, code, verifier string) (*Tokens, error) {
+// TokenRequest redeems an authorization code and returns the answer as it is. Without dpopKey
+// the request carries no DPoP proof.
+func (c *Client) TokenRequest(req LoginRequest, code *Code, dpopKey *ECKey) (*Response, error) {
 	var lastNonce string
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := 0; ; attempt++ {
 		assertion, err := ClientAssertion(req.Reg.Key, req.Reg.ClientID, c.Issuer)
 		if err != nil {
 			return nil, err
 		}
 		form := url.Values{
 			"grant_type":            {"authorization_code"},
-			"code":                  {code},
+			"code":                  {code.Code},
 			"redirect_uri":          {req.Reg.RedirectURI},
 			"client_id":             {req.Reg.ClientID},
-			"code_verifier":         {verifier},
+			"code_verifier":         {code.Verifier},
 			"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 			"client_assertion":      {assertion},
 		}
-		proof, err := DPoPProof(req.DPoPKey, http.MethodPost, c.Disc.TokenEndpoint, "", lastNonce)
+		header := http.Header{}
+		if dpopKey != nil {
+			proof, err := DPoPProof(dpopKey, http.MethodPost, c.Disc.TokenEndpoint, "", lastNonce)
+			if err != nil {
+				return nil, err
+			}
+			header.Set("DPoP", proof)
+		}
+		r, err := c.PostForm(c.Disc.TokenEndpoint, form, header)
 		if err != nil {
 			return nil, err
 		}
-		r, err := c.PostForm(c.Disc.TokenEndpoint, form, http.Header{"DPoP": {proof}})
-		if err != nil {
-			return nil, err
-		}
-		if n := r.Header.Get("DPoP-Nonce"); n != "" && r.Status == http.StatusBadRequest && lastNonce == "" {
+		if n := r.Header.Get("DPoP-Nonce"); n != "" && r.Status == http.StatusBadRequest && attempt == 0 && dpopKey != nil {
 			lastNonce = n
 			continue
 		}
-		if r.Status != http.StatusOK {
-			return nil, fmt.Errorf("token: HTTP %d: %.400s", r.Status, r.Body)
-		}
-		var tok Tokens
-		if err := r.JSON(&tok); err != nil {
-			return nil, err
-		}
-		return &tok, nil
+		return r, nil
 	}
-	return nil, fmt.Errorf("token: server kept asking for a new DPoP nonce")
 }
 
 // Userinfo calls the userinfo endpoint with a DPoP-bound access token. The body is either JSON
