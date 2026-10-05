@@ -62,7 +62,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | PARTIAL | `fe17bf6` |
 | WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | PARTIAL | see card |
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | DONE | see card |
-| WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | TODO | |
+| WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | PARTIAL | see card |
 
 Results recorded for the DONE tasks (all on 2026-10-04, commands in [../CONTRIBUTING.md](../CONTRIBUTING.md)):
 
@@ -809,7 +809,24 @@ commit of that folder.
 - **Notes**: known limits to list: emulator Keystore is software-backed, OTP again on re-consent, in-memory runtime
   store, server-side session record ends only by its TTL (no revoke call), CI `NOT RUN` until it has run.
 
-### WP-18 Documentation set and submission pack
+### WP-18 Documentation set and submission pack (PARTIAL)
+
+- **Result (2026-10-05)**
+  - Written: `README.md` (status, architecture, quick start, table of tasks P1, P2, T1-T10, B1 with links to code and
+    tests), `docs/setup.md`, `docs/test-data.md`, `docs/api.md`, `docs/changes.md`, `docs/ux.md`, `docs/ppt-outline.md`,
+    `docs/upstream-prs/thunder.md`, `docs/upstream-prs/esignet.md`, `docs/submission-checklist.md`, `make.sh`,
+    `scripts/fresh-clone-check.sh`; `docs/README.md`, `THIRD_PARTY.md` and the "What runs end to end today" section of
+    `CONTRIBUTING.md` brought up to date.
+  - `docs/design.md` and `docs/threat-model.md` re-synced: status lines, `model.go` -> `device_secret.go`, section 20 renamed
+    "Rules and tests" (anchor `#20-rules-and-tests`, links updated) with the real test names (no `TestE2E_Exchange_SIDMismatch`,
+    `SecureStoreTest`, `SignOutTest`, `TokenExchangeRequestTest`, `ThumbprintTest`: they never existed), relying party and
+    grant settings of the apps.
+  - `bash scripts/docs-check.sh docs/design.md docs/threat-model.md`: `0 broken links; tasks traced 11/11; threats with
+    mitigation and test 11/11`. The same script over `README.md`, `CONTRIBUTING.md`, `THIRD_PARTY.md` and every file in `docs/`:
+    `0 broken links` (it checks relative links and heading anchors).
+  - `bash scripts/repo-lint.sh`: `repo-lint: OK`.
+  - Open: `bash scripts/fresh-clone-check.sh` not yet recorded here; no device screenshots in `docs/ux.md`; the slide file and
+    the video are not made (outline and storyboard only); upstream pull requests are notes only.
 
 - **Goal**
   - Final `README.md`; `docs/setup.md` (prerequisites, ports, troubleshooting; the Windows 11 + Git Bash + Docker

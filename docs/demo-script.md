@@ -67,8 +67,8 @@ bash scripts/demo/demo.sh --no-emulator --check   # server part only
 Start state: Hub in front, signed out. Health Card installed, signed out.
 
 1. **Hub, sign in.**
-   - Show the Hub home screen: "Super App. You sign in here once with eSignet ...". Leave the switch "Use this
-     sign-in in my other apps" on.
+   - Show the Hub home screen: "Super App. You sign in here once with eSignet ...". Turn the switch "Use this
+     sign-in in my other apps" on (it is off at first start).
    - Tap "Sign in with eSignet". Chrome opens eSignet's page. Enter UIN `1774231323`, request the OTP, enter
      `111111`, tick consent when asked. Chrome returns to Hub.
    - Expect: "Signed in as" with the seeded user's name, "Sign-in shared with my other apps: Yes",

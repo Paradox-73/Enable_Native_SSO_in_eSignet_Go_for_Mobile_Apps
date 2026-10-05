@@ -1,10 +1,10 @@
 # Design: Native SSO for mobile apps in eSignet Go
 
 - Problem statement 03 of MOSIP Decode 2026, team Badmosip.
-- Status: **draft of 2026-10-04 for the mentor call on Wed 2026-10-07.** It describes the planned design. The
-  Native SSO code does not exist yet; only the repository tooling does. Every rule id (R01, A03, ...) names a
-  planned test; dated results will be in `test-report.md` (planned). Names of types, settings and tests are
-  re-checked against the final code before submission.
+- Status: **final for submission, 2026-10-05.** Written 2026-10-04 for the mentor call on Wed 2026-10-07, then
+  re-checked against the built code on 2026-10-05: type, file, test and setting names below are the real ones.
+  Every rule id (R01, A03, ...) names a test; dated results are in [test-report.md](test-report.md). Where the
+  build differs from the first draft it is said in the text (sections 8, 14 and 20).
 - Threats and their mitigations: [threat-model.md](threat-model.md). Diagram sources: [diagrams/](diagrams/).
 - Upstream code is cited as `path:line` at the pinned commits (section [2](#2-context-esignet-go-and-thunder)).
   After import, eSignet files live under `esignet/` and Thunder files under `thunder/` in this repository.
@@ -30,7 +30,7 @@
 17. [Where the statement and the specifications differ](#17-where-the-statement-and-the-specifications-differ)
 18. [Client keys on the phone and the RP integration guide](#18-client-keys-on-the-phone-and-the-rp-integration-guide)
 19. [Statement task traceability](#19-statement-task-traceability)
-20. [Rules and planned tests](#20-rules-and-planned-tests)
+20. [Rules and tests](#20-rules-and-tests)
 21. [Future work](#21-future-work)
 22. [References](#22-references)
 
@@ -341,7 +341,7 @@ Thunder (`thunder/backend`, Apache-2.0 header on new files):
 
 | Change | Where | Follows the upstream pattern of |
 |---|---|---|
-| `DeviceSecretProvider` interface and request/claims types | `pkg/thunderidengine/providers/interface.go`, `model.go` | `ConsentProvider` (`interface.go:135`) |
+| `DeviceSecretProvider` interface and request/claims types | `pkg/thunderidengine/providers/interface.go`, `device_secret.go`, `constants.go` | `ConsentProvider` (`interface.go:135`) |
 | `WithDeviceSecretProvider` option; feature off when no provider is passed | `pkg/thunderidengine/engine.go` | `WithConsentProvider` (`engine.go:516`) |
 | `device_sso` scope constant, kept with the OpenID scopes by `SeparateOIDCAndNonOIDCScopes`; not added to `StandardOIDCScopes` (that list is seeded into every client) | `internal/oauth/oauth2/constants`, `utils/oauthutils.go:146-161` | existing scope constants |
 | `device_sso` allowed-scope check at PAR, authorize and the code grant | `par/`, `authz/`, `granthandlers/authorization_code.go` | `invalid_scope` responses in the same files |
@@ -367,7 +367,7 @@ pass for every client. The checks read the client's `allowed_authorization_scope
 
 ## 8. Device Secret Provider contract
 
-Planned Go interface in Thunder (`pkg/thunderidengine/providers/interface.go`; names may still change):
+Go interface in Thunder (`pkg/thunderidengine/providers/interface.go`; the request, secret and claims types are in `device_secret.go`, the shared constants in `constants.go`):
 
 ```go
 // DeviceSecretProvider issues and checks device secrets for
@@ -634,8 +634,8 @@ Per client, set through eSignet client management (architecture 2.5, `additional
 
 | Setting | Super App | Child App |
 |---|---|---|
-| `relyingPartyId` | `ps03-vendor` | `ps03-vendor` (same vendor) |
-| `grantTypes` | `authorization_code` | `authorization_code`, `urn:ietf:params:oauth:grant-type:token-exchange` (code grant for re-consent) |
+| `relyingPartyId` | `ps03-family` (`PS03_RELYING_PARTY`; the e2e suite uses `ps03-vendor-<random>`) | same value (same vendor) |
+| `grantTypes` | `authorization_code`, `urn:ietf:params:oauth:grant-type:token-exchange` (`android/scripts/register-client.sh` gives both apps both) | `authorization_code`, `urn:ietf:params:oauth:grant-type:token-exchange` (code grant for re-consent) |
 | `clientAuthMethods` | `private_key_jwt` | `private_key_jwt` |
 | `additional_config.allowed_authorization_scopes` | includes `device_sso` | includes `device_sso` |
 | `additional_config.dpop_bound_access_tokens` | true | true |
@@ -731,10 +731,10 @@ The live tests also register a client of another relying party (`ps03-other-vend
 | T10b | Reject `device_sso` on token exchange | Thunder | R16 | WP-12 |
 | B1 | Re-consent in the second app when scopes differ | Thunder (`interaction_required`), Child App | R15, A10 | WP-12, WP-15 |
 
-## 20. Rules and planned tests
+## 20. Rules and tests
 
 Server rules. Go unit tests carry `NativeSSO`, `DeviceSSO` or `DeviceSecret` in their names; live tests run against
-the local stack and are named `TestE2E_*`. All are planned; none has run yet.
+the local stack and are named `TestE2E_*`. Dated results per rule: [test-report.md](test-report.md) (rule matrix). A rule marked "unit only" needs a server state the live stack cannot reach (no provider, a failing provider).
 
 | Rule | Statement / spec | Expected | Unit test package | Live test |
 |---|---|---|---|---|
@@ -749,7 +749,7 @@ the local stack and are named `TestE2E_*`. All are planned; none has run yet.
 | R09 | T4b, T9 ii | tampered, foreign-key or expired device secret, or another token type in its place: `invalid_request` | eSignet engine, granthandlers | `TestE2E_Exchange_TamperedDeviceSecret` |
 | R10 | T9 i | device-secret URN accepted; `urn:x-oath:` and others `invalid_request` | granthandlers | `TestE2E_Exchange_OldURNRejected` |
 | R11 | T9 iii.1 | `ds_hash` mismatch: `invalid_request` | granthandlers | `TestE2E_Exchange_DSHashMismatch` |
-| R12 | T9 iii.2 | `sid` mismatch: `invalid_request`; session ended: `invalid_grant` | granthandlers, eSignet engine | `TestE2E_Exchange_SIDMismatch`, `TestE2E_Exchange_SessionEnded` |
+| R12 | T9 iii.2 | `sid` mismatch: `invalid_request`; session ended: `invalid_grant` | granthandlers, eSignet engine | `TestE2E_Exchange_SessionEnded` (the `sid`-only mismatch is a unit test: the `ds_hash` check fails first on any forged id_token) |
 | R13 | T9 iii.3 | client without `device_sso`: `unauthorized_client` | granthandlers | `TestE2E_Exchange_ClientWithoutDeviceSSO` |
 | R14 | T9 iii.4 | DPoP key mismatch: `invalid_grant`; missing proof from a DPoP-bound client: `invalid_dpop_proof` | granthandlers, token | `TestE2E_Exchange_DPoPKeyMismatch`, `TestE2E_Exchange_NoDPoP` |
 | R15 | T10a, B1 | scope superset: `interaction_required` (`invalid_scope` by setting) | granthandlers | `TestE2E_Exchange_ScopeSuperset` |
@@ -765,22 +765,22 @@ the local stack and are named `TestE2E_*`. All are planned; none has run yet.
 | R25 | enablement | client registration accepts the token-exchange grant, rejects unknown grants | eSignet clientmgmt | `TestE2E_ClientRegistration_TokenExchangeGrant` |
 | R26 | D9 | other token exchanges blocked: `invalid_request` | granthandlers | `TestE2E_GenericExchangeRejected` |
 
-App rules (Android; JVM tests, instrumented tests on the emulator, or a recorded command):
+App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `android/*/src/androidTest` that need the emulator, or a recorded command). A rule with a JVM part and a device part has two rows in the test report (`a`, `b`):
 
 | Rule | Statement | Expected | Test |
 |---|---|---|---|
 | A01 | P1 | both APKs share one signing certificate | `apksigner verify --print-certs` |
-| A02 | P2 | Super App FAPI 2.0 sign-in with OTP and consent | `SuperAppSignInTest` |
-| A03 | T6 | tokens and device secret encrypted with a Keystore key, no backup | `SecureStoreTest` |
-| A04 | T7 | family app binds and gets id_token, device secret, proof | `FamilySsoServiceTest` |
-| A05 | T7 | app signed with another certificate cannot bind | `run-family-tests.sh` intruder step |
-| A06 | T7 | permission takeover after uninstall is refused by the per-call check | `run-family-tests.sh` takeover step |
-| A07 | T7 | Super App signs only allow-listed `htm`/`htu` | `FamilySsoServiceTest` |
-| A08 | T8 | exchange request parameters correct, no `device_sso` | `TokenExchangeRequestTest` |
-| A09 | T7-T9 | Child App silent sign-in, no browser | `ChildAppSilentSignInTest` |
-| A10 | B1 | re-consent end to end | `ChildAppReconsentTest` |
-| A11 | sign-out | "Sign out of all apps" drops Hub tokens, device secret and DPoP key; Child App shows the Hub-first state | `SignOutTest` |
-| A12 | interop | RFC 7638 example thumbprint equal in Go and Kotlin | `ThumbprintTest`, `TestThumbprint_RFC7638Example` |
+| A02 | P2 | Super App FAPI 2.0 sign-in with OTP and consent | `HubAuthenticatorTest` (JVM, fake eSignet); `SuperAppSignInTest` (device) |
+| A03 | T6 | tokens and device secret encrypted with a Keystore key, no backup | `EncryptedFileStoreTest`, `StoredRecordsTest` |
+| A04 | T7 | family app binds and gets id_token, device secret, proof | `FamilySsoServiceTest`, `FamilySsoGateTest` (JVM); `FamilySsoBindTest` (device) |
+| A05 | T7 | app signed with another certificate cannot bind | `FamilySsoGateTest`, `FamilySsoServiceTest` (JVM); `run-family-tests.sh` intruder step (device) |
+| A06 | T7 | permission takeover after uninstall is refused by the per-call check | `FamilySsoGateTest` (JVM); `run-family-tests.sh` takeover step (device) |
+| A07 | T7 | Super App signs only allow-listed `htm`/`htu` | `FamilySsoGateTest`, `FamilySsoServiceTest` |
+| A08 | T8 | exchange request parameters correct, no `device_sso` | `OidcClientTest`, `CardAuthenticatorTest` |
+| A09 | T7-T9 | Child App silent sign-in, no browser | `CardControllerTest` (JVM); `ChildAppSilentSignInTest` (device) |
+| A10 | B1 | re-consent end to end | `CardControllerTest` (JVM); `ChildAppReconsentTest` (device) |
+| A11 | sign-out | "Sign out of all apps" drops Hub tokens, device secret and DPoP key; Child App shows the Hub-first state | `ReplaceableSignerTest`, `HubAuthenticatorTest`, `CardControllerTest` (JVM) |
+| A12 | interop | RFC 7638 example thumbprint equal in Go and Kotlin | `JwkThumbprintTest` (RFC 7638 example, Kotlin); the e2e suite checks `cnf.jkt` equals Hub's key (R06) |
 
 ## 21. Future work
 

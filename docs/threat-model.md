@@ -1,8 +1,9 @@
 # Threat model: Native SSO for mobile apps in eSignet Go
 
-- Status: **draft of 2026-10-04 for the mentor call on Wed 2026-10-07.** It covers the planned design in
-  [design.md](design.md). Test ids (R01, A03, ...) are defined in
-  [design.md section 20](design.md#20-rules-and-planned-tests); none has run yet.
+- Status: **final for submission, 2026-10-05.** Written 2026-10-04 for the mentor call; the mitigations were
+  re-checked against the built code on 2026-10-05. It covers the design in [design.md](design.md). Test ids (R01,
+  A03, ...) are defined in [design.md section 20](design.md#20-rules-and-tests); dated results per test are in
+  [test-report.md](test-report.md). Emulator tests have not run yet (see the limits there).
 - Method: assets and trust boundaries first, then STRIDE (spoofing, tampering, repudiation, information
   disclosure, denial of service, elevation of privilege) per component, then the threats T1-T11 with mitigations,
   what is left, and the tests that cover them.

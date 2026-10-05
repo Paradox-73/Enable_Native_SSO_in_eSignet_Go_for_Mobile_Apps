@@ -13,7 +13,7 @@ checks every file's bytes and mode against the upstream commit.
 
 | Folder | Upstream | Version | Commit | Licence | Imported paths | Status |
 |---|---|---|---|---|---|---|
-| `thunder/` | [thunder-id/thunderid](https://github.com/thunder-id/thunderid) | v1.0.1 | `12f517c4384004e360e26eb7eb1ab0501b678bb2` | Apache-2.0 | `LICENSE`, `api/oauth2.yaml`, `backend/` (1,678 of its 1,679 files) | planned (WP-02) |
+| `thunder/` | [thunder-id/thunderid](https://github.com/thunder-id/thunderid) | v1.0.1 | `12f517c4384004e360e26eb7eb1ab0501b678bb2` | Apache-2.0 | `LICENSE`, `api/oauth2.yaml`, `backend/` (1,678 of its 1,679 files) | imported (`c4c5443`, WP-02); team changes on top: [thunder/UPSTREAM.md](thunder/UPSTREAM.md) |
 | `esignet/` | [mosip/esignet](https://github.com/mosip/esignet) | v2.0.0 | `db528423dac7898ad546cb7b2f5f867a949676a7` | MPL-2.0 | `LICENSE`, `README.md`, `THIRD-PARTY-NOTICES.txt`, `docs/`, `postman-collection/`, `docker-compose/`, `esignet-service/` (241 of its 242 files) | imported (`4eac1cc`, WP-03) |
 
 - Left out of `backend/` and `esignet-service/`: one contributor-tool instruction file at the top of each,
@@ -40,6 +40,8 @@ embedded PEM key (`backend/internal/system/utils/configutil_test.go`). They are 
 | Go toolchain, `golang` container image | 1.26 (`golang:1.26-bookworm`; 1.26.8 on 2026-10-04) | BSD-3-Clause | `scripts/go.sh`, `go-test.sh`, `go-lint.sh` |
 | golangci-lint | v1.64.8 (Thunder's pin) and v2.14.0 (eSignet uses the latest v2) | GPL-3.0 | `scripts/go-lint.sh` |
 | Redocly CLI | 1.34.20 | MIT | `scripts/openapi-lint.sh` |
+| newman (Postman CLI) | 6.2.2 | Apache-2.0 | `esignet/postman-collection/native-sso/run.sh`, `scripts/evidence.sh` |
+| Mermaid CLI output (PNG diagrams) | see `docs/diagrams/README.md` | MIT | diagram images in `docs/diagrams/` |
 
 ## Android app dependencies
 
@@ -63,3 +65,19 @@ Declared in `android/gradle/libs.versions.toml`; downloaded by Gradle, not store
 | OkHttp MockWebServer | 4.12.0 | Apache-2.0 | tests only (`oidc-client`, `superapp`) |
 | Robolectric | 4.13 | MIT | JVM tests only (`superapp`, `childapp`: the family binder service and client) |
 | AndroidX Test Core | 1.6.1 | Apache-2.0 | JVM tests only, with Robolectric |
+| Compose UI test (`ui-test-junit4`, `ui-test-manifest`), version from the Compose BOM 2024.09.02 | 2024.09.02 | Apache-2.0 | JVM screen tests and debug builds (`childapp`, `superapp`) |
+
+## Local stack images
+
+Pulled by `deploy/compose.yaml`; not stored in this repository. The eSignet image is built from this repository.
+
+| Image | Version | Licence | Used for |
+|---|---|---|---|
+| `mosipid/oidc-ui` | 2.0.0 | MPL-2.0 | login pages |
+| `mosipid/mock-identity-system` | 0.14.0 | MPL-2.0 | seeded test identity |
+| `postgres` | `bookworm` tag | PostgreSQL licence | eSignet and mock identity databases |
+
+## Go test code
+
+`e2e/` has no dependency outside the Go standard library (`e2e/go.mod` lists none), so the live tests add nothing to
+this list.
