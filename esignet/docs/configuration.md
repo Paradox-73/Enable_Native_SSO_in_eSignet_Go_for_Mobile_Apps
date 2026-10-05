@@ -177,6 +177,13 @@ them in its own registration (see [12. Per-client configuration](#12-per-client-
 - A client may request `device_sso` only when its `additionalConfig.allowed_authorization_scopes` lists it.
   Never add `device_sso` to the top-level `scope_claims`: every key of that map becomes an allowed scope of
   every client.
+- Userinfo for an access token from the token exchange carries only the claims of that token's scopes (mapped
+  through `scope_claims`) plus `iss`, `sub`, `aud`, `exp`, `iat`, `nbf` and `jti`: the identity system's
+  userinfo token cached at the first app's login is decoded, the other claims are removed, `aud` becomes the
+  requesting client and the result is signed with the `jwt.preferred_key_id` key (published in the JWKS). So a
+  sibling app granted `openid email` does not read the name the first app's login released
+  (`internal/httpmiddleware/userinfo_scope.go`). An encrypted userinfo token cannot be filtered and is
+  refused with `server_error`; tokens of other grants are passed through unchanged.
 
 ## 5. Cache and runtime store
 

@@ -263,6 +263,21 @@ commit of that folder.
   - `VerifyRaw` checks against the current signing certificate only, so rotating `EC_SECP256R1_SIGN` ends every
     device secret signed with the old key; the encryption key keeps working after rotation (found by `kid`).
   - No change to the Thunder provider contract was needed.
+- **Follow-up from the Thunder lane (2026-10-05)**
+  - Userinfo scope filter, `internal/httpmiddleware/userinfo_scope.go`, wired in `cmd/esignet/main.go`: for an
+    access token whose `grant_type` is the token exchange, userinfo keeps only the claims of that token's scopes
+    (`scope_claims`) plus `iss`, `sub`, `aud`, `exp`, `iat`, `nbf`, `jti`; `aud` becomes the requesting client;
+    the result is signed with the `jwt.preferred_key_id` key (kid = thumbprint, as the engine's tokens). Needed
+    because Thunder passes the identity system's userinfo token (`_jwt`) through unchanged. Other grants are
+    untouched; an encrypted userinfo token for an exchanged token is refused with `server_error`.
+  - `deploy/compose.yaml` states `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY=true` and `..._SCOPE_EXCEEDED_ERROR=
+    interaction_required` (same as `data/deployment.yaml`, which already lists `device_sso` and the
+    token-exchange grant).
+  - Measured 2026-10-05: `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover`: 29 packages,
+    1563 tests, 0 failed; `userinfo_scope.go` 95/97 changed statements (97.9 %); all changed lines 261/280
+    (93.2 %). `go test -run UserinfoScope -v ./internal/httpmiddleware/`: narrower Child App scope
+    (`openid email`) hides `name`, `name#eng`, `birthdate`, `phone_number`; equal scope keeps them; 10 refusal
+    cases. `bash scripts/go-lint.sh esignet/esignet-service`: 0 issues. Live check: WP-13.
 
 - **Goal**
   - `esignet/esignet-service/internal/engine/device_secret_provider.go`, constructor

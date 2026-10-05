@@ -78,6 +78,12 @@ services:
       MOSIP_ESIGNET_CAPTCHA_SITE_KEY: 10000000-ffff-ffff-ffff-000000000001
       MOSIP_ESIGNET_AUTHN_PROVIDER: mock
       MOSIP_ESIGNET_MOCK_DOMAIN_URL: http://mock-identity-system:8082
+      # OpenID Connect Native SSO (the image's data/deployment.yaml sets the same; stated here so the stack
+      # does not depend on that default): device_sso and the token-exchange grant are allowed there, and
+      # the token exchange accepts only a device secret as actor_token. Discovery then shows
+      # native_sso_supported: true. Each Native SSO client registers the token-exchange grant itself.
+      MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY: "true"
+      MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR: interaction_required
     volumes:
       - keystore:/home/mosip/keystore
     healthcheck:

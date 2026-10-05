@@ -153,6 +153,7 @@ func main() {
 	}
 
 	resourceProvider := engine.NewResourceProvider(appCfg)
+	runtimeCrypto := engine.NewRuntimeCryptoProvider(appCfg, keyMgrSvc, sigSvc, cryptoSvc, authnProvider)
 
 	_ = thunderidengine.New(mux,
 		thunderidengine.WithLogConfig(engineconfig.LogConfig{Level: logLevel, Format: "json"}),
@@ -180,13 +181,20 @@ func main() {
 		thunderidengine.WithTransactioner(engine.NewNoOpTransactioner()),
 		thunderidengine.WithAttestationProvider(engine.NewAttestationProvider(appCfg)),
 		thunderidengine.WithCaptchaValidationProvider(engine.NewCaptchaProvider(&appCfg.CaptchaConfig, commonHTTPClient)),
-		thunderidengine.WithRuntimeCryptoProvider(engine.NewRuntimeCryptoProvider(appCfg, keyMgrSvc, sigSvc, cryptoSvc, authnProvider)),
+		thunderidengine.WithRuntimeCryptoProvider(runtimeCrypto),
 		thunderidengine.WithOriginConfig(originConfig),
 		thunderidengine.WithDeviceSecretProvider(deviceSecretProvider),
 	)
 
 	addr := fmt.Sprintf(":%d", appCfg.Port)
-	handler := httpmiddleware.CorrelationID(httpmiddleware.AccessLog(mux))
+	// Userinfo for a token-exchange access token carries only the claims of that token's scopes
+	// (OpenID Connect Native SSO for Mobile Apps 1.0, 4.4).
+	userinfoScope := httpmiddleware.UserinfoScope(httpmiddleware.UserinfoScopeConfig{
+		ScopeClaims:  appCfg.ScopeClaims,
+		SigningKeyID: appCfg.JWT.PreferredKeyID,
+		Signer:       runtimeCrypto,
+	})
+	handler := httpmiddleware.CorrelationID(httpmiddleware.AccessLog(userinfoScope(mux)))
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           handler,
