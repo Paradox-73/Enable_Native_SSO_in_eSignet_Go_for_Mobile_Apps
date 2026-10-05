@@ -11,8 +11,8 @@ macOS has not been tried by the team.
 2. [One-time setup](#one-time-setup)
 3. [Build and test](#build-and-test)
 4. [Local stack and ports](#local-stack-and-ports)
-5. [What runs end to end today](#what-runs-end-to-end-today)
-6. [Conventions](#conventions)
+4. [What runs end to end today](#what-runs-end-to-end-today)
+5. [Conventions](#conventions)
 7. [Pick up a task](#pick-up-a-task)
 8. [Troubleshooting](#troubleshooting)
 
@@ -221,20 +221,12 @@ Short names for these: `bash make.sh help`.
    git switch -c wp-08-device-secret-provider
    ```
 
-3. For WP-07 only, bring in the unfinished files from `wip/2026-10-04-stop` without its `wip:` commit:
-
-   ```bash
-   git fetch origin wip/2026-10-04-stop
-   git switch -c wp-07-code-grant main
-   git checkout FETCH_HEAD -- thunder/      # the files arrive staged; review them, then continue the work
-   ```
-
-4. Read the task card: goal, owned folders, acceptance check, notes. Edit only the folders the card owns.
-5. Work in small commits (`git commit -s`), running the module's tests as you go.
-6. Before the pull request: run the acceptance check on the final commit, `bash scripts/repo-lint.sh`, and update
+3. Read the task card: goal, owned folders, acceptance check, notes. Edit only the folders the card owns.
+4. Work in small commits (`git commit -s`), running the module's tests as you go.
+5. Before the pull request: run the acceptance check on the final commit, `bash scripts/repo-lint.sh`, and update
    the task's row and card in `docs/STATUS.md` with the date, result lines and commit ids.
-7. Push the branch and open the pull request; ask a teammate to review.
-8. If you stop before finishing, push your branch and write in the card what is done, what is left and the branch
+6. Push the branch and open the pull request; ask a teammate to review.
+7. If you stop before finishing, push your branch and write in the card what is done, what is left and the branch
    name, so the next person can continue.
 
 ## Troubleshooting

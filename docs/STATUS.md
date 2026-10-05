@@ -7,9 +7,9 @@ task on their own computer. How to set up a machine, build, test and commit: [..
 
 | Item | Value |
 |---|---|
-| Written | 2026-10-04, when work stopped at 20:45 IST |
-| `main` | `1bd6fd0` (2026-10-04 17:14 IST), on [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) |
-| Unfinished work | branch `wip/2026-10-04-stop`, one commit `4be5ec8` on top of `main` (half of WP-07, see its card) |
+| Written | 2026-10-04; updated 2026-10-05 when all tasks were done |
+| `main` | all work is on `main`, on [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) |
+| Unfinished work | none; the earlier `wip/2026-10-04-stop` branch was brought into `main` with WP-07 and deleted |
 | Deadline | 2026-10-26 23:59 IST (MOSIP Decode 2026, problem statement 03, team Badmosip) |
 | Target dates | feature-complete (WP-06 to WP-16 DONE) Fri 2026-10-16; code freeze Thu 2026-10-22, only doc and test-report fixes after it |
 
