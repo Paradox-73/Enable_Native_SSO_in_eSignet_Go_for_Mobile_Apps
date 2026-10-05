@@ -59,7 +59,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-12 | thunder | Thunder: scope rules, Child App tokens, re-consent signal and discovery (T10, B1) | WP-10 | DONE | `6bc7644` |
 | WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | DONE | see card |
 | WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | DONE | `ba0e764` |
-| WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | TODO | |
+| WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | PARTIAL | `fe17bf6` |
 | WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | TODO | |
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | TODO | |
 | WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | TODO | |
@@ -689,6 +689,25 @@ commit of that folder.
 
 ### WP-15 Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1)
 
+- **Result (2026-10-05, 06:12 IST, `fe17bf6`): PARTIAL; the only open item is the emulator run.**
+  - Done: `childapp` `CardAuthenticator` (exchange with Hub's id_token and device secret, `audience` =
+    issuer, `openid profile`, own `private_key_jwt`, proofs signed by Hub through its service;
+    id_token `aud`, `at_hash` and `sid` = Hub's `sid`; userinfo with a Hub-signed proof carrying
+    `ath`), `CardController` and screens (Hub-first state with "Open Hub", consent screen that says the
+    OTP is asked again, own PAR login with `prompt=consent` for `phone`, "Not now"); Hub "Sign out of
+    all apps" deletes the DPoP key (`ReplaceableSigner`); Health Card clears its tokens on resume when
+    Hub is signed out, signs in again when Hub's `sid` changed; accessibility on every screen of both
+    apps; `register-client.sh` grants token exchange and `device_sso`; `run-ui-test.sh all`;
+    `SuperAppSignInTest` now signs in with sharing on and checks the device secret and `ds_hash`.
+  - `bash gradlew --no-daemon --no-build-cache :childapp:cleanTestDebugUnitTest :superapp:cleanTestDebugUnitTest :childapp:testDebugUnitTest :superapp:testDebugUnitTest`:
+    `childapp` 50 tests, 0 failures (CardAuthenticatorTest 15, CardControllerTest 13, CardScreensTest
+    10 at 200 % font, CardThemeTest 2, HubConnectionTest 10); `superapp` 54 tests, 0 failures; 27 s.
+  - `assembleDebug assembleDebugAndroidTest` for both apps: BUILD SUCCESSFUL; `repo-lint: OK`;
+    `docs-check.sh android/README.md`: 0 broken links.
+  - NOT RUN: `bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all`.
+    The `emulator` lock directory (created 03:58) was still held at 06:11; it was neither deleted nor
+    bypassed. Run it through the toolchain's `with_lock emulator` with `PS03_HELD_LOCKS=:emulator`
+    (otherwise `with-emulator.sh` removes a lock older than 90 min as stale).
 - **Goal**
   - Hub with the switch on now receives a real device secret: `SuperAppSignInTest` also asserts that the encrypted
     bundle holds it and that `ds_hash` matched.
