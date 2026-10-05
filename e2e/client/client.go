@@ -31,6 +31,7 @@ type Discovery struct {
 	ScopesSupported       []string `json:"scopes_supported"`
 	GrantTypesSupported   []string `json:"grant_types_supported"`
 	NativeSSOSupported    bool     `json:"native_sso_supported"`
+	RevocationEndpoint    string   `json:"revocation_endpoint"`
 }
 
 // Client talks to one eSignet issuer.

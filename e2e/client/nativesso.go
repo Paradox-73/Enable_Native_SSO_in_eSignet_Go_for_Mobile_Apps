@@ -91,6 +91,31 @@ func (c *Client) TokenExchange(req ExchangeRequest) (*Response, error) {
 	}
 }
 
+// TokenTypeHintDeviceSecret is the token_type_hint with which an app revokes its device secret.
+const TokenTypeHintDeviceSecret = "device_secret"
+
+// Revoke sends an RFC 7009 revocation request for token, authenticated as reg with private_key_jwt,
+// to the revocation_endpoint of discovery. An empty hint sends none.
+func (c *Client) Revoke(reg Registration, token, hint string) (*Response, error) {
+	if c.Disc.RevocationEndpoint == "" {
+		return nil, errors.New("discovery has no revocation_endpoint")
+	}
+	assertion, err := ClientAssertion(reg.Key, reg.ClientID, c.Issuer)
+	if err != nil {
+		return nil, err
+	}
+	form := url.Values{
+		"client_id":             {reg.ClientID},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+		"client_assertion":      {assertion},
+		"token":                 {token},
+	}
+	if hint != "" {
+		form.Set("token_type_hint", hint)
+	}
+	return c.PostForm(c.Disc.RevocationEndpoint, form, nil)
+}
+
 func orDefault(v, def string) string {
 	if v == "" {
 		return def

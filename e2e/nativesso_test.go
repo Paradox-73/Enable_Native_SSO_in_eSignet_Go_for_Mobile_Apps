@@ -3,7 +3,7 @@
 
 //go:build e2e
 
-// Live OpenID Connect Native SSO suite: one test per server rule of design.md section 20 (R01-R26)
+// Live OpenID Connect Native SSO suite: one test per server rule of design.md section 20 (R01-R27)
 // that can be reached from outside. Run it with
 //
 //	bash scripts/with-stack.sh bash e2e/run.sh
@@ -509,6 +509,67 @@ func TestE2E_GenericExchangeRejected(t *testing.T) {
 	req := client.ExchangeRequest{Reg: f.child, SubjectToken: f.tok.AccessToken, SubjectTokenType: client.TokenTypeAccessToken,
 		ActorTokenType: "-", DPoPKey: key}
 	expectError(t, "R26", doExchange(t, c, req), http.StatusBadRequest, "invalid_request")
+}
+
+// R27: the Hub revokes its device secret at the revocation endpoint (RFC 7009), which ends the
+// login session: the Health Card's next exchange is invalid_grant. Another client of the same vendor
+// that holds the device secret cannot revoke it. Uses its own login, so the shared one stays valid.
+func TestE2E_Revoke_DeviceSecret(t *testing.T) {
+	c := newClient(t)
+	if c.Disc.RevocationEndpoint != c.Issuer+"/oauth2/revoke" {
+		t.Errorf("revocation_endpoint %q, want %q", c.Disc.RevocationEndpoint, c.Issuer+"/oauth2/revoke")
+	}
+	f := &nativeFixture{rp: "ps03-vendor-" + uuid.New()[:8]}
+	f.hub = mustRegisterNative(t, c, f.rp, "superapp", nil)
+	f.child = mustRegisterNative(t, c, f.rp, "childapp", nil)
+	f.hubDPoP, _ = client.NewECKey()
+	tok, err := c.Login(client.LoginRequest{Reg: f.hub, Scope: hubScope, User: seededUser, DPoPKey: f.hubDPoP})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.tok = tok
+	expectExchangeOK(t, "R27", doExchange(t, c, f.exchange(f.child)))
+
+	t.Run("other client of the vendor", func(t *testing.T) {
+		r, err := c.Revoke(f.child, f.tok.DeviceSecret, client.TokenTypeHintDeviceSecret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectError(t, "R27", r, http.StatusBadRequest, "invalid_grant")
+		expectExchangeOK(t, "R27", doExchange(t, c, f.exchange(f.child)))
+	})
+
+	t.Run("issuing client", func(t *testing.T) {
+		r, err := c.Revoke(f.hub, f.tok.DeviceSecret, client.TokenTypeHintDeviceSecret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Status != http.StatusOK {
+			t.Fatalf("revoke: HTTP %d %s, want 200", r.Status, r.Body)
+		}
+		record(t, "R27", r.Status, client.OAuthError{}, "device secret revoked by the Hub")
+		expectError(t, "R27", doExchange(t, c, f.exchange(f.child)), http.StatusBadRequest, "invalid_grant")
+	})
+
+	t.Run("again and unknown values are no-ops", func(t *testing.T) {
+		for _, token := range []string{f.tok.DeviceSecret, "not-a-device-secret"} {
+			r, err := c.Revoke(f.hub, token, client.TokenTypeHintDeviceSecret)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Status != http.StatusOK {
+				t.Errorf("revoke %.12s...: HTTP %d %s, want 200", token, r.Status, r.Body)
+			}
+		}
+	})
+
+	t.Run("other tokens without the deny list", func(t *testing.T) {
+		r, err := c.Revoke(f.hub, f.tok.AccessToken, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectError(t, "R27", r, http.StatusBadRequest, "unsupported_token_type")
+	})
 }
 
 // Phase 2 (after an eSignet restart, which empties the in-memory runtime store).
