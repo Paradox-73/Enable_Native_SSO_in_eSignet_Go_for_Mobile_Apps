@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<resources>
+    <!-- Launcher icon and header mark. Hub blue; Health Card uses the same shape in teal. -->
+    <color name="brand">#FF0B57A4</color>
+    <color name="brand_mark">#FFFFFFFF</color>
+</resources>

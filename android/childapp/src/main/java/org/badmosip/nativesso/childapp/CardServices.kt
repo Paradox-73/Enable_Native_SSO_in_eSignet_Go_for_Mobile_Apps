@@ -65,7 +65,7 @@ class CardServices(context: Context) {
         ownDpopSigner = dpopSigner,
         clientSigner = clientSigner,
         store = store,
-        log = { Log.i(TAG, it) },
+        log = { debugLog(it) },
     )
 
     init {
@@ -90,11 +90,16 @@ class CardServices(context: Context) {
             ),
         )
         if (!file.isFile || file.readText() != json) file.writeText(json)
-        Log.i(TAG, "client registration file ready: client_id=${config.clientId}")
+        debugLog("client registration file ready: client_id=${config.clientId}")
     }
 
     companion object {
         const val TAG: String = "PS03Card"
+
+        /** Debug builds only, as in Hub: a release build logs nothing (and never a token, in any build). */
+        fun debugLog(message: String) {
+            if (BuildConfig.DEBUG) Log.i(TAG, message)
+        }
         const val REGISTRATION_FILE: String = "client-registration.json"
     }
 }
@@ -115,7 +120,7 @@ class CardViewModel(application: Application) : AndroidViewModel(application) {
         hubProvider = { getApplication<CardApp>().services.hub },
         background = { worker.execute(it) },
         main = { main.post(it) },
-        log = { Log.i(CardServices.TAG, it) },
+        log = { CardServices.debugLog(it) },
     ).also { c ->
         c.onChange = {
             screen = c.screen

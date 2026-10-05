@@ -10,7 +10,7 @@ import java.time.Instant
  * One browser login in flight. Kept in the encrypted store (not only in memory or saved state), so
  * the login still completes when Android kills Hub while the user is in the browser.
  *
- * @property deviceSso whether this login asked for `device_sso` ("Use this sign-in in my other apps")
+ * @property deviceSso whether this login asked for `device_sso` ("Share this sign-in with my other apps")
  */
 data class PendingLogin(
     val state: String,

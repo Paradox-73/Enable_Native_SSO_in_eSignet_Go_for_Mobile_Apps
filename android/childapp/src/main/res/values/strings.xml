@@ -3,7 +3,7 @@
 <resources>
     <string name="app_name">Health Card</string>
     <string name="permission_label">Share the Hub sign-in with apps from the same publisher</string>
-    <string name="role">Child App. Signs you in with the sign-in you already have in Hub, without a password or OTP.</string>
+    <string name="tagline">Your health card. Signs you in with the sign-in you already have in Hub, without a password or OTP.</string>
     <string name="issuer_label">eSignet server</string>
     <string name="certificate_label">Signed with certificate (SHA-256)</string>
     <string name="certificate_unknown">unknown</string>
@@ -11,11 +11,12 @@
     <string name="super_app_missing">Not installed. Install Hub and sign in there first.</string>
     <string name="super_app_same_family">Installed, same certificate as this app</string>
     <string name="super_app_other_family">Installed, but signed with another certificate: it cannot share its sign-in</string>
-    <string name="about_label">About this app</string>
+    <string name="details_show">Show technical details</string>
+    <string name="details_hide">Hide technical details</string>
 
     <string name="hub_checking">Asking Hub for its sign-in…</string>
     <string name="hub_check_again">Check again</string>
-    <string name="hub_not_signed_in">Hub has no sign-in it shares. Open Hub, turn on \"Use this sign-in in my other apps\" and sign in.</string>
+    <string name="hub_not_signed_in">Hub has no sign-in it shares. Open Hub, turn on \"Share this sign-in with my other apps\" and sign in.</string>
     <string name="hub_refused">Hub refused this app: it is not signed with the same certificate.</string>
     <string name="hub_timeout">Hub did not answer in time. Try again.</string>
     <string name="hub_rate_limited">Hub is busy. Try again in a minute.</string>
@@ -56,10 +57,10 @@
     <string name="error_network">Cannot reach the eSignet server. Check the connection and try again.</string>
     <string name="error_server_unavailable">The eSignet server is not available (HTTP %1$s). Try again later.</string>
     <string name="error_hub_session_ended">Your Hub sign-in has ended. Open Hub and sign in again.</string>
-    <string name="error_server_refused">eSignet refused the sign-in (%1$s).</string>
-    <string name="error_security">The sign-in answer failed a security check (%1$s). Nothing was saved.</string>
-    <string name="error_response">eSignet sent an answer Health Card cannot use. Nothing was saved.</string>
-    <string name="error_hub">Hub could not be used right now (%1$s). Try again.</string>
+    <string name="error_server_refused">eSignet did not accept the sign-in (code %1$s). Please try again.</string>
+    <string name="error_security">The answer from eSignet failed a security check, so nothing was saved. Please try again.</string>
+    <string name="error_response">eSignet sent an answer Health Card cannot use, so nothing was saved. Please try again.</string>
+    <string name="error_hub">Hub could not be reached right now. Try again.</string>
     <string name="error_consent_declined">You did not give the extra permission. Nothing changed.</string>
     <string name="error_expired">The sign-in took too long. Please start again.</string>
     <string name="error_mismatch">That sign-in is not the one in progress. Please start again.</string>

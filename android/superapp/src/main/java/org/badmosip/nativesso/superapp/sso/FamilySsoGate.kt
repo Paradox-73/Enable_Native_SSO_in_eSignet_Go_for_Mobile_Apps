@@ -51,7 +51,7 @@ class FamilySsoException(val code: Int, message: String) : Exception(message)
  *    another signer after a custom permission takeover (the uninstall sequence in docs/STATUS.md WP-11).
  * 2. Rate: at most [rateLimit] calls per caller uid in any [rateWindowSeconds] seconds.
  * 3. Session: a sign-in with a device secret, that is, one the user agreed to share
- *    ("Use this sign-in in my other apps"). Otherwise [bundle] returns null and [signProof] refuses
+ *    ("Share this sign-in with my other apps"). Otherwise [bundle] returns null and [signProof] refuses
  *    with `ERROR_NOT_SIGNED_IN`.
  * 4. Proofs only: `POST` to the token endpoint, `GET` or `POST` to the userinfo endpoint, both as
  *    discovered at Hub's login; Hub builds every claim itself (fresh `jti` and `iat`) and the caller

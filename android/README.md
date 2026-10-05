@@ -90,7 +90,7 @@ What happens when the user taps "Sign in with eSignet" (`superapp/.../auth/HubAu
 Android code, so every step is covered by JVM tests):
 
 1. Discovery of `ps03.issuer`; the document must name exactly that issuer.
-2. PAR with `scope=openid profile` (plus `device_sso` when "Use this sign-in in my other apps" is on),
+2. PAR with `scope=openid profile` (plus `device_sso` when "Share this sign-in with my other apps" is on),
    `acr_values=mosip:idp:acr:generated-code`, a `claims` request for `name` in userinfo, PKCE S256,
    `state`, `nonce`, a DPoP proof and a `private_key_jwt` assertion (audience = issuer).
 3. The pending login (`state`, `nonce`, `code_verifier`, the switch) is written to the encrypted
@@ -151,7 +151,7 @@ bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/sc
 | `scripts/run-ui-test.sh <app> <Class>` | builds the app and test APKs, installs them, registers the client, runs the class with `am instrument`, saves logcat, the last screenshot and window dump to `$PS03_RUN_DIR/evidence/ui-<app>-<time>/` and the screenshots a test takes on purpose to `$PS03_RUN_DIR/evidence/<date>/screens/` |
 | `scripts/run-ui-test.sh all` | `SuperAppSignInTest`, then `ChildAppSilentSignInTest` and `ChildAppReconsentTest` (they use Hub's sign-in from the first); prints `OK (3 tests)` or `FAILED: <classes>` |
 
-`SuperAppSignInTest` (UI Automator): signs out, starts Hub, turns "Use this sign-in in my other apps" on, taps "Sign in with
+`SuperAppSignInTest` (UI Automator): signs out, starts Hub, turns "Share this sign-in with my other apps" on, taps "Sign in with
 eSignet", then in Chrome types UIN `1774231323`, taps the captcha box when there is one, "Get OTP",
 types OTP `111111`, "Verify" and "Allow", and expects Hub's home screen with the name
 `Siddharth K Mansour` (arguments `uin`, `otp`, `expectedName`; environment `PS03_TEST_UIN`,

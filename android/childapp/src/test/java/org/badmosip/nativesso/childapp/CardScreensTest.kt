@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -94,7 +95,8 @@ class CardScreensTest {
         rule.onNodeWithTag("card_email").assertTextContains("Email").assertTextContains("siddharth@example.com")
         rule.onNodeWithTag("card_phone").assertTextContains("Phone number").assertTextContains("Not shared with Health Card")
         rule.onNodeWithTag("sign_in_method").assertTextContains("With Hub's sign-in. No password or OTP was needed.")
-        rule.onAllNodes(isHeading()).assertCountEquals(2) // app name and "About this app"
+        rule.onAllNodes(isHeading()).assertCountEquals(1) // the app name
+        rule.onAllNodesWithTag("details_issuer").assertCountEquals(0) // folded away until asked for
         button("add_phone_button", "addPhone")
         button("sign_out_button", "signOut")
     }
@@ -131,11 +133,11 @@ class CardScreensTest {
         show(CardScreen.NeedsHub(HubException.Reason.NOT_SIGNED_IN))
         rule.onNodeWithTag("needs_hub_title").assert(isHeading())
         rule.onNodeWithTag("hub_status").assert(polite)
-            .assertTextContains("Hub has no sign-in it shares. Open Hub, turn on \"Use this sign-in in my other apps\" and sign in.")
+            .assertTextContains("Hub has no sign-in it shares. Open Hub, turn on \"Share this sign-in with my other apps\" and sign in.")
         assertTrue(top("needs_hub_title") < top("hub_status"))
         assertTrue(top("hub_status") < top("open_hub_button"))
         assertTrue(top("open_hub_button") < top("check_hub_button"))
-        assertTrue(top("check_hub_button") < top("about_title"))
+        assertTrue(top("check_hub_button") < top("details_button"))
         button("open_hub_button", "openHub")
         button("check_hub_button", "checkAgain")
     }
@@ -174,5 +176,23 @@ class CardScreensTest {
         show(CardScreen.SignedOut())
         rule.onNodeWithTag("signed_out_text").assertTextContains("You signed out of Health Card. Hub is still signed in.")
         button("continue_button", "signInWithHub")
+    }
+
+    @Test
+    fun `technical details stay folded until asked for, then show server, certificate and Hub`() {
+        show(CardScreen.Home(session))
+        rule.onAllNodesWithTag("details_certificate").assertCountEquals(0)
+        rule.onNodeWithTag("details_button").performScrollTo().assertHeightIsAtLeast(48.dp).performClick()
+        rule.onNodeWithTag("details_issuer").performScrollTo().assertTextContains("http://localhost:38088")
+        rule.onNodeWithTag("details_certificate").assertTextContains("AB:CD:EF")
+        rule.onNodeWithTag("details_hub").assertTextContains("Installed, same certificate as this app")
+    }
+
+    @Test
+    fun `the home screen names no package and no developer role`() {
+        show(CardScreen.Home(session))
+        rule.onAllNodes(hasText("org.badmosip", substring = true)).assertCountEquals(0)
+        rule.onAllNodes(hasText("Child App", substring = true)).assertCountEquals(0)
+        rule.onAllNodes(hasText("localhost", substring = true)).assertCountEquals(0)
     }
 }

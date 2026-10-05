@@ -11,13 +11,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -27,11 +33,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -48,7 +63,7 @@ import org.badmosip.nativesso.contract.SigningCertificates
 /** Whether the Super App is installed and signed with this app's certificate. */
 internal enum class SuperAppState { MISSING, SAME_FAMILY, OTHER_FAMILY }
 
-/** What the "About this app" card shows. */
+/** What "Technical details" shows: for support and for the demo, never needed to use the app. */
 internal class AboutInfo(val issuer: String, val certificate: String?, val superApp: SuperAppState)
 
 /** The buttons of every screen, so the screens can be shown in tests without a [CardController]. */
@@ -151,11 +166,7 @@ internal fun CardContent(screen: CardScreen, about: AboutInfo, actions: CardActi
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.semantics { heading() },
-        )
+        Header()
         when (screen) {
             CardScreen.Starting -> Busy(stringResource(R.string.hub_checking))
             is CardScreen.Working -> Working(screen.inBrowser, actions)
@@ -165,7 +176,22 @@ internal fun CardContent(screen: CardScreen, about: AboutInfo, actions: CardActi
             is CardScreen.Consent -> Consent(screen.missing, actions)
             is CardScreen.Failed -> Failed(screen.error, actions)
         }
-        About(about)
+        TechnicalDetails(about)
+    }
+}
+
+/** App mark and name, the same layout as in Hub. The mark is decoration: TalkBack reads the name. */
+@Composable
+private fun Header() {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(colorResource(R.color.brand))) {
+            Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.fillMaxSize())
+        }
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.testTag("app_title").semantics { heading() },
+        )
     }
 }
 
@@ -188,6 +214,7 @@ private fun Working(inBrowser: Boolean, actions: CardActions) {
 @Composable
 private fun NeedsHub(reason: HubException.Reason, superApp: SuperAppState, actions: CardActions) {
     Title(stringResource(R.string.needs_hub_title), "needs_hub_title")
+    Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("tagline"))
     Status(stringResource(hubReasonText(reason)), "hub_status")
     if (superApp != SuperAppState.MISSING) {
         Button(onClick = actions::openHub, modifier = Modifier.fillMaxWidth().testTag("open_hub_button")) {
@@ -259,17 +286,27 @@ private fun Failed(error: CardError, actions: CardActions) {
     }
 }
 
+/** Server, certificate and Hub check, folded away by default: useful for support, noise for the user. */
 @Composable
-private fun About(about: AboutInfo) {
-    Title(stringResource(R.string.about_label), "about_title")
-    LabelledValue(stringResource(R.string.issuer_label), about.issuer)
-    LabelledValue(stringResource(R.string.certificate_label), about.certificate ?: stringResource(R.string.certificate_unknown))
-    val superAppText = when (about.superApp) {
-        SuperAppState.MISSING -> R.string.super_app_missing
-        SuperAppState.SAME_FAMILY -> R.string.super_app_same_family
-        SuperAppState.OTHER_FAMILY -> R.string.super_app_other_family
+private fun TechnicalDetails(about: AboutInfo) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    TextButton(onClick = { open = !open }, modifier = Modifier.fillMaxWidth().testTag("details_button")) {
+        Text(stringResource(if (open) R.string.details_hide else R.string.details_show))
     }
-    LabelledValue(stringResource(R.string.super_app_label), stringResource(superAppText))
+    if (open) {
+        LabelledValue(stringResource(R.string.issuer_label), about.issuer, "details_issuer")
+        LabelledValue(
+            stringResource(R.string.certificate_label),
+            about.certificate ?: stringResource(R.string.certificate_unknown),
+            "details_certificate",
+        )
+        val superAppText = when (about.superApp) {
+            SuperAppState.MISSING -> R.string.super_app_missing
+            SuperAppState.SAME_FAMILY -> R.string.super_app_same_family
+            SuperAppState.OTHER_FAMILY -> R.string.super_app_other_family
+        }
+        LabelledValue(stringResource(R.string.super_app_label), stringResource(superAppText), "details_hub")
+    }
 }
 
 @Composable
@@ -340,9 +377,9 @@ private fun errorText(error: CardError): String {
         Problem.SERVER_UNAVAILABLE -> stringResource(R.string.error_server_unavailable, detail)
         Problem.HUB_SESSION_ENDED -> stringResource(R.string.error_hub_session_ended)
         Problem.SERVER_REFUSED -> stringResource(R.string.error_server_refused, detail)
-        Problem.SECURITY_CHECK -> stringResource(R.string.error_security, detail)
+        Problem.SECURITY_CHECK -> stringResource(R.string.error_security)
         Problem.BAD_RESPONSE -> stringResource(R.string.error_response)
-        Problem.HUB_UNAVAILABLE -> stringResource(R.string.error_hub, detail)
+        Problem.HUB_UNAVAILABLE -> stringResource(R.string.error_hub)
         Problem.CONSENT_DECLINED -> stringResource(R.string.error_consent_declined)
         Problem.LOGIN_EXPIRED -> stringResource(R.string.error_expired)
         Problem.LOGIN_MISMATCH -> stringResource(R.string.error_mismatch)

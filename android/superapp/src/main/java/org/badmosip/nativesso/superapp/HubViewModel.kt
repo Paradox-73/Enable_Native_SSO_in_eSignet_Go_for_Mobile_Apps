@@ -23,7 +23,7 @@ import java.util.concurrent.Executors
 /** What the activity shows. */
 sealed interface HubScreen {
     data object Starting : HubScreen
-    data class Welcome(val error: String? = null) : HubScreen
+    data class Welcome(val error: String? = null, val signedOut: Boolean = false) : HubScreen
     data class Working(val inBrowser: Boolean) : HubScreen
     data class Home(val session: TokenBundle, val familyApps: List<FamilyAccess> = emptyList()) : HubScreen
 }
@@ -43,6 +43,10 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
 
     var shareWithFamily: Boolean by mutableStateOf(false)
 
+    /** This install's client_id, for "Technical details"; null until Hub's services have started. */
+    var clientId: String? by mutableStateOf(null)
+        private set
+
     private val worker: ExecutorService = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val services get() = getApplication<HubApp>().services
@@ -57,6 +61,7 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
         background({
             services.authenticator.currentSession()?.let { it to services.familyAccess.list() }
         }) { found ->
+            clientId = services.config.clientId
             screen = if (found != null) HubScreen.Home(found.first, found.second) else HubScreen.Welcome()
         }
     }
@@ -95,7 +100,8 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun signOut() {
-        background({ services.authenticator.signOut() }) { screen = HubScreen.Welcome() }
+        screen = HubScreen.Working(inBrowser = false)
+        background({ services.authenticator.signOut() }) { screen = HubScreen.Welcome(signedOut = true) }
     }
 
     private fun <T> background(work: () -> T, done: (T) -> Unit) {
@@ -107,7 +113,7 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
             }
             main.post {
                 result.fold(done) { e ->
-                    Log.w(HubServices.TAG, "failed: ${e.javaClass.simpleName}: ${e.message}")
+                    if (BuildConfig.DEBUG) Log.w(HubServices.TAG, "failed: ${e.javaClass.simpleName}: ${e.message}")
                     screen = HubScreen.Welcome(error = messageFor(e))
                 }
             }
@@ -123,7 +129,7 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
         return when (e) {
             is NetworkException -> app.getString(R.string.error_network)
             is OAuthErrorException -> app.getString(R.string.error_server, e.code)
-            is IdTokenValidationException -> app.getString(R.string.error_token, e.reason.name)
+            is IdTokenValidationException -> app.getString(R.string.error_token)
             is LoginException -> when (e.reason) {
                 LoginException.Reason.PENDING_LOGIN_EXPIRED -> app.getString(R.string.error_expired)
                 else -> app.getString(R.string.error_no_login)

@@ -5,7 +5,6 @@ package org.badmosip.nativesso.superapp
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 
 /**
  * Receives `org.badmosip.nativesso.superapp://oauth/callback?...` from the browser and hands it to
@@ -19,7 +18,7 @@ class RedirectActivity : Activity() {
         super.onCreate(savedInstanceState)
         val data = intent?.data
         if (data != null) {
-            Log.i(HubServices.TAG, "redirect received")
+            HubServices.debugLog("redirect received")
             startActivity(
                 Intent(this, MainActivity::class.java)
                     .setAction(ACTION_REDIRECT)

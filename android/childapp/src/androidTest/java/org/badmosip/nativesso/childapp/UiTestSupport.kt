@@ -21,7 +21,7 @@ import java.util.regex.Pattern
  * What Health Card's UI tests share: the device, Health Card's services, screenshots for the
  * evidence folder, a watcher that notices any browser window, and the eSignet login in Chrome.
  *
- * Precondition for both tests: Hub is signed in with "Use this sign-in in my other apps" on.
+ * Precondition for both tests: Hub is signed in with "Share this sign-in with my other apps" on.
  * `android/scripts/run-ui-test.sh all` runs Hub's `SuperAppSignInTest` first, which does that.
  */
 internal class CardUi {

@@ -137,7 +137,7 @@ class FamilySsoGateTest {
         val gate = gate()
         assertNull(gate.bundle(childUid))
         refusedWith(FamilySsoContract.ERROR_NOT_SIGNED_IN) { gate.signProof(childUid, "POST", tokenEndpoint, null, null) }
-        // Signed in, but the user did not turn on "Use this sign-in in my other apps": nothing is shared.
+        // Signed in, but the user did not turn on "Share this sign-in with my other apps": nothing is shared.
         current = session(deviceSecret = null)
         assertNull(gate.bundle(childUid))
         refusedWith(FamilySsoContract.ERROR_NOT_SIGNED_IN) { gate.signProof(childUid, "POST", tokenEndpoint, null, null) }

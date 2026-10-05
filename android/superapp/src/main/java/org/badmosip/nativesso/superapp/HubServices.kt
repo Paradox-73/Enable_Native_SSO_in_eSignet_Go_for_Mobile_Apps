@@ -41,13 +41,13 @@ class HubServices(context: Context) {
 
     /** The DPoP key; "Sign out of all apps" deletes it and the next sign-in makes a new one. */
     val dpopSigner = ReplaceableSigner(
-        load = { AndroidKeystoreKeys.signer(AndroidKeystoreKeys.DPOP_ALIAS) { Log.i(TAG, "DPoP key: $it") } },
+        load = { AndroidKeystoreKeys.signer(AndroidKeystoreKeys.DPOP_ALIAS) { debugLog("DPoP key: $it") } },
         delete = { AndroidKeystoreKeys.delete(AndroidKeystoreKeys.DPOP_ALIAS) },
     )
 
     /** The client key; its `kid` is its RFC 7638 thumbprint, the same `kid` that is registered. */
     val clientSigner: EcKeyJwsSigner = AndroidKeystoreKeys.signer(AndroidKeystoreKeys.CLIENT_AUTH_ALIAS) {
-        Log.i(TAG, "client key: $it")
+        debugLog("client key: $it")
     }.let { it.withKeyId(it.thumbprint) }
 
     val config = HubConfig(
@@ -68,7 +68,7 @@ class HubServices(context: Context) {
         dpopSigner = dpopSigner,
         clientSigner = clientSigner,
         store = store,
-        log = { Log.i(TAG, it) },
+        log = { debugLog(it) },
         forgetDpopKey = dpopSigner::destroy,
     )
 
@@ -82,7 +82,7 @@ class HubServices(context: Context) {
         session = authenticator::currentSession,
         proofs = DpopProofFactory(dpopSigner),
         accessLog = familyAccess,
-        log = { Log.i(TAG, "family sso: $it") },
+        log = { debugLog("family sso: $it") },
     )
 
     init {
@@ -108,11 +108,19 @@ class HubServices(context: Context) {
             ),
         )
         if (!file.isFile || file.readText() != json) file.writeText(json)
-        Log.i(TAG, "client registration file ready: client_id=${config.clientId}")
+        debugLog("client registration file ready: client_id=${config.clientId}")
     }
 
     companion object {
         const val TAG: String = "PS03Hub"
+
+        /**
+         * Debug builds only: package names, the client_id and key events help the UI tests and
+         * the demo. A release build logs nothing (and never a token, in any build).
+         */
+        fun debugLog(message: String) {
+            if (BuildConfig.DEBUG) Log.i(TAG, message)
+        }
         const val REGISTRATION_FILE: String = "client-registration.json"
     }
 }

@@ -5,7 +5,6 @@ package org.badmosip.nativesso.childapp
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 
 /**
  * Receives `org.badmosip.nativesso.childapp://oauth/callback?...` from the browser after the consent
@@ -18,7 +17,7 @@ class RedirectActivity : Activity() {
         super.onCreate(savedInstanceState)
         val data = intent?.data
         if (data != null) {
-            Log.i(CardServices.TAG, "redirect received")
+            CardServices.debugLog("redirect received")
             startActivity(
                 Intent(this, MainActivity::class.java)
                     .setAction(ACTION_REDIRECT)

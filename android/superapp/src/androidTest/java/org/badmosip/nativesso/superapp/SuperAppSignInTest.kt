@@ -35,7 +35,7 @@ import java.util.regex.Pattern
  * the client registered (`android/scripts/register-client.sh`); `android/scripts/run-ui-test.sh`
  * does all of it. Instrumentation arguments: `uin`, `otp`, `expectedName`.
  *
- * The sharing switch ("Use this sign-in in my other apps") is turned on, so the login asks for
+ * The sharing switch ("Share this sign-in with my other apps") is turned on, so the login asks for
  * `device_sso`: the stored bundle must hold a device secret, and the id_token must carry `sid` and a
  * `ds_hash` that matches it (Native SSO 1.0 section 3.4.1). Health Card's UI tests
  * (`ChildAppSilentSignInTest`, `ChildAppReconsentTest`) run after this test and use that sign-in.
