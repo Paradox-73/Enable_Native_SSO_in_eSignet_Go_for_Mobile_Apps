@@ -83,7 +83,8 @@ ps03_log "takeover set: Hub absent while the other app defines the permission"
 uninstall_all
 must_install takeover/child.apk
 must_install takeover/child-test.apk
-hub_result=$(install family/hub.apk)
+# adb exits non-zero when Android refuses the install; that answer is checked below.
+hub_result=$(install family/hub.apk || true)
 if printf '%s' "$hub_result" | grep -q Success; then
   seed seed
   run_step takeover takeoverRefused " (rejected)"

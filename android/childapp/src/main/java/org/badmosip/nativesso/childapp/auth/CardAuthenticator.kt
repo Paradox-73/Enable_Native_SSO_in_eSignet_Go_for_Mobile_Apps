@@ -4,8 +4,10 @@ package org.badmosip.nativesso.childapp.auth
 
 import com.nimbusds.jwt.SignedJWT
 import okhttp3.OkHttpClient
+import org.badmosip.nativesso.childapp.HubCalls
 import org.badmosip.nativesso.childapp.HubException
 import org.badmosip.nativesso.childapp.HubLink
+import org.badmosip.nativesso.childapp.HubShare
 import org.badmosip.nativesso.oidc.AuthorizationRequest
 import org.badmosip.nativesso.oidc.ClientAssertionFactory
 import org.badmosip.nativesso.oidc.DeviceSecretExchange
@@ -85,7 +87,16 @@ class CardAuthenticator(
      * ([OAuthErrorException.requiresInteraction]) and the caller offers the consent screen.
      */
     fun silentSignIn(scope: Set<String> = config.scopes): CardSession = hub.use { calls ->
-        val share = calls.share() ?: throw HubException(HubException.Reason.NOT_SIGNED_IN, "Hub shares no sign-in")
+        silentSignIn(calls, calls.share(), scope)
+    }
+
+    /**
+     * [silentSignIn] over a connection to Hub that is already open, with the [share] already read
+     * through it, so a caller that has just asked Hub for its sign-in does not bind and ask again
+     * (every call counts against Hub's per-app rate limit).
+     */
+    fun silentSignIn(calls: HubCalls, share: HubShare?, scope: Set<String> = config.scopes): CardSession {
+        share ?: throw HubException(HubException.Reason.NOT_SIGNED_IN, "Hub shares no sign-in")
         if (share.issuer != config.issuer) {
             throw CardException(CardException.Reason.OTHER_ISSUER, "Hub is signed in to another server")
         }
@@ -101,7 +112,7 @@ class CardAuthenticator(
             throw CardException(CardException.Reason.SESSION_MISMATCH, "the new id_token does not belong to Hub's login session")
         }
         val profile = profile(client, tokens.accessToken, idToken.subject, calls.proofs)
-        save(tokens, idToken, Binding.HUB, hubSid, profile)
+        return save(tokens, idToken, Binding.HUB, hubSid, profile)
     }
 
     /**

@@ -99,6 +99,9 @@ class CardController(
     var browserUrl: String? = null
         private set
 
+    /** A [refresh] is running; set and cleared on the main thread. */
+    private var reconciling = false
+
     /** Called on the main thread after [screen] or [browserUrl] changed. */
     var onChange: () -> Unit = {}
 
@@ -111,10 +114,15 @@ class CardController(
         if (screen == CardScreen.Starting) refresh()
     }
 
-    /** On every resume: compares Health Card's state with Hub's. Not while a login or the consent screen is open. */
+    /**
+     * On every resume: compares Health Card's state with Hub's. Not while a login or the consent
+     * screen is open, and not while the previous check still runs (on first start, [start] and the
+     * first resume both ask): every Hub call counts against Hub's per-app rate limit.
+     */
     fun refresh() {
         val now = screen
-        if ((now is CardScreen.Working) || now is CardScreen.Consent) return
+        if ((now is CardScreen.Working) || now is CardScreen.Consent || reconciling) return
+        reconciling = true
         run { reconcile() }
     }
 
@@ -199,31 +207,48 @@ class CardController(
         return auth.currentSession()?.let { CardScreen.Home(it, error) } ?: CardScreen.Failed(error)
     }
 
+    /**
+     * Asks Hub for its shared sign-in and, when Health Card must sign in again, does so over the
+     * same connection: one bind, one version and one bundle call, then the proofs of the sign-in.
+     */
     private fun reconcile(): CardScreen {
         val session = auth.currentSession()
-        return when (val status = hub.status()) {
-            is HubStatus.Unavailable -> when (status.reason) {
-                HubException.Reason.NOT_SIGNED_IN, HubException.Reason.HUB_MISSING -> {
-                    if (session != null) {
-                        log("Hub has no shared sign-in (${status.reason}); clearing Health Card's tokens")
-                        auth.signOut(byUser = false)
+        var shareRead = false
+        return try {
+            hub.use { calls ->
+                val share = calls.share()
+                shareRead = true
+                when {
+                    share == null -> hubUnavailable(session, HubException.Reason.NOT_SIGNED_IN)
+                    session == null && auth.signedOutByUser() -> CardScreen.SignedOut()
+                    session == null -> CardScreen.Home(auth.silentSignIn(calls, share, config.scopes))
+                    session.binding == Binding.HUB &&
+                        CardAuthenticator.sessionIdOf(share.idToken) != session.hubSessionId -> {
+                        log("Hub's login changed; signing in again")
+                        CardScreen.Home(auth.silentSignIn(calls, share, config.scopes))
                     }
-                    CardScreen.NeedsHub(status.reason)
+                    else -> CardScreen.Home(session)
                 }
-                // Hub is there but could not answer now: keep what Health Card has.
-                else -> session?.let { CardScreen.Home(it) } ?: CardScreen.NeedsHub(status.reason)
             }
-            is HubStatus.Available -> when {
-                session == null && auth.signedOutByUser() -> CardScreen.SignedOut()
-                session == null -> CardScreen.Home(auth.silentSignIn(config.scopes))
-                session.binding == Binding.HUB &&
-                    CardAuthenticator.sessionIdOf(status.bundle.idToken) != session.hubSessionId -> {
-                    log("Hub's login changed; signing in again")
-                    CardScreen.Home(auth.silentSignIn(config.scopes))
-                }
-                else -> CardScreen.Home(session)
-            }
+        } catch (e: HubException) {
+            // A refusal while reading the share means Hub could not answer; one during the
+            // sign-in is a sign-in failure, shown like any other.
+            if (shareRead) throw e
+            hubUnavailable(session, e.reason)
         }
+    }
+
+    /** Hub has no shared sign-in ([reason]) or could not be asked. */
+    private fun hubUnavailable(session: CardSession?, reason: HubException.Reason): CardScreen = when (reason) {
+        HubException.Reason.NOT_SIGNED_IN, HubException.Reason.HUB_MISSING -> {
+            if (session != null) {
+                log("Hub has no shared sign-in ($reason); clearing Health Card's tokens")
+                auth.signOut(byUser = false)
+            }
+            CardScreen.NeedsHub(reason)
+        }
+        // Hub is there but could not answer now: keep what Health Card has.
+        else -> session?.let { CardScreen.Home(it) } ?: CardScreen.NeedsHub(reason)
     }
 
     /** Runs [work] in the background and shows its screen, or the screen for its failure. */
@@ -277,6 +302,7 @@ class CardController(
 
     private fun show(next: CardScreen) {
         screen = next
+        reconciling = false
         onChange()
     }
 }

@@ -40,6 +40,7 @@ import java.time.Instant
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 /** The eSignet issuer's signing key, made once per test run (RSA generation is slow). */
 internal object IssuerKey {
@@ -59,17 +60,23 @@ internal class FakeHub : IFamilySso.Stub() {
     @Volatile var proofRefusal: RuntimeException? = null
     val proofRequests = CopyOnWriteArrayList<DpopRequest>()
 
+    /** Every call made, as Hub's rate limit counts them. */
+    val calls = AtomicInteger()
+
     override fun getVersion(): Int {
+        calls.incrementAndGet()
         refusal?.let { throw it }
         return FamilySsoContract.VERSION
     }
 
     override fun getSsoBundle(): SsoBundle? {
+        calls.incrementAndGet()
         refusal?.let { throw it }
         return bundle
     }
 
     override fun signDpopProof(htm: String?, htu: String?, ath: String?, nonce: String?): String {
+        calls.incrementAndGet()
         refusal?.let { throw it }
         proofRefusal?.let { throw it }
         val request = DpopRequest(htm!!, htu!!, ath, nonce)

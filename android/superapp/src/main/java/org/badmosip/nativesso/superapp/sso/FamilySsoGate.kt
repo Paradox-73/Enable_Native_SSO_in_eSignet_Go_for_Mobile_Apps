@@ -124,7 +124,7 @@ class FamilySsoGate(
             throw FamilySsoException(FamilySsoContract.ERROR_CALLER_NOT_ALLOWED, "caller is not an app of this family")
         }
         if (!limiter.tryAcquire(uid)) {
-            log("caller ${match.packageName} rate limited")
+            log("caller ${match.packageName} rate limited (${limiter.inWindow(uid)} calls in the last window)")
             throw FamilySsoException(FamilySsoContract.ERROR_RATE_LIMITED, "too many calls; try again later")
         }
         return match.packageName
@@ -185,6 +185,10 @@ internal class RateLimiter(private val limit: Int, private val windowSeconds: Lo
     init {
         require(limit > 0 && windowSeconds > 0) { "limit and window must be positive" }
     }
+
+    /** Calls of [uid] still inside the window. */
+    @Synchronized
+    fun inWindow(uid: Int): Int = calls[uid]?.size ?: 0
 
     @Synchronized
     fun tryAcquire(uid: Int): Boolean {

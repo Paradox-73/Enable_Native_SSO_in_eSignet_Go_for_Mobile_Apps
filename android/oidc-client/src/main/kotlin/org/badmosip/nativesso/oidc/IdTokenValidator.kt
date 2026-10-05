@@ -240,7 +240,10 @@ public class IssuerSignatureVerifier(
             throw InvalidResponseException("signed JWT is malformed", e)
         }
         val result = check(jwt)
-        if (result != Result.VALID) throw InvalidResponseException("signed JWT rejected: $result")
+        if (result != Result.VALID) throw InvalidResponseException(
+                "signed JWT rejected: $result (kid=${jwt.header.keyID}, alg=${jwt.header.algorithm.name}, " +
+                    "issuer kids=${jwks.get(false).keys.map { "${it.keyID}/${it.algorithm?.name}/${it.keyUse}" }})",
+            )
         return try {
             jwt.jwtClaimsSet.toJSONObject()
         } catch (e: ParseException) {

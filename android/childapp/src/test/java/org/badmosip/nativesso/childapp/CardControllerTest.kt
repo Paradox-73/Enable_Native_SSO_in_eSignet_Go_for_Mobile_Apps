@@ -80,6 +80,38 @@ class CardControllerTest {
     }
 
     @Test
+    fun `opening Health Card asks Hub once and signs in over the same connection`() {
+        f.shareHubSignIn()
+        controller.start(null)
+        assertEquals(Binding.HUB, home().session.binding)
+        // version, bundle, then one proof for the token exchange and one for userinfo.
+        assertEquals(2 + f.hub.proofRequests.size, f.hub.calls.get())
+        assertEquals(2, f.hub.proofRequests.size)
+    }
+
+    @Test
+    fun `a resume while the first check still runs does not ask Hub again`() {
+        val queued = ArrayDeque<Runnable>()
+        controller = CardController(
+            authProvider = { auth },
+            hubProvider = { f.link },
+            background = { queued.addLast(it) },
+            main = { it.run() },
+        )
+        f.shareHubSignIn()
+        controller.start(null)
+        controller.refresh() // onResume right after onCreate
+        assertEquals(1, queued.size)
+        queued.removeFirst().run()
+        assertEquals(Binding.HUB, home().session.binding)
+        val afterLaunch = f.hub.calls.get()
+
+        controller.refresh() // a later resume asks again: version and bundle, no new sign-in
+        queued.removeFirst().run()
+        assertEquals(afterLaunch + 2, f.hub.calls.get())
+    }
+
+    @Test
     fun `sharing off shows Sign in to Hub first`() {
         controller.start(null)
         assertEquals(CardScreen.NeedsHub(HubException.Reason.NOT_SIGNED_IN), screen)
