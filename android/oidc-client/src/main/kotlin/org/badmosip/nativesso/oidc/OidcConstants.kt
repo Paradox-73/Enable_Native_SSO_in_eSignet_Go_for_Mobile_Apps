@@ -23,6 +23,13 @@ public object TokenTypes {
     /** Native SSO 1.0 section 4.1: the device secret sent as actor_token. */
     public const val DEVICE_SECRET: String = "urn:openid:params:token-type:device-secret"
 
+    /**
+     * token_type_hint for revoking a device secret at the revocation endpoint (RFC 7009 section 2.1).
+     * Native SSO 1.0 defines no hint value; eSignet accepts this one and also recognises a device
+     * secret without it.
+     */
+    public const val DEVICE_SECRET_HINT: String = "device_secret"
+
     /** RFC 8693 section 3: the issued_token_type of a token-exchange response. */
     public const val ACCESS_TOKEN: String = "urn:ietf:params:oauth:token-type:access_token"
 }

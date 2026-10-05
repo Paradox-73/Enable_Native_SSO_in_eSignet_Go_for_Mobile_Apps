@@ -77,6 +77,7 @@ internal fun discoveryJson(server: MockWebServer, issuer: String = server.issuer
       "token_endpoint": "${server.url("/oauth2/token")}",
       "pushed_authorization_request_endpoint": "${server.url("/oauth2/par")}",
       "userinfo_endpoint": "${server.url("/oauth2/userinfo")}",
+      "revocation_endpoint": "${server.url("/oauth2/revoke")}",
       "jwks_uri": "${server.url("/oauth2/jwks")}",
       "scopes_supported": ["openid", "profile", "email", "device_sso"],
       "grant_types_supported": ["authorization_code", "urn:ietf:params:oauth:grant-type:token-exchange"],

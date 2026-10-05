@@ -133,6 +133,30 @@ public class OidcClient(
     }
 
     /**
+     * Revokes [token] at the revocation endpoint (RFC 7009 section 2.1) with this client's
+     * `private_key_jwt` authentication. Hub uses it at "Sign out of all apps" to end its device
+     * secret's session on the server. Returns false, sending nothing, when the server advertises no
+     * revocation_endpoint. The server answers 200 for a token it does not know (RFC 7009 section
+     * 2.2), so true means "the token is no longer usable", not "the token existed".
+     */
+    public fun revokeToken(token: String, tokenTypeHint: String? = null): Boolean {
+        val endpoint = metadata.revocationEndpoint ?: return false
+        val form = FormBody.Builder().add("token", token)
+        tokenTypeHint?.let { form.add("token_type_hint", it) }
+        clientAuth.formParameters(metadata.issuer, endpoint).forEach { (k, v) -> form.add(k, v) }
+        val request = Request.Builder().url(endpoint).post(form.build()).header("Accept", "application/json").build()
+        val (response, body) = try {
+            http.newCall(request).execute().use { it to (it.body?.string().orEmpty()) }
+        } catch (e: IOException) {
+            throw NetworkException("POST ${stripQuery(endpoint)} failed: ${e.message}", e)
+        }
+        if (!response.isSuccessful) {
+            throw errorOf(response, body) ?: HttpStatusException(response.code, "POST ${stripQuery(endpoint)}: HTTP ${response.code}")
+        }
+        return true
+    }
+
+    /**
      * Calls the userinfo endpoint with a DPoP-bound access token (RFC 9449 section 7.1) and returns
      * the claims. A JSON answer is returned as is; a signed JWT answer (application/jwt) is first
      * verified with [jwtVerifier], usually [IssuerSignatureVerifier.claimsOf] over the issuer's keys.

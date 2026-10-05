@@ -283,6 +283,43 @@ class OidcClientTest {
         }
     }
 
+    // --- revocation (RFC 7009) ----------------------------------------------------------------------
+
+    @Test
+    fun `device secret revocation sends the token, the hint and private_key_jwt, without a DPoP proof`() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        assertTrue(client.revokeToken("ds-jwe", TokenTypes.DEVICE_SECRET_HINT))
+
+        val recorded = server.takeRequest()
+        assertEquals("/oauth2/revoke", recorded.path)
+        assertEquals(null, recorded.getHeader("DPoP"))
+        val form = recorded.form()
+        assertEquals("ds-jwe", form["token"])
+        assertEquals("device_secret", form["token_type_hint"])
+        assertEquals("hub-client", form["client_id"])
+        assertEquals(ClientAssertion.TYPE_JWT_BEARER, form["client_assertion_type"])
+        val assertion = verifiedJws(form.getValue("client_assertion"), clientSigner.publicJwk).payload.toJSONObject()
+        assertEquals(server.issuer(), assertion["aud"])
+    }
+
+    @Test
+    fun `revocation refused by the server is a typed error`() {
+        server.enqueue(json(400, """{"error":"invalid_grant","error_description":"not issued to this client"}"""))
+        val e = assertThrows(OAuthErrorException::class.java) { client.revokeToken("ds-jwe", TokenTypes.DEVICE_SECRET_HINT) }
+        assertEquals(OAuthError.INVALID_GRANT, e.error)
+
+        server.enqueue(MockResponse().setResponseCode(503))
+        assertThrows(HttpStatusException::class.java) { client.revokeToken("ds-jwe") }
+    }
+
+    @Test
+    fun `without a revocation endpoint nothing is sent`() {
+        val metadata = ProviderMetadata.parse(discoveryJson(server)).copy(revocationEndpoint = null)
+        val bare = OidcClient(http, metadata, "hub-client", ClientAssertionFactory("hub-client", clientSigner, clock = FIXED_CLOCK))
+        assertFalse(bare.revokeToken("ds-jwe", TokenTypes.DEVICE_SECRET_HINT))
+        assertEquals(0, server.requestCount)
+    }
+
     // --- userinfo ----------------------------------------------------------------------------------
 
     @Test
