@@ -62,7 +62,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | PARTIAL | `fe17bf6` |
 | WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | PARTIAL | see card |
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | DONE | see card |
-| WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | PARTIAL | see card |
+| WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | DONE | see card |
 
 Results recorded for the DONE tasks (all on 2026-10-04, commands in [../CONTRIBUTING.md](../CONTRIBUTING.md)):
 
@@ -809,7 +809,7 @@ commit of that folder.
 - **Notes**: known limits to list: emulator Keystore is software-backed, OTP again on re-consent, in-memory runtime
   store, server-side session record ends only by its TTL (no revoke call), CI `NOT RUN` until it has run.
 
-### WP-18 Documentation set and submission pack (PARTIAL)
+### WP-18 Documentation set and submission pack (DONE)
 
 - **Result (2026-10-05)**
   - Written: `README.md` (status, architecture, quick start, table of tasks P1, P2, T1-T10, B1 with links to code and
@@ -825,7 +825,10 @@ commit of that folder.
     mitigation and test 11/11`. The same script over `README.md`, `CONTRIBUTING.md`, `THIRD_PARTY.md` and every file in `docs/`:
     `0 broken links` (it checks relative links and heading anchors).
   - `bash scripts/repo-lint.sh`: `repo-lint: OK`.
-  - Open: `bash scripts/fresh-clone-check.sh` not yet recorded here; no device screenshots in `docs/ux.md`; the slide file and
+  - `bash scripts/fresh-clone-check.sh` (on `ab9eafa`): `fresh-clone-check: PASS (ab9eafa)`, 2 min 17 s: clean clone,
+    repo-lint, Thunder and eSignet unit tests in the container, Android JVM tests (Gradle took the `oidc-client` result
+    from its build cache; the other modules ran).
+  - Open: no device screenshots in `docs/ux.md`; the slide file and
     the video are not made (outline and storyboard only); upstream pull requests are notes only.
 
 - **Goal**
