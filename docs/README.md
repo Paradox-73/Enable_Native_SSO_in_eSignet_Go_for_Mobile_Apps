@@ -9,7 +9,7 @@ repository claims a result that was not run, and every measured result carries i
 |---|---|---|
 | [../README.md](../README.md) | What this is, status, architecture, quick start, how each statement task is met | final (2026-10-05) |
 | [setup.md](setup.md) | How to install and run the stack and both apps, step by step | final (2026-10-05) |
-| [demo-script.md](demo-script.md) | The demo, click by click, and the 4 min 30 s video storyboard | server part run; emulator part not run |
+| [demo-script.md](demo-script.md) | The demo, click by click, and the 4 min 30 s video storyboard | run with the emulator (2026-10-05); live timings not measured |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Tools, build and test commands, conventions, how to pick up a task | updated 2026-10-05 |
 | [STATUS.md](STATUS.md) | Every task, its state and results | updated with every task |
 
@@ -21,7 +21,7 @@ repository claims a result that was not run, and every measured result carries i
 | [threat-model.md](threat-model.md) | What can go wrong and what stops it | final (2026-10-05) |
 | [diagrams/](diagrams/README.md) | Architecture and sequence diagrams (Mermaid sources and PNGs) | final (2026-10-05) |
 | [changes.md](changes.md) | Every change to upstream code, by statement task, with its commit | final (2026-10-05) |
-| [ux.md](ux.md) | App screens, states and accessibility | final; no device screenshots yet |
+| [ux.md](ux.md) | App screens with emulator screenshots, states and accessibility | final (2026-10-05) |
 
 ## Interfaces and testing
 
@@ -29,7 +29,7 @@ repository claims a result that was not run, and every measured result carries i
 |---|---|---|
 | [api.md](api.md) | Endpoints, parameters and responses added or changed; error table; links to the OpenAPI files | final (2026-10-05) |
 | [test-data.md](test-data.md) | Test identities, clients and keys, and how they are created | final (2026-10-05) |
-| [test-report.md](test-report.md) | Test cases and dated results: unit, integration, Android JVM; emulator and CI listed as not run | written by `scripts/evidence.sh` |
+| [test-report.md](test-report.md) | Test cases and dated results: unit, integration, Android JVM, emulator, CI replayed on Linux; hosted CI and manual runs listed as not run | written by `scripts/evidence.sh` |
 
 ## Project
 

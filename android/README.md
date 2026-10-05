@@ -8,13 +8,15 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
   password or OTP, by sending Hub's id_token and device secret to eSignet in a token exchange.
 
 > **State on 2026-10-05.** Built and tested: the Gradle project, shared signing, the binder contract,
-> the `oidc-client` library (64 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
-> with eSignet, the family single sign-on service, "Sign out of all apps" that deletes the DPoP key:
-> 54 JVM and Robolectric tests) and Health Card (silent sign-in by token exchange, re-consent,
-> sign-out, accessibility: 50 Robolectric and JVM tests). NOT RUN yet on the emulator:
-> `bash android/scripts/run-ui-test.sh all` (`SuperAppSignInTest`, `ChildAppSilentSignInTest`,
-> `ChildAppReconsentTest`, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)) and
-> the family steps (see [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)).
+> the `oidc-client` library (67 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
+> with eSignet, the family single sign-on service, "Sign out of all apps" that deletes the DPoP key and
+> revokes the device secret on eSignet: 64 JVM and Robolectric tests) and Health Card (silent sign-in by
+> token exchange, re-consent, sign-out, accessibility: 54 Robolectric and JVM tests). On the emulator
+> `bash android/scripts/run-ui-test.sh all` passed (`SuperAppSignInTest`, `ChildAppSilentSignInTest`,
+> `ChildAppReconsentTest`, `ChildAppSignOutTest`; the later `ChildAppHubMissingTest` and the
+> "Not now" step have not run yet, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
+> [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)). Dated results:
+> [../docs/test-report.md](../docs/test-report.md); screenshots: [../docs/ux.md](../docs/ux.md#screenshots).
 
 ## Modules
 
@@ -149,7 +151,7 @@ bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/sc
 | `scripts/with-emulator.sh <cmd...>` | takes the `emulator` lock; boots AVD `ps03_api34` headless on port 5584 (`-gpu host`), waits for boot and network, `adb reverse` 38088 and 38300, turns Chrome's first-run screens off, runs the command, then cleans up and kills the emulator it started |
 | `scripts/register-client.sh [superapp\|childapp]` | reads `files/client-registration.json` with `adb shell run-as` (starts the app once if needed) and registers the client through `POST /client-mgmt/client` (private_key_jwt, PAR, PKCE, DPoP, relying party `ps03-family`, grants `authorization_code` and token exchange, `allowed_authorization_scopes` `device_sso`). A client_id registered before 2026-10-05 lacks the last two: reinstall the app (new key, new client_id) or start the stack from clean volumes |
 | `scripts/run-ui-test.sh <app> <Class>` | builds the app and test APKs, installs them, registers the client, runs the class with `am instrument`, saves logcat, the last screenshot and window dump to `$PS03_RUN_DIR/evidence/ui-<app>-<time>/` and the screenshots a test takes on purpose to `$PS03_RUN_DIR/evidence/<date>/screens/` |
-| `scripts/run-ui-test.sh all` | `SuperAppSignInTest`, then `ChildAppSilentSignInTest` and `ChildAppReconsentTest` (they use Hub's sign-in from the first); prints `OK (3 tests)` or `FAILED: <classes>` |
+| `scripts/run-ui-test.sh all` | `SuperAppSignInTest`, then `ChildAppSilentSignInTest`, `ChildAppReconsentTest`, `ChildAppSignOutTest` and `ChildAppHubMissingTest` (they use Hub's sign-in from the first); prints `OK (5 tests)` or `FAILED: <classes>` |
 
 `SuperAppSignInTest` (UI Automator): signs out, starts Hub, turns "Share this sign-in with my other apps" on, taps "Sign in with
 eSignet", then in Chrome types UIN `1774231323`, taps the captcha box when there is one, "Get OTP",
@@ -353,6 +355,14 @@ UI Automator tests (need the stack and the emulator; `run-ui-test.sh all` runs t
 - `ChildAppReconsentTest`: "Add my phone number", the consent screen (screenshot
   `health-card-consent-screen.png`), "Continue to eSignet", UIN, a new OTP and "Allow" in Chrome,
   then Health Card's own session with `phone` in its scope (screenshot `health-card-after-consent.png`).
+  Before continuing it taps "Not now" once: Health Card stays signed in with Hub and says that nothing
+  changed (screenshot `health-card-consent-declined.png`). This step was added after the last emulator run
+  and has not run yet.
+- `ChildAppSignOutTest`: "Sign out of Health Card" (Hub stays signed in), then Hub's "Sign out of all
+  apps", then Health Card shows "Sign in to Hub first" with no tokens kept (screenshots
+  `health-card-signed-out.png`, `hub-signed-out.png`, `health-card-needs-hub.png`).
+- `ChildAppHubMissingTest` (last): uninstalls Hub; Health Card says Hub is not installed and keeps no
+  tokens (screenshot `health-card-hub-missing.png`). `run-ui-test.sh all` installs Hub again afterwards. Not run on the emulator yet.
 
 ## The client library (`oidc-client`)
 

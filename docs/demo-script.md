@@ -6,17 +6,14 @@ something fails. Written 2026-10-05.
 
 ## Status of this runbook
 
-- **Run and measured on 2026-10-05**: the server part (steps 1 to 3 below) with
-  `bash scripts/demo/demo.sh --no-emulator`: `demo ready (server part only; emulator steps NOT RUN)`, then
-  `teardown ok`, 65 s from start to finish with the APKs and the stack image already built. Inside that:
-  preflight and APK build (already up to date) with the signing check 15 s (`family-signing: OK a787b1f3...`), clean stack
-  37 s (`stack up ... ready in 27 s`), headless flow with teardown 11 s (4 e2e tests passed). Afterwards
-  `docker ps` listed no container.
-- **Not run: the emulator part (step 4) and every screen described below.** The machine-wide emulator lock
-  directory `/e/Projects/MOSIP/toolchain/locks/emulator` (created 2026-10-05 03:58) is held by a stopped earlier job.
-  `demo.sh` stops with a message instead of removing it. Screen names, texts and timings in this file come from
-  the app's string files and the UI test code, not from a run on a device. Rehearse once and correct this file
-  with the measured timings (the table in [Timings](#timings) has empty cells for that).
+- **Run on 2026-10-05 with the emulator**: `bash scripts/demo/demo.sh --check` printed `demo ready` and
+  `teardown ok` (row DEMO-FULL of [test-report.md](test-report.md), with its duration), and `docker ps` listed no
+  container afterwards. The server part alone (`--no-emulator`) is row DEMO-SERVER.
+- Every screen named below was seen on the emulator by the UI tests of the same day, except the "Not now"
+  fallback (its device step was added later and has not run yet); screenshots are in [screens/](screens/) and
+  [ux.md](ux.md#screenshots). Screen texts in this file are the apps' strings.
+- Not measured yet: the live runbook by a person at presenting speed. Rehearse once and fill the last column of
+  [Timings](#timings).
 
 ## Prerequisites
 
@@ -67,8 +64,8 @@ bash scripts/demo/demo.sh --no-emulator --check   # server part only
 Start state: Hub in front, signed out. Health Card installed, signed out.
 
 1. **Hub, sign in.**
-   - Show the Hub home screen: "Super App. You sign in here once with eSignet ...". Turn the switch "Use this
-     sign-in in my other apps" on (it is off at first start).
+   - Show the Hub start screen: "Sign in once with eSignet. Your other apps from the same publisher ...". Turn the
+     switch "Share this sign-in with my other apps" on (it is off at first start).
    - Tap "Sign in with eSignet". Chrome opens eSignet's page. Enter UIN `1774231323`, request the OTP, enter
      `111111`, tick consent when asked. Chrome returns to Hub.
    - Expect: "Signed in as" with the seeded user's name, "Sign-in shared with my other apps: Yes",
@@ -84,7 +81,8 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
      own eSignet sign-in, after you gave the extra permission."
    - Fallback to show the decline path: "Not now" returns with "Nothing changed".
 4. **Sign out of all apps.**
-   - In Hub tap "Sign out of all apps". Hub's DPoP key is deleted.
+   - In Hub tap "Sign out of all apps". Hub shows "You are signed out of Hub and of every app that used this
+     sign-in."; its DPoP key is deleted and eSignet ends the device secret's session (rule R27).
    - Open Health Card: it clears its tokens and shows "Sign in to Hub first" with "Open Hub".
 5. **Health Card after a long wait** (rehearse once, more than 2 minutes after the Hub login): sign in to Hub
    again, wait, open Health Card. It still signs in without a browser: the expired id_token is accepted while the
@@ -101,8 +99,8 @@ Narration is written to be read at a calm pace. Times are planned, not measured.
 | 0:50-1:30 | Hub: tap Sign in, Chrome login | Hub asks for the extra scope `device_sso`. eSignet answers with a device secret next to the tokens. The tokens are bound to Hub's key with DPoP. | Hub home, Chrome login with UIN and OTP, "Signed in as" |
 | 1:30-2:20 | Health Card opens | Health Card binds to Hub's service, which only answers apps signed with the same certificate. It sends the id_token and device secret to eSignet with its own client key. No browser, no OTP. | Health Card home, "With Hub's sign-in" line; Hub's "Apps using this sign-in" |
 | 2:20-3:10 | Re-consent | The Health Card asks for `phone`, which Hub's login did not include. eSignet answers `interaction_required` instead of widening silently. The user consents once. | Consent screen, Chrome login, phone number on screen |
-| 3:10-3:40 | Sign out of all apps | Hub deletes its key. Every token and device secret bound to it stops working. | Hub sign out, Health Card "Sign in to Hub first" |
-| 3:40-4:10 | Terminal | The same rules are tested live: 29 of 29 end-to-end tests, 31 Postman requests with 116 assertions. | `e2e: 29 passed, 0 failed`; newman summary |
+| 3:10-3:40 | Sign out of all apps | Hub deletes its key and asks eSignet to end the device secret's session. No family app can sign in with it any more. | Hub sign out, Health Card "Sign in to Hub first" |
+| 3:40-4:10 | Terminal | The same rules are tested live: 30 of 30 end-to-end tests, 34 Postman requests with 125 assertions. | `e2e: 30 passed, 0 failed`; newman summary |
 | 4:10-4:30 | Closing slide | Thunder and eSignet changes, API docs, Postman collection, design doc, both apps. | Repository link, README |
 
 ## Timings
@@ -128,4 +126,5 @@ Narration is written to be read at a calm pace. Times are planned, not measured.
 | Health Card shows "Hub did not answer in time" | Hub was killed in the background | open Hub once, then "Check again" |
 | Health Card shows "Hub refused this app" | the two APKs were signed with different certificates | `bash android/scripts/verify-family-signing.sh`; rebuild both |
 | Emulator too slow on camera | software rendering | record the screen from a phone or show the UI-test screenshots in `docs/ux.md`; the server part stands on its own |
+| "Pixel Launcher isn't responding" over the app | the emulator is short of CPU | tap "Wait", close other heavy jobs; `adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS` |
 | Whole device part fails on the day | anything | run `bash scripts/demo/demo.sh --no-emulator --check` and the Postman folder "Native SSO" (`docs/api.md`), narrate over the diagrams |

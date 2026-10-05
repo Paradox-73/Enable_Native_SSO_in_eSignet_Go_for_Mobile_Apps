@@ -332,7 +332,9 @@ sequenceDiagram
   at once, with no server call.
 - The Child App then finds no bundle at the Super App, clears its own tokens and shows "Sign in to Hub first".
 - On the server the Super App revokes its device secret at the RFC 7009 endpoint, `POST /oauth2/revoke` with
-  `token_type_hint=device_secret` and its own `private_key_jwt`, before it deletes its key (rule R27). Thunder
+  `token_type_hint=device_secret` and its own `private_key_jwt` (rule R27). It does this right after the local
+  sign-out: the request needs only the client key, not the deleted DPoP key, and the user is signed out on the
+  phone even when the call fails (`HubAuthenticator.signOut`). Thunder
   validates the value through the Device Secret Provider, checks that it was issued to the calling client (another
   app of the vendor gets `invalid_grant`), and calls `EndDeviceSecretSession`; eSignet deletes the session record.
   Every later exchange with that device secret is `invalid_grant` (session ended). The endpoint exists whenever the
@@ -787,7 +789,7 @@ App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `an
 | A08 | T8 | exchange request parameters correct, no `device_sso` | `OidcClientTest`, `CardAuthenticatorTest` |
 | A09 | T7-T9 | Child App silent sign-in, no browser | `CardControllerTest` (JVM); `ChildAppSilentSignInTest` (device) |
 | A10 | B1 | re-consent end to end | `CardControllerTest` (JVM); `ChildAppReconsentTest` (device) |
-| A11 | sign-out | "Sign out of all apps" drops Hub tokens, device secret and DPoP key; Child App shows the Hub-first state | `ReplaceableSignerTest`, `HubAuthenticatorTest`, `CardControllerTest` (JVM) |
+| A11 | sign-out | "Sign out of all apps" drops Hub tokens, device secret and DPoP key, and revokes the device secret on the server; Child App shows the Hub-first state | `ReplaceableSignerTest`, `HubAuthenticatorTest`, `CardControllerTest` (JVM); `ChildAppSignOutTest` (device) |
 | A12 | interop | RFC 7638 example thumbprint equal in Go and Kotlin | `JwkThumbprintTest` (RFC 7638 example, Kotlin); the e2e suite checks `cnf.jkt` equals Hub's key (R06) |
 
 ## 21. Future work

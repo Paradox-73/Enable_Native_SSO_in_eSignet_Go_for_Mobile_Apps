@@ -104,8 +104,8 @@ Measured on 2026-10-05 after the WP-08 changes (same container):
   0 skipped, 0 failed; changed lines 166/181 statements covered (91.7 %), `internal/engine/device_secret_provider.go`
   128/132 (97.0 %).
 - `bash scripts/go-lint.sh esignet/esignet-service`: 0 issues.
-- Not run yet: a login against the running service (the local stack is work package WP-06), so the start-up
-  creation of the `DEVICE_SECRET` key in Postgres is checked only by unit tests with an in-memory key store.
+- At that time no login against the running service existed; since WP-06 the live e2e suite (`e2e/`) runs
+  against the stack, which creates the `DEVICE_SECRET` key in Postgres at start-up (see `docs/test-report.md`).
 
 Measured on 2026-10-05 after the R27 change (device secret revocation):
 

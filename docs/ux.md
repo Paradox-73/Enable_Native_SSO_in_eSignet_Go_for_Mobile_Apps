@@ -1,15 +1,42 @@
 # UX: flows, screens and accessibility
 
-The user flows of the two apps, text wireframes of every screen, and what was done for accessibility. Written
-2026-10-05 from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code and the unit tests.
+The user flows of the two apps, screenshots of every screen from the emulator, and what was done for accessibility.
+Written 2026-10-05 from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
+unit tests and the emulator runs of 2026-10-05.
 
 ## Screenshots
 
-- **There are none yet.** The UI tests that save screenshots (`SuperAppSignInTest`, `ChildAppSilentSignInTest`,
-  `ChildAppReconsentTest`) need the Android emulator, and no emulator run exists (limit L06 in
-  [test-report.md](test-report.md#known-limits)). The tests write them to `$PS03_RUN_DIR/evidence/<date>/screens/`; after
-  the first run the team copies the chosen ones into `docs/screens/` and links them here.
-- The wireframes below are drawn from the code, not from a device.
+Taken by the emulator UI tests (`bash android/scripts/run-ui-test.sh all`, AVD `ps03_api34`, API 34) against the
+local stack, with the mock identity system's test user (UIN `1774231323`, see [test-data.md](test-data.md)). The tests
+save them to `$PS03_RUN_DIR/evidence/<date>/screens/`; the files below are copied from that folder unchanged.
+
+| Hub: signed out, sharing switched on | Hub: signed in | Hub: after "Sign out of all apps" |
+|---|---|---|
+| ![Hub welcome](screens/hub-welcome-sharing-on.png) | ![Hub home](screens/hub-home.png) | ![Hub signed out](screens/hub-signed-out.png) |
+
+| Health Card: signed in by Hub, no browser | Health Card: re-consent screen | Health Card: after the extra permission |
+|---|---|---|
+| ![Health Card silent sign-in](screens/health-card-silent-sign-in.png) | ![Consent screen](screens/health-card-consent-screen.png) | ![After consent](screens/health-card-after-consent.png) |
+
+| Health Card: signed out of Health Card only | Health Card: Hub signed out, or sharing off |
+|---|---|
+| ![Health Card signed out](screens/health-card-signed-out.png) | ![Sign in to Hub first](screens/health-card-needs-hub.png) |
+
+- Test that takes each screenshot: `SuperAppSignInTest` (the two Hub screens before sign-out),
+  `ChildAppSilentSignInTest`, `ChildAppReconsentTest` (consent screen, after the extra permission) and
+  `ChildAppSignOutTest` (the three sign-out screens), all from the UI test run of the evening of 2026-10-05.
+- Not captured yet: "consent declined" and "Hub not installed". The device tests that take them
+  (`ChildAppReconsentTest` now taps "Not now" first and saves `health-card-consent-declined.png`; the new
+  `ChildAppHubMissingTest` saves `health-card-hub-missing.png`) were added afterwards (commit `551816f`) and
+  have not run on the emulator yet. Their texts below come from the string files.
+- "Hub signed out" and "sharing switched off in Hub" are one screen for Health Card: in both cases Hub's service
+  has no sign-in to share (`FamilySsoGate.bundle` returns nothing), so Health Card shows the text "Hub has no
+  sign-in it shares. Open Hub, turn on "Share this sign-in with my other apps" and sign in."
+- When Hub is not installed, Health Card says "Not installed. Install Hub and sign in there first." and hides the
+  "Open Hub" button. After "Not now" on the consent screen, Health Card returns to its home screen, still signed in
+  with Hub, with "You did not give the extra permission. Nothing changed."
+- Both apps have their own launcher icon in the same style: Hub blue with a "one sign-in, many apps" mark, Health
+  Card teal with a card and a health cross. The same mark heads every screen, next to the app name.
 
 ## Flows
 
@@ -17,52 +44,55 @@ The user flows of the two apps, text wireframes of every screen, and what was do
 
 | Flow | Steps the user sees | Diagram |
 |---|---|---|
-| First sign-in in Hub | Hub home (signed out) -> "Sign in with eSignet" -> browser: UIN, OTP, consent -> back in Hub, signed in | [seq-super-app-login](diagrams/seq-super-app-login.png) |
+| First sign-in in Hub | Hub (signed out) -> switch "Share this sign-in with my other apps" -> "Sign in with eSignet" -> browser: UIN, OTP, consent -> back in Hub, signed in | [seq-super-app-login](diagrams/seq-super-app-login.png) |
 | Health Card, silent | open Health Card -> "Signing you in with Hub..." -> home with name and email; no browser | [seq-child-app-sso](diagrams/seq-child-app-sso.png) |
 | Health Card, Hub not signed in | "Sign in to Hub first" with "Open Hub"; after Hub signs in, Health Card signs in on resume | same |
 | Re-consent | "Add my phone number" -> explainer (OTP asked again) -> "Continue to eSignet" -> browser login -> phone number shown | [seq-reconsent](diagrams/seq-reconsent.png) |
-| Sign out of all apps | Hub "Sign out of all apps" -> Hub signed out; Health Card clears itself on its next resume | [seq-child-app-sso](diagrams/seq-child-app-sso.png) |
+| Re-consent declined | "Add my phone number" -> explainer -> "Not now" -> home again, still signed in with Hub, with "You did not give the extra permission. Nothing changed." | [seq-reconsent](diagrams/seq-reconsent.png) |
+| Sign out of Health Card | "Sign out of Health Card" -> "You signed out of Health Card. Hub is still signed in." -> "Continue with Hub" | - |
+| Sign out of all apps | Hub "Sign out of all apps" -> "You are signed out of Hub and of every app that used this sign-in."; Hub also asks eSignet to end the device secret's session; Health Card clears itself on its next resume | [seq-child-app-sso](diagrams/seq-child-app-sso.png) |
 
-## Wireframes
+## Screens in words
 
-### Hub (Super App)
+### Hub
 
 ```
 Signed out                              Signed in
 +---------------------------------+     +---------------------------------+
-| Hub                             |     | Hub                             |
-| Super App. You sign in here     |     | Signed in as                    |
-| once with eSignet; your other   |     |   <name>                        |
-| apps from the same publisher    |     | Sign-in shared with my other    |
+| [mark] Hub                      |     | [mark] Hub                      |
+| Sign in once with eSignet. Your |     | Signed in as                    |
+| other apps from the same        |     |   <name>                        |
+| publisher, such as Health Card, |     | Sign-in shared with my other    |
 | can then sign you in without    |     | apps: Yes                       |
 | asking again.                   |     | Apps using this sign-in         |
-| eSignet server                  |     |   Health Card, last 10:42       |
-|   http://localhost:38088        |     |                                 |
-| [ ] Use this sign-in in my      |     | [ Sign out of all apps ]        |
-|     other apps                  |     +---------------------------------+
-| [ Sign in with eSignet ]        |
+| [ ] Share this sign-in with my  |     |   Health Card, last used 10:42  |
+|     other apps                  |     | [ Sign out of all apps ]        |
+| [ Sign in with eSignet ]        |     | Show technical details          |
+| Show technical details          |     +---------------------------------+
 +---------------------------------+
-Working: "Signing you in..." / "Finish signing in in the browser."  [ Cancel ]
-Errors: network, server refused (code), failed security check, expired, wrong sign-in, unexpected
+Working: "Signing you in..." / "Finish signing in on eSignet's page in the browser."  [ Cancel ]
+After sign-out: "You are signed out of Hub and of every app that used this sign-in."
+Errors: network, server refused (with its error code), failed security check, expired, wrong sign-in, unexpected
 ```
 
-### Health Card (Child App)
+### Health Card
 
 ```
 Hub first                  Consent                         Home
 +--------------------+     +----------------------------+  +----------------------------+
-| Health Card        |     | Health Card needs your     |  | Health Card                |
-| Sign in to Hub     |     | permission                 |  | Signed in as <name>        |
-| first              |     | Health Card asks to see:   |  | Email  <email>             |
-| <reason>           |     | your phone number. Your    |  | Phone number               |
-| [ Open Hub ]       |     | Hub sign-in did not        |  |   Not shared with Health   |
-| [ Check again ]    |     | include this, so eSignet   |  |   Card   [Add my phone     |
-+--------------------+     | must ask you first.        |  |   number]                  |
-                           | eSignet keeps no browser   |  | How you signed in          |
-                           | session, so you will enter |  |   With Hub's sign-in. No   |
-                           | your ID and a new OTP.     |  |   password or OTP needed.  |
-                           | [ Continue to eSignet ]    |  | [ Sign out of Health Card ]|
-                           | [ Not now ]                |  +----------------------------+
+| [mark] Health Card |     | [mark] Health Card         |  | [mark] Health Card         |
+| Sign in to Hub     |     | Health Card needs your     |  | Signed in as <name>        |
+| first              |     | permission                 |  | Email  <email>             |
+| <reason>           |     | Health Card asks to see:   |  | Phone number               |
+| Your health card.  |     | your phone number. Your    |  |   Not shared with Health   |
+| Signs you in with  |     | Hub sign-in did not        |  |   Card   [Add my phone     |
+| the sign-in you    |     | include this, so eSignet   |  |   number]                  |
+| already have in    |     | must ask you first.        |  | How you signed in          |
+| Hub ...            |     | eSignet keeps no browser   |  |   With Hub's sign-in. No   |
+| [ Open Hub ]       |     | session, so you will enter |  |   password or OTP needed.  |
+| [ Check again ]    |     | your ID and a new OTP.     |  | [ Sign out of Health Card ]|
++--------------------+     | [ Continue to eSignet ]    |  +----------------------------+
+                           | [ Not now ]                |
                            +----------------------------+
 Signed out of Health Card: "You signed out of Health Card. Hub is still signed in." [ Continue with Hub ]
 ```
@@ -70,30 +100,41 @@ Signed out of Health Card: "You signed out of Health Card. Hub is still signed i
 - Each Hub failure has its own text on the Health Card screen: not installed, signed with another certificate,
   no answer in time, busy, version mismatch, Hub signed out ("Your Hub sign-in has ended. Open Hub and sign in again").
 - Every error screen says what happened in plain words and offers one action ("Try again", "Open Hub").
+- No screen shows a package name, a server address, a certificate or the words "Super App" or "Child App". Those
+  details sit behind "Show technical details" at the bottom of every screen, folded by default: Hub shows the
+  eSignet server and its client ID, Health Card the eSignet server, its signing certificate and whether Hub carries
+  the same one. `HubScreensTest` and `CardScreensTest` check that nothing of this shows until the user opens it.
+- Release builds write nothing to the Android log; debug builds log the steps (never a token) for the UI tests.
 
 ## Design decisions
 
+- Both apps share one layout and one colour palette: the app mark and name at the top, then what is happening,
+  then what the user can do, then the folded technical details. Only the mark's colour tells them apart.
 - The re-consent screen tells the user before the browser opens that a new OTP will be asked: eSignet Go keeps no browser
   session (limit L02), so a surprise is avoided.
-- The switch "Use this sign-in in my other apps" is off by default in Hub (the user opts in) and decides whether the `device_sso` scope is
+- The switch "Share this sign-in with my other apps" is off by default in Hub (the user opts in) and decides whether the `device_sso` scope is
   requested at all; with it off Hub behaves as an ordinary sign-in app and Health Card shows the Hub-first state.
-- Hub lists the apps that used its sign-in with the time of last use, never a token ("Apps using this sign-in").
-- Sign-out is one action in Hub; Health Card follows without a network call by noticing, on every resume, that Hub's
+- Hub lists the apps that used its sign-in by the name the launcher shows, with the time of last use, never a token
+  or a package name ("Apps using this sign-in"). An app Android does not let Hub see is listed as "An app from the
+  same publisher".
+- Sign-out is one action in Hub. It ends Hub's sign-in on the phone at once, then asks eSignet to end the device
+  secret's session (rule R27); Health Card follows without a network call by noticing, on every resume, that Hub's
   sign-in is gone.
 
 ## Accessibility
 
-Done in WP-15 on the screens of both apps. The JVM checks differ by app: Health Card has screen tests at 200 % font on a
-small phone, Hub has the contrast test and the same semantics in its code, but no screen test of its own.
+Done in WP-15 on the screens of both apps, and checked by the same kind of JVM screen test in each app
+(`HubScreensTest`, `CardScreensTest`), at 200 % font size on a small phone (360 x 640 dp).
 
 | Aspect | What was done | Check |
 |---|---|---|
-| Labels and reading order | headings are marked; each labelled value is one TalkBack item; the reading order follows the visual order | Health Card: `CardScreensTest`; Hub: `heading()` in `superapp/.../MainActivity.kt`, no test |
-| Touch targets | 48 dp touch targets on Health Card controls | `CardScreensTest` |
+| Labels and reading order | headings are marked; each labelled value is one TalkBack item; the reading order follows the visual order | `HubScreensTest`, `CardScreensTest` |
+| Touch targets | 48 dp touch targets on every control of both apps | `HubScreensTest`, `CardScreensTest` |
 | Colour contrast | every text and background pair is at least 4.5 to 1, in light and dark | `HubThemeTest`, `CardThemeTest` |
-| Large text | every Health Card screen keeps its actions reachable at 200 % font scale | `CardScreensTest` |
-| Status changes | status and error text is a polite live region, so it is spoken when it changes | `CardScreensTest` ("is spoken"); Hub `error_text` in code |
+| Large text | every screen of both apps keeps its actions reachable at 200 % font scale | `HubScreensTest`, `CardScreensTest` |
+| Status changes | status and error text is a polite live region, so it is spoken when it changes | `HubScreensTest`, `CardScreensTest` ("is spoken") |
 | No colour-only meaning | states carry words ("Yes", "No", "Not shared with Health Card") | strings |
+| Decorative images | the app mark next to the name has no description, so TalkBack reads the name once | code (`Header()` in both `MainActivity.kt`) |
 
 Not done: a TalkBack walk-through on a device or emulator and an accessibility scanner run (limit L08). Until then the
 claim is limited to the JVM checks above.

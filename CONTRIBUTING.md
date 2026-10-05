@@ -159,19 +159,22 @@ bash deploy/stack.sh up | smoke | status | logs | down
 
 ## What runs end to end today
 
-Native SSO works on the server side and is tested live; the apps are tested on the JVM; nothing has run on an emulator
-yet. Results of 2026-10-05, in order (full detail: [docs/test-report.md](docs/test-report.md)):
+Native SSO works on the server side and is tested live; the apps are tested on the JVM and on the emulator. Results of
+2026-10-05, in order (full detail: [docs/test-report.md](docs/test-report.md)):
 
 1. `bash scripts/repo-lint.sh` -> `repo-lint: OK`.
-2. `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover` -> 2363 tests, 0 failed.
-3. `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover` -> 1563 tests, 0 failed.
-4. `bash scripts/with-stack.sh bash e2e/run.sh` -> `e2e: 29 passed, 0 failed`.
-5. `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` -> 31 requests, 116 assertions, 0 failed.
-6. Android JVM tests (`oidc-client` 64, `secure-store` 13, `superapp` 54, `childapp` 50, 0 failed) and
+2. `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover` -> 2379 tests, 0 failed.
+3. `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover` -> 1588 tests, 0 failed.
+4. `bash scripts/with-stack.sh bash e2e/run.sh` -> `e2e: 30 passed, 0 failed` (includes R27, device secret revocation).
+5. `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` -> 34 requests, 125 assertions, 0 failed.
+6. Android JVM tests (`oidc-client` 67, `secure-store` 13, `superapp` 64, `childapp` 54, 0 failed) and
    `verify-family-signing.sh` -> `family-signing: OK`.
 7. `bash scripts/demo/demo.sh --no-emulator` -> `demo ready (server part only; emulator steps NOT RUN)`, `teardown ok`.
-8. **Not run**: every emulator test (`run-ui-test.sh`, `run-family-tests.sh`), the full `demo.sh --check`, and the GitHub
-   Actions workflow. Reasons: [docs/test-report.md](docs/test-report.md#known-limits).
+8. On the emulator: `bash android/scripts/run-ui-test.sh all` -> `OK (4 tests)` (the fifth test,
+   `ChildAppHubMissingTest`, was added later and has not run yet); `run-family-tests.sh` -> every step PASS;
+   `bash scripts/demo/demo.sh --check` -> `demo ready`, `teardown ok`.
+9. Every job of `.github/workflows/ci.yml` replayed in Linux containers: all passed (row CI-LINUX). A hosted
+   GitHub Actions result is not recorded (limit L05).
 
 Short names for these: `bash make.sh help`.
 

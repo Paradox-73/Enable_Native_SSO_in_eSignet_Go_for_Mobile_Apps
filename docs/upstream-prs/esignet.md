@@ -21,8 +21,8 @@ The import commit is `4eac1cc`; the team's changes are `git diff 4eac1cc -- esig
 - Rebase onto eSignet `main`; the work is on v2.0.0, which pins Thunder commit `12f517c4`. The team builds eSignet against
   the in-repo Thunder (`3a0e127`); upstream would keep its own pin and move it after the Thunder pull request.
 - Check the contributor rules (sign-off, MPL-2.0 header on new files, `golangci-lint` v2, `make.sh`).
-- Re-run: `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover` (1563 tests, 0 failed; changed lines
-  261 of 280, 93.2 %, on 2026-10-05), `bash scripts/go-lint.sh esignet/esignet-service` (0 issues on 2026-10-05), and the
+- Re-run: `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover` (1588 tests, 0 failed; changed lines
+  318 of 339, 93.8 %, on 2026-10-05), `bash scripts/go-lint.sh esignet/esignet-service` (0 issues on 2026-10-05), and the
   OpenAPI lint (0 errors, same 8 warnings as the import).
 - Do not run eSignet's `./make.sh update-thunder` on this repository: it points eSignet back at a downloaded Thunder.
 

@@ -8,7 +8,7 @@ sent.** This file says what to send, in which pieces, and what a reviewer will a
 - Thunder issue #3402 "App-native SSO" asks for the same capability; the team's work is an implementation of
   OpenID Connect Native SSO for Mobile Apps 1.0 (draft 07) on Thunder v1.0.1.
 - With no `DeviceSecretProvider` passed to the engine, Thunder behaves exactly as before, so the change is opt-in
-  for every embedder (`TestNoDeviceSSO_ResponseIsUnchanged`; the upstream tests pass: 2363 tests, 0 failed on 2026-10-05).
+  for every embedder (`TestNoDeviceSSO_ResponseIsUnchanged`; the upstream tests pass: 2379 tests, 0 failed on 2026-10-05).
 
 ## What to send, in order
 

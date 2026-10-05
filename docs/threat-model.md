@@ -3,7 +3,7 @@
 - Status: **final for submission, 2026-10-05.** Written 2026-10-04 for the mentor call; the mitigations were
   re-checked against the built code on 2026-10-05. It covers the design in [design.md](design.md). Test ids (R01,
   A03, ...) are defined in [design.md section 20](design.md#20-rules-and-tests); dated results per test are in
-  [test-report.md](test-report.md). Emulator tests have not run yet (see the limits there).
+  [test-report.md](test-report.md). Emulator tests ran on 2026-10-05 (one emulator image, limit L06).
 - Method: assets and trust boundaries first, then STRIDE (spoofing, tampering, repudiation, information
   disclosure, denial of service, elevation of privilege) per component, then the threats T1-T11 with mitigations,
   what is left, and the tests that cover them.
@@ -65,7 +65,7 @@ Assumptions:
 | T6 Signing oracle abuse | A family app, or a bug in one, asks the Super App to sign DPoP proofs for other servers or endpoints | The service builds every proof itself (fresh `jti`, current `iat`); it signs only `htm`/`htu` pairs on an allow-list (token endpoint, userinfo); it never signs caller-supplied bytes; per-caller rate limit; the Super App lists "Apps using this sign-in" | Apps with the vendor certificate are trusted by design (Native SSO section 1) | A05, A07 |
 | T7 Token substitution or confusion | An id_token or access token is sent as the device secret; user A's device secret is sent with user B's id_token; an id_token is forged or edited; an expired id_token is reused | Inner `typ` `ds+jwt` and a dedicated signing key (RFC 8725 3.11, 3.12); both JWE layers validated (RFC 8725 3.3); `ds_hash` binds one id_token to one device secret; `sid` must match in both and in the session record; id_token signature checked against eSignet's own key; expired id_token accepted only under the conditions of section [5](#5-why-accepting-an-expired-id_token-is-safe) | - | R09, R11, R12, R20, R21 |
 | T8 Use from another device | The device secret and id_token are copied to another phone or a server | `cnf.jkt` binding to the Super App's non-exportable key (Native SSO 6.2); the Child App's new tokens are bound to the same key | An attacker with code on the original phone can relay proofs (see T1) | R14, R22 |
-| T9 Stale session | The user signs out of the Super App or the session ends, but a family app still exchanges | Sign-out deletes the DPoP key, so no valid proof can be made; on the server a missing session record gives `invalid_grant` (Native SSO 4.3 step 4); the session record lives no longer than the device secret | The server-side record ends only by TTL until a revoke call exists (future work) | R12, A11 |
+| T9 Stale session | The user signs out of the Super App or the session ends, but a family app still exchanges | Sign-out deletes the DPoP key, so no valid proof can be made; Hub then revokes the device secret at the RFC 7009 revocation endpoint, which deletes its session record, so a later exchange gives `invalid_grant` (Native SSO 4.3 step 4); only the client the device secret was issued to may revoke it; the session record lives no longer than the device secret | Sign-out without network leaves the record until its TTL (the DPoP key is gone anyway); access tokens already issued to the Child App stay valid until their own `exp` | R12, R27, A11 |
 | T10 Wrong person | Someone else picks up the unlocked phone and opens the Child App | Out of scope of the specification (Native SSO 6.4 says it does not ensure the same human); the device secret's lifetime is a setting; the Super App can end all family sign-ins at once; an option to require device unlock for the DPoP key is noted as future work | Accepted for the demo; relies on the phone's screen lock | A11 |
 | T11 Interception of the Super App's login response | Another app registers the same redirect scheme, or an attacker injects a stolen code, or the login moves to another browser | PAR with client authentication; PKCE S256; authorization code bound to the DPoP key (RFC 9449 10.1); `state`, `nonce` and `iss` checked (RFC 9207); system browser via Custom Tab, never a WebView (RFC 8252, FAPI 2.0 6.5); a unique scheme per app, App Links as a production option | A custom scheme can be claimed by another app; the stolen code is still useless without the verifier and the DPoP key | A02, R07 |
 
@@ -111,7 +111,15 @@ Why it is safe here: an expired id_token is accepted only when **all** of these 
 
 - A compromised vendor signing certificate or a rooted phone: the on-device controls assume neither.
 - Same-human assurance (T10): Native SSO does not provide it; the screen lock does.
-- Server-side revocation of a device secret before its TTL: future work (design section 21).
+- Revocation of tokens already issued: revoking the device secret ends its session, so no new exchange succeeds,
+  but access tokens issued before stay valid until their `exp` (eSignet keeps the token deny list of Thunder turned
+  off, `oauth.token_revocation.enabled: false`).
+- Child App tokens bound to the Super App's DPoP key (design decision D3): the Child App's access token carries
+  the Super App's `cnf.jkt`, so the Child App needs the Super App for every userinfo or API call (it asks for a proof
+  over the bound service each time). Gain: no second device key and one place to end every family token ("Sign out
+  of all apps" deletes that key). Cost: the Child App cannot call APIs while the Super App is uninstalled or
+  refuses, and a compromised Super App can act for every family app; giving the Child App its own DPoP key in the
+  exchange would remove that coupling at the price of a second key to manage.
 - Denial of service against eSignet in general: unchanged by this feature; the exchange adds one RSA decryption,
   which runs only after client authentication and the cheap request checks.
 - The local demo runs over HTTP on `localhost`; every deployment beyond the laptop must use TLS (FAPI 2.0).

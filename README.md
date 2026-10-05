@@ -10,13 +10,27 @@ RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 
 ## Status on 2026-10-05
 
-- **Built and tested**: the Thunder and eSignet changes, the live end-to-end suite (29 of 29 tests passed on
-  2026-10-05), the API documents and Postman collection (31 requests, 116 assertions, 0 failed under newman), both
-  Android apps and their JVM tests (181 tests, 0 failed), the design document and threat model.
-- **Not run yet**: every test that needs the Android emulator (the machine's emulator lock was held), and the GitHub
-  Actions workflow (nothing was pushed). The apps therefore have not been seen running on a device or emulator.
-  Dated evidence and the reasons: [docs/test-report.md](docs/test-report.md).
-- Task-level state and remaining work: [docs/STATUS.md](docs/STATUS.md).
+- **Built and tested**: every statement task (T1-T10, P1, P2) and the bonus B1, on the server and in both Android
+  apps. Dated results of every check: [docs/test-report.md](docs/test-report.md) (69 PASS, 4 NOT RUN with a listed reason, 0 FAIL).
+  - Server: 2379 Thunder and 1588 eSignet unit tests, 0 failed, golangci-lint 0 findings; the live end-to-end
+    suite (30 of 30 passed, including device secret revocation, rule R27); the Postman folder under newman (34
+    requests, 125 assertions, 0 failed).
+  - Apps: 198 Android JVM tests, 0 failed; on the Android emulator the UI tests (4 of 4 passed), the family sign-in
+    tests and the full demo check (`bash scripts/demo/demo.sh --check`) passed. Two device steps added afterwards
+    ("Not now" on the consent screen, Health Card without Hub) have not run yet.
+- **Hosted**: `main` on GitHub, updated by the team at each push. The workflow `.github/workflows/ci.yml` runs on
+  every push; its jobs were replayed on Linux containers here ([docs/test-report.md](docs/test-report.md), row
+  CI-LINUX), but no hosted run result is recorded (limit L05).
+- **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
+  L07-L09). Task-level state: [docs/STATUS.md](docs/STATUS.md).
+
+## Screens
+
+| Hub, signed in | Health Card, signed in by Hub (no browser, no OTP) | Health Card, re-consent |
+|---|---|---|
+| ![Hub home](docs/screens/hub-home.png) | ![Health Card silent sign-in](docs/screens/health-card-silent-sign-in.png) | ![Consent screen](docs/screens/health-card-consent-screen.png) |
+
+Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](docs/ux.md#screenshots).
 
 ## What is here
 
@@ -63,7 +77,7 @@ cd esignet-native-sso
 bash scripts/install-hooks.sh                         # local git settings
 bash scripts/repo-lint.sh                             # repo-lint: OK
 
-bash scripts/with-stack.sh bash e2e/run.sh            # stack up, 29 live tests, stack down: "e2e: 29 passed, 0 failed"
+bash scripts/with-stack.sh bash e2e/run.sh            # stack up, 30 live tests, stack down: "e2e: 30 passed, 0 failed"
 bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh   # Postman folder under newman (needs newman)
 
 bash scripts/demo/demo.sh --no-emulator --check       # server part of the demo: "demo ready (server part only ...)", "teardown ok"
@@ -83,24 +97,24 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 | Task | What it asks | Code | Tests |
 |---|---|---|---|
 | P1 | Two apps signed with one certificate | [android/](android/README.md), `android/scripts/verify-family-signing.sh` | A01 |
-| P2 | "Sign in with eSignet" per the RP guide | [HubAuthenticator.kt](android/superapp/src/main/java/org/badmosip/nativesso/superapp/auth/HubAuthenticator.kt), [oidc-client](android/oidc-client/src/main/kotlin/org/badmosip/nativesso/oidc/OidcClient.kt) | `HubAuthenticatorTest`; `SuperAppSignInTest` (emulator, not run) |
+| P2 | "Sign in with eSignet" per the RP guide | [HubAuthenticator.kt](android/superapp/src/main/java/org/badmosip/nativesso/superapp/auth/HubAuthenticator.kt), [oidc-client](android/oidc-client/src/main/kotlin/org/badmosip/nativesso/oidc/OidcClient.kt) | `HubAuthenticatorTest`, `HubScreensTest`; `SuperAppSignInTest` (emulator) |
 | T1 | `device_sso` scope on the authorization request | [constants.go](thunder/backend/pkg/thunderidengine/providers/constants.go), [oauthutils.go](thunder/backend/internal/oauth/oauth2/utils/oauthutils.go), [deployment.yaml](esignet/esignet-service/data/deployment.yaml) | `TestE2E_Discovery_NativeSSO`, `TestE2E_SuperAppLogin_IssuesDeviceSecret` |
 | T2 | Client must be allowed `device_sso` | [par/service.go](thunder/backend/internal/oauth/oauth2/par/service.go), [authz/service.go](thunder/backend/internal/oauth/oauth2/authz/service.go), [authorization_code_native_sso.go](thunder/backend/internal/oauth/oauth2/granthandlers/authorization_code_native_sso.go) | `TestE2E_DeviceSSO_ClientNotAllowed`, `TestDeviceSSO_ClientNotAllowedIsInvalidScope` |
 | T3 | Device Secret Provider interface | [interface.go](thunder/backend/pkg/thunderidengine/providers/interface.go), [device_secret.go](thunder/backend/pkg/thunderidengine/providers/device_secret.go), `WithDeviceSecretProvider` in [engine.go](thunder/backend/pkg/thunderidengine/engine.go) | `TestDeviceSSO_WithoutProviderIsInvalidScope` (unit) |
 | T4 | Generate and validate the device secret (signed, then encrypted JWT with `cnf.jkt`, `auth_id`, `exp`, ...) | [device_secret_provider.go](esignet/esignet-service/internal/engine/device_secret_provider.go) | `TestE2E_DeviceSecret_IsNestedJWE`, `TestDeviceSecretProviderTestSuite` |
 | T5 | Call Generate at the token endpoint | [authorization_code_native_sso.go](thunder/backend/internal/oauth/oauth2/granthandlers/authorization_code_native_sso.go), [nativesso.go](thunder/backend/internal/oauth/oauth2/nativesso/nativesso.go) | `TestE2E_IDToken_HasSIDAndDSHash`, `TestDeviceSSO_ProviderFailureIssuesNoTokens` |
 | T6 | Return `device_secret`; apps keep it encrypted | [token.go](thunder/backend/internal/oauth/oauth2/model/token.go), [EncryptedFileStore.kt](android/secure-store/src/main/java/org/badmosip/nativesso/securestore/EncryptedFileStore.kt) | `TestE2E_TokenResponse_Fields`, `EncryptedFileStoreTest` |
-| T7 | App-to-app: second app gets id_token, device secret and a DPoP proof from the first | [IFamilySso.aidl](android/sso-contract/src/main/aidl/org/badmosip/nativesso/contract/IFamilySso.aidl), [FamilySsoService.kt](android/superapp/src/main/java/org/badmosip/nativesso/superapp/sso/FamilySsoService.kt), [HubConnection.kt](android/childapp/src/main/java/org/badmosip/nativesso/childapp/HubConnection.kt) | `FamilySsoGateTest`, `FamilySsoServiceTest`, `HubConnectionTest`; `FamilySsoBindTest` (emulator, not run) |
+| T7 | App-to-app: second app gets id_token, device secret and a DPoP proof from the first | [IFamilySso.aidl](android/sso-contract/src/main/aidl/org/badmosip/nativesso/contract/IFamilySso.aidl), [FamilySsoService.kt](android/superapp/src/main/java/org/badmosip/nativesso/superapp/sso/FamilySsoService.kt), [HubConnection.kt](android/childapp/src/main/java/org/badmosip/nativesso/childapp/HubConnection.kt) | `FamilySsoGateTest`, `FamilySsoServiceTest`, `HubConnectionTest`; `FamilySsoBindTest` and `run-family-tests.sh` (emulator) |
 | T8 | Second app calls token exchange, no `device_sso` | [CardAuthenticator.kt](android/childapp/src/main/java/org/badmosip/nativesso/childapp/auth/CardAuthenticator.kt) | `CardAuthenticatorTest`, `OidcClientTest` |
 | T9 | Token exchange with the device-secret actor token, full validation | [token_exchange_native_sso.go](thunder/backend/internal/oauth/oauth2/granthandlers/token_exchange_native_sso.go) | 18 live tests `TestE2E_Exchange_*`, `TestTokenExchangeNativeSSOSuite` |
 | T10 | Scope must be a subset; no `device_sso` in the exchange | same file | `TestE2E_Exchange_NarrowerScope`, `_ScopeSuperset`, `_DeviceSSOInScope` |
-| B1 | Re-consent when the second app wants more scope | same file (`interaction_required`), [CardController.kt](android/childapp/src/main/java/org/badmosip/nativesso/childapp/CardController.kt) | `TestE2E_Exchange_ScopeSuperset`, `CardControllerTest`; `ChildAppReconsentTest` (emulator, not run) |
+| B1 | Re-consent when the second app wants more scope | same file (`interaction_required`), [CardController.kt](android/childapp/src/main/java/org/badmosip/nativesso/childapp/CardController.kt) | `TestE2E_Exchange_ScopeSuperset`, `CardControllerTest`; `ChildAppReconsentTest` (emulator) |
 
 ## Deliverables
 
 | Deliverable of the statement | Where |
 |---|---|
-| Native apps showing the full flow | [android/](android/README.md); run with [docs/demo-script.md](docs/demo-script.md) (the emulator run is open, see Status) |
+| Native apps showing the full flow | [android/](android/README.md); run with [docs/demo-script.md](docs/demo-script.md); screenshots in [docs/ux.md](docs/ux.md#screenshots) |
 | Updated Postman collection | [esignet/postman-collection/](esignet/postman-collection/README.md#native-sso), folder "Native SSO" |
 | Updated API documentation | [docs/api.md](docs/api.md), [esignet-openapi.yaml](esignet/docs/esignet-openapi.yaml), [oauth2.yaml](thunder/api/oauth2.yaml) |
 | Design document | [docs/design.md](docs/design.md), [docs/threat-model.md](docs/threat-model.md) |
@@ -116,9 +130,14 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 
 ## Known limits
 
-Listed with ids in [docs/test-report.md](docs/test-report.md#known-limits): no emulator run yet, no hosted CI run
-yet, software-backed Keystore on the emulator, OTP asked again at re-consent (eSignet Go keeps no browser session),
-in-memory server runtime store, server session record ends only by its time to live (no revoke call).
+Listed with ids in [docs/test-report.md](docs/test-report.md#known-limits):
+
+- Re-consent asks for the OTP again (L02): eSignet Go keeps no browser session, so the extra permission is given in
+  a fresh login with `prompt=consent`. Health Card says so before the browser opens.
+- The server's runtime store is in memory (L03), so an eSignet restart ends every Hub session.
+- Sign-out ends the device secret's session on the server (rule R27); access tokens already issued to Health Card
+  stay valid until they expire (L04).
+- Software-backed Keystore on the emulator (L01); one emulator image (L06); no hosted CI run seen (L05).
 
 ## Licence
 
