@@ -221,8 +221,16 @@ func (s *stubDeviceSecretCipher) JWTDecrypt(ctx context.Context,
 // stubRuntimeStore wraps a real store and fails the call whose error is set.
 type stubRuntimeStore struct {
 	providers.RuntimeStoreProvider
-	putErr error
-	getErr error
+	putErr    error
+	getErr    error
+	deleteErr error
+}
+
+func (s *stubRuntimeStore) Delete(ctx context.Context, ns providers.RuntimeStoreNamespace, key string) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
+	return s.RuntimeStoreProvider.Delete(ctx, ns, key)
 }
 
 func (s *stubRuntimeStore) PutIfNotExists(ctx context.Context, ns providers.RuntimeStoreNamespace, key string,
@@ -739,4 +747,40 @@ func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_StoreReportsKe
 		getErr: providers.ErrRuntimeStoreKeyNotFound})
 	_, svcErr := p.ValidateDeviceSecret(context.Background(), value)
 	ts.assertSessionEnded(svcErr)
+}
+
+// Rule R27: revoking a device secret ends its session, so the same value is refused afterwards.
+func (ts *DeviceSecretProviderTestSuite) TestEndDeviceSecretSession_RevokesDeviceSecret() {
+	p := ts.newProvider(nil, nil, nil, nil)
+	value := ts.generate(p)
+	claims, svcErr := p.ValidateDeviceSecret(context.Background(), value)
+	ts.Require().Nil(svcErr)
+
+	ts.Nil(p.EndDeviceSecretSession(context.Background(), claims))
+
+	_, svcErr = p.ValidateDeviceSecret(context.Background(), value)
+	ts.assertSessionEnded(svcErr)
+	ts.Nil(p.EndDeviceSecretSession(context.Background(), claims), "ending an ended session is not an error")
+}
+
+func (ts *DeviceSecretProviderTestSuite) TestEndDeviceSecretSession_Failures() {
+	ts.Run("no claims", func() {
+		ts.assertServerError(ts.newProvider(nil, nil, nil, nil).EndDeviceSecretSession(context.Background(), nil))
+	})
+	ts.Run("no session id", func() {
+		ts.assertServerError(ts.newProvider(nil, nil, nil, nil).EndDeviceSecretSession(context.Background(),
+			&providers.DeviceSecretClaims{}))
+	})
+	ts.Run("store reports key not found", func() {
+		p := ts.newProvider(nil, nil, nil, &stubRuntimeStore{RuntimeStoreProvider: ts.store,
+			deleteErr: providers.ErrRuntimeStoreKeyNotFound})
+		ts.Nil(p.EndDeviceSecretSession(context.Background(), &providers.DeviceSecretClaims{
+			DeviceSecretRequest: providers.DeviceSecretRequest{SessionID: "sid-1"}}))
+	})
+	ts.Run("store down", func() {
+		p := ts.newProvider(nil, nil, nil, &stubRuntimeStore{RuntimeStoreProvider: ts.store,
+			deleteErr: errors.New("redis down")})
+		ts.assertServerError(p.EndDeviceSecretSession(context.Background(), &providers.DeviceSecretClaims{
+			DeviceSecretRequest: providers.DeviceSecretRequest{SessionID: "sid-1"}}))
+	})
 }

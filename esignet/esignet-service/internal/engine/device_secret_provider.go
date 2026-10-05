@@ -287,6 +287,24 @@ func (p *deviceSecretProvider) ValidateDeviceSecret(ctx context.Context,
 	}, nil
 }
 
+// EndDeviceSecretSession deletes the session record of a device secret that ValidateDeviceSecret
+// accepted. The engine calls it when the app the device secret was issued to revokes it (RFC 7009);
+// from then on every device secret of that session is ErrorDeviceSecretSessionEnded. A record that is
+// already gone is not an error.
+func (p *deviceSecretProvider) EndDeviceSecretSession(ctx context.Context,
+	claims *providers.DeviceSecretClaims) *common.ServiceError {
+	if claims == nil || strings.TrimSpace(claims.SessionID) == "" {
+		return shared.InternalServerError
+	}
+	err := p.store.Delete(ctx, providers.NamespaceNativeSSOSession, claims.SessionID)
+	if err != nil && !errors.Is(err, providers.ErrRuntimeStoreKeyNotFound) {
+		applog.GetLogger().Error(ctx, "device secret session delete failed",
+			applog.String("clientId", claims.ClientID), applog.Error(err))
+		return shared.InternalServerError
+	}
+	return nil
+}
+
 // sign builds the inner JWS (compact serialization) over claims with the device secret signing
 // key. The certificate and the key come from one ResolveSigner call, so the kid always names the
 // key that produced the signature, even across a key rotation.
