@@ -141,6 +141,33 @@ Design decisions in this step:
   `native_sso_supported` is false when it is not.
 
 
+### Device secret revocation (rule R27)
+
+The app a device secret was issued to revokes it at the RFC 7009 endpoint; the login session ends, so every later
+exchange with it is `invalid_grant`.
+
+| Change | File (under `backend/` unless noted) |
+|---|---|
+| `DeviceSecretProvider.EndDeviceSecretSession` (mock regenerated in mockery's format) | `pkg/thunderidengine/providers/interface.go`, `tests/mocks/devicesecretprovidermock/` |
+| `TokenTypeHintDeviceSecret` (`device_secret`) | `internal/oauth/oauth2/constants/constants.go` |
+| Device secret branch of `POST /oauth2/revoke`: chosen by `token_type_hint=device_secret`, or no hint and a compact JWE; invalid or ended values are a no-op `200`; another client's device secret `invalid_grant`; then `EndDeviceSecretSession` | `internal/oauth/oauth2/revocation/device_secret.go`, `handler.go`, `init.go` |
+| The endpoint is registered when token revocation is on **or** the engine has a provider; with only the provider, other tokens get `unsupported_token_type` (RFC 7009 2.2.1) | `internal/oauth/init.go` |
+| `revocation_endpoint` in discovery in the same two cases | `internal/oauth/oauth2/discovery/service.go` |
+| API description | `api/oauth2.yaml` |
+
+Tests: `revocation/device_secret_test.go` (routing, ownership, no-op cases, server errors, `unsupported_token_type`,
+route registration without the deny list), `discovery/discovery_native_sso_test.go`
+(`TestDiscovery_NativeSSOAdvertisesRevocationEndpoint`).
+
+Results measured on 2026-10-05 for R27:
+
+- `go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages, 2379 tests, 0 failed (1
+  skipped by upstream); 376 of 396 statements on changed lines covered (94.9 %); `revocation/device_secret.go`
+  20/20, `revocation/handler.go` 11/11, `discovery/service.go` 15/15. `internal/oauth/init.go` (0/18) has no
+  unit test upstream either; the live suite reaches it.
+- `go-lint.sh thunder/backend -- --timeout=30m`: 0 issues.
+
+
 ## Tests and checks
 
 Run from the repository root (Go runs in a container; see [`../scripts/README.md`](../scripts/README.md)):

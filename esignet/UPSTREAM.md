@@ -86,6 +86,7 @@ layout (`internal/engine/` providers, `internal/config/` settings with `MOSIP_ES
 | WP-03 | Unchanged import (`4eac1cc`); `replace` line pointing at `../../thunder/backend` (`3a0e127`) | done |
 | WP-08 | Device Secret Provider (signed, then encrypted device secret with eSignet's keymanager; session records in the runtime store), Native SSO settings, client registration for the token-exchange grant and the `device_sso` scope | done (unit tests; not yet run against the live stack) |
 | WP-14 | Native SSO in `docs/esignet-openapi.yaml` and a "Native SSO" folder in the Postman collection | planned |
+| R27 | `EndDeviceSecretSession` in the Device Secret Provider (deletes the session record; a missing record is not an error); `/oauth2/revoke` in `docs/esignet-openapi.yaml`; three revocation requests in the Postman folder | done (unit tests; live test `TestE2E_Revoke_DeviceSecret`) |
 
 ## Results
 
@@ -105,3 +106,9 @@ Measured on 2026-10-05 after the WP-08 changes (same container):
 - `bash scripts/go-lint.sh esignet/esignet-service`: 0 issues.
 - Not run yet: a login against the running service (the local stack is work package WP-06), so the start-up
   creation of the `DEVICE_SECRET` key in Postgres is checked only by unit tests with an in-memory key store.
+
+Measured on 2026-10-05 after the R27 change (device secret revocation):
+
+- `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover`: 29 packages, 1588 tests: 1588 passed,
+  0 skipped, 0 failed; changed lines 318/339 (93.8 %), `internal/engine/device_secret_provider.go` 135/139 (97.1 %).
+- `bash scripts/go-lint.sh esignet/esignet-service`: 0 issues.
