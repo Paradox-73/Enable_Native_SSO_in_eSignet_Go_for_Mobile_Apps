@@ -21,7 +21,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 - **Lane**: a group of tasks that owns a set of folders. Four lanes: `platform`, `thunder`, `esignet`, `android`.
 - **Statement task** (T1 to T10, B1 for the bonus): the numbered tasks of problem statement 03. Rule ids (R01 to
   R26 for the server, A01 to A12 for the apps) and the test that proves each rule are listed in
-  [design.md section 20](design.md#20-rules-and-planned-tests).
+  [design.md section 20](design.md#20-rules-and-tests).
 - **Thunder**: the Thunder ID engine (`thunder/`), a Go library eSignet runs in its own process for every OAuth
   and OpenID Connect endpoint. It owns the protocol: scopes, token endpoint, token exchange, id_token claims.
 - **eSignet**: MOSIP's login server in Go (`esignet/esignet-service/`). It owns policy and keys: client settings,
@@ -61,7 +61,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | DONE | `ba0e764` |
 | WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | PARTIAL | `fe17bf6` |
 | WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | PARTIAL | see card |
-| WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | TODO | |
+| WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | DONE | see card |
 | WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | TODO | |
 
 Results recorded for the DONE tasks (all on 2026-10-04, commands in [../CONTRIBUTING.md](../CONTRIBUTING.md)):
@@ -630,7 +630,7 @@ commit of that folder.
 
 - **Goal**
   - e2e tests for R01 to R26 against the running stack, each asserting its HTTP status and `error`
-    ([design.md section 20](design.md#20-rules-and-planned-tests) has the test names).
+    ([design.md section 20](design.md#20-rules-and-tests) has the test names).
   - The session-ended case runs in a second phase after an eSignet restart (the runtime store is in memory),
     driven by `e2e/run.sh`.
   - Clients the suite registers: Hub-like and Child-like (same relying party `ps03-vendor`, DPoP-bound), one of
@@ -773,7 +773,24 @@ commit of that folder.
     the device secret lives); rehearse it once more than 2 minutes after the Hub login.
   - Order of heavy steps: build APKs first, then start the stack, then the emulator.
 
-### WP-17 Test report with dated evidence
+### WP-17 Test report with dated evidence (DONE)
+
+- **Result (2026-10-05, 07:00 IST)**
+  - `bash scripts/evidence.sh --run --with-lint` (JDK 21, newman on PATH, inside `with_lock docker-stack`): exit 0, 0
+    failed steps. It ran repo-lint, both Go unit suites with changed-line coverage, the three golangci-lint runs,
+    `e2e/run.sh` (29 passed, 0 failed), the Native SSO Postman folder under newman (31 requests, 116 assertions, 0
+    failed), the Android JVM tests (`oidc-client` 64, `secure-store` 13, `superapp` 54, `childapp` 50, 0 failed), the
+    signing check and the server part of the demo; logs in `$PS03_RUN_DIR/evidence/2026-10-05/`.
+  - It prints `evidence: 70 results at <commit>` and rewrites `docs/test-report.md`. `grep -c '| PASS |' docs/test-report.md`
+    prints 56. `bash scripts/evidence.sh --check`: `evidence: check OK (56 PASS, 14 NOT RUN with a listed limit, 0 FAIL)`.
+  - The rule matrix checks every named test: Go unit tests against the `go test -json` streams, e2e tests against the e2e
+    logs, Android classes against the JUnit XML. The first run marked A12 FAIL because `PrimitivesTest` is a file name,
+    not a class (the class is `JwkThumbprintTest`); the matrix and `design.md` section 20 now name the class.
+  - NOT RUN, 14 rows with their reasons under "Known limits": the emulator tests (`SuperAppSignInTest`, Health Card tests,
+    `run-family-tests.sh`, the device halves of A02, A04, A05, A06, A09, A10), `demo.sh --check` with the emulator, CI (never
+    pushed), the Postman desktop run, the TalkBack pass and a physical phone.
+  - New files: `scripts/evidence.sh`, `scripts/evidence.py` (record and report code), `docs/test-evidence.tsv` (the record, one
+    dated row per result), `docs/test-report.md` (written from the record; do not edit by hand).
 
 - **Goal**
   - `scripts/evidence.sh` *(new)*: runs and collects Go unit tests (Thunder `./internal/oauth/... ./pkg/...`,
