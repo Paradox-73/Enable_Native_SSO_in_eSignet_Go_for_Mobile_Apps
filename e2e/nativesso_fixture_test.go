@@ -20,7 +20,7 @@ import (
 	"github.com/badmosip/esignet-native-sso/e2e/internal/uuid"
 )
 
-// Shared set-up of the live Native SSO suite (design.md section 20, rules R01-R26).
+// Shared set-up of the live Native SSO suite (design.md section 20, rules R01-R27).
 //
 // Environment, besides E2E_ISSUER and E2E_DIAL_OVERRIDE (e2e/run.sh sets all of these):
 //
