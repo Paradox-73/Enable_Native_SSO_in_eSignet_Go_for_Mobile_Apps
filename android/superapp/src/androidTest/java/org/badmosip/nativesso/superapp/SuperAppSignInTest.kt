@@ -187,7 +187,12 @@ class SuperAppSignInTest {
     /** Saved to ui-test/screens/; `android/scripts/run-ui-test.sh` copies them to the evidence folder. */
     private fun screenshot(name: String) {
         val dir = File(evidence, "screens").apply { mkdirs() }
-        runCatching { device.takeScreenshot(File(dir, "$name.png")) }
+        // takeScreenshot answers false instead of throwing when a busy emulator cannot capture the screen.
+        repeat(5) {
+            if (runCatching { device.takeScreenshot(File(dir, "$name.png")) }.getOrDefault(false)) return
+            device.waitForIdle(1_000)
+        }
+        Log.w(TAG, "screenshot $name could not be taken")
     }
 
     private companion object {
