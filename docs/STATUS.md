@@ -60,7 +60,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-13 | platform | Integration tests: live Native SSO suite for every rule, and CI workflow | WP-06, WP-08, WP-12 | DONE | see card |
 | WP-14 | esignet | eSignet API documentation and Postman collection for Native SSO | WP-08, WP-12 | DONE | `ba0e764` |
 | WP-15 | android | Health Card: silent sign-in by token exchange, re-consent, sign-out, accessibility (T7, T8, B1) | WP-08, WP-11, WP-12 | PARTIAL | `fe17bf6` |
-| WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | TODO | |
+| WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | PARTIAL | see card |
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | TODO | |
 | WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | TODO | |
 
@@ -736,7 +736,24 @@ commit of that folder.
   - Pick the extra scope for the re-consent demo (for example `phone`) after checking eSignet's scope-to-claims
     mapping in `esignet/esignet-service/data/deployment.yaml`.
 
-### WP-16 End-to-end demo script (one command, repeatable) and video storyboard
+### WP-16 End-to-end demo script (one command, repeatable) and video storyboard (PARTIAL)
+
+- **Result (2026-10-05, 06:20 IST): PARTIAL; the only open item is the emulator run.**
+  - Built: `scripts/demo/demo.sh` (`--check`, `--dry-run`, `--no-emulator`, `--skip-build`), `prepare-device.sh`,
+    `reset.sh`, `teardown.sh`, and `docs/demo-script.md` (runbook, 4 min 30 s storyboard, fallbacks, timings).
+  - `bash scripts/demo/demo.sh --check --dry-run`: prints every step and command, changes nothing,
+    `demo dry-run: OK`.
+  - `with_lock docker-stack` around `bash scripts/demo/demo.sh --no-emulator` (JDK 21, stack image cached):
+    `family-signing: OK a787b1f3...`, `stack up: ps03-native-sso ready in 27 s`, `stack smoke: PASS`, 4 e2e tests
+    passed (`e2e: 4 passed, 0 failed`), `demo ready (server part only; emulator steps NOT RUN)`, `teardown ok`;
+    65 s in total; `docker ps` afterwards listed no container.
+  - `bash scripts/demo/demo.sh --check` (with the emulator): stops at once with a message naming the emulator lock
+    directory; it neither removed nor bypassed it (the scripts set `PS03_LOCK_STALE_MIN` so no lock counts as stale).
+  - `bash scripts/repo-lint.sh`: `repo-lint: OK`.
+  - NOT RUN: `prepare-device.sh` and the live emulator branch of `demo.sh` (install, clear, register, Hub in
+    front, visible emulator), the acceptance `bash scripts/demo/demo.sh --check` printing `demo ready` and
+    `teardown ok`, and every on-device screen and timing in `docs/demo-script.md`. Remove the `emulator` lock
+    directory (created 03:58 IST) once nobody uses it, then run the acceptance command and fill the timing table.
 
 - **Goal**
   - `scripts/demo/demo.sh` *(new)*: build APKs -> stack from clean volumes -> emulator -> install both apps ->
