@@ -3258,6 +3258,9 @@ paths:
                   introspection_endpoint:
                     type: string
                     description: URL of the token introspection endpoint.
+                  revocation_endpoint:
+                    type: string
+                    description: 'URL of the revocation endpoint (RFC 7009). Present when Native SSO is on: apps revoke their device secret there.'
                   authorization_response_iss_parameter_supported:
                     type: boolean
                     description: 'True: the authorization response carries the issuer in the `iss` parameter (RFC 9207).'
@@ -3471,6 +3474,100 @@ paths:
       servers:
         - url: 'https://esignet.collab.mosip.net/v1/esignet'
 
+  /oauth2/revoke:
+    post:
+      tags:
+        - OIDC
+      summary: Revocation Endpoint
+      description: |-
+        **Native SSO**: the app a device secret was issued to revokes it here (RFC 7009), for example when the user signs out of all apps. The server ends the login session of the device secret, so every later token exchange with it is refused with `invalid_grant`. Requires client authentication; only the client the device secret was issued to may revoke it. Other apps of the same vendor that hold it get `invalid_grant` and change nothing.
+
+        1. The only supported client authentication method: <b>private_key_jwt</b> (`aud` = issuer).
+        2. A value that is not a valid device secret, or whose session has already ended, is a successful no-op (HTTP 200).
+        3. Access and refresh tokens are revocable here only when the deployment turns on `oauth.token_revocation`, which is off in eSignet; until then they get `unsupported_token_type`.
+
+        **Reference**: https://www.rfc-editor.org/rfc/rfc7009.html
+      operationId: post-revoke
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: The device secret to revoke.
+                token_type_hint:
+                  type: string
+                  description: '`device_secret` for a device secret. Without a hint, a compact JWE is taken as a device secret.'
+                  enum:
+                    - device_secret
+                    - access_token
+                    - refresh_token
+                client_id:
+                  type: string
+                  description: Client Id of the OIDC client.
+                client_assertion_type:
+                  const: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+                  description: Type of the client assertion part of this request.
+                client_assertion:
+                  type: string
+                  description: 'Private key signed JWT, used for client authentication.'
+              required:
+                - token
+                - client_assertion_type
+                - client_assertion
+            examples:
+              Revoke a device secret:
+                value:
+                  token: eyJhbGciOiJSU0EtT0FFUC0yNTYiLCJlbmMiOiJBMjU2R0NNIn0...
+                  token_type_hint: device_secret
+                  client_id: WMX5pO6dYdCFR3iaVWGclVPNxTNSADDv-kV7VBcnzvY
+                  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+                  client_assertion: eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...
+      responses:
+        '200':
+          description: 'Revoked, or a no-op for a value that is not a valid device secret or whose session has already ended. Empty body.'
+        '400':
+          description: '`invalid_request` (no token), `invalid_grant` (the device secret was issued to another client), `unsupported_token_type` (not a device secret while token revocation is off).'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  error_description:
+                    type: string
+                required:
+                  - error
+        '401':
+          description: Unauthorized (client authentication failed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  error_description:
+                    type: string
+                required:
+                  - error
+        '500':
+          description: The session store could not be reached.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  error_description:
+                    type: string
+                required:
+                  - error
+      security: []
 tags:
   - name: Management
     description: Management level API's used for internal use.

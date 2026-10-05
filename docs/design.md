@@ -97,7 +97,8 @@ Non-goals:
 - iOS apps (the statement allows Android or iOS; one platform is enough to show the flow).
 - Refresh tokens: eSignet allows only the `authorization_code` grant today (`deployment.yaml:136`), so no refresh
   token is issued by the code grant or the exchange; the Child App exchanges again when its access token expires.
-- Server-side single logout. The specification defines no logout; a revoke call is future work
+- Server-side single logout. The specification defines no logout. The device secret itself can be revoked
+  (section [6.4](#64-sign-out), rule R27); revoking the tokens already issued from it is future work
   (section [21](#21-future-work)).
 - A generic token-exchange service. eSignet enables token exchange only for the Native SSO profile (D9).
 - Device attestation (Play Integrity, key attestation): listed as future work.
@@ -330,8 +331,14 @@ sequenceDiagram
   Every device secret and every Child App token is bound to that key (`cnf.jkt`), so all of them become unusable
   at once, with no server call.
 - The Child App then finds no bundle at the Super App, clears its own tokens and shows "Sign in to Hub first".
-- On the server the session record ends by its TTL. Deleting it at sign-out needs a revoke endpoint for device
-  secrets: future work, not claimed.
+- On the server the Super App revokes its device secret at the RFC 7009 endpoint, `POST /oauth2/revoke` with
+  `token_type_hint=device_secret` and its own `private_key_jwt`, before it deletes its key (rule R27). Thunder
+  validates the value through the Device Secret Provider, checks that it was issued to the calling client (another
+  app of the vendor gets `invalid_grant`), and calls `EndDeviceSecretSession`; eSignet deletes the session record.
+  Every later exchange with that device secret is `invalid_grant` (session ended). The endpoint exists whenever the
+  engine has a provider, also with eSignet's deny-list revocation (`oauth.token_revocation`) off; other tokens then
+  get `unsupported_token_type`. If the call fails (no network), the record still ends by its TTL and the deleted
+  DPoP key already blocks every use. Child App tokens issued earlier stay valid until they expire.
 
 Overview of the whole journey: [diagrams/user-flow.mmd](diagrams/user-flow.mmd).
 
@@ -764,6 +771,7 @@ the local stack and are named `TestE2E_*`. Dated results per rule: [test-report.
 | R24 | Native SSO 5 | discovery: `native_sso_supported`, `device_sso`, token-exchange grant | discovery | `TestE2E_Discovery_NativeSSO` |
 | R25 | enablement | client registration accepts the token-exchange grant, rejects unknown grants | eSignet clientmgmt | `TestE2E_ClientRegistration_TokenExchangeGrant` |
 | R26 | D9 | other token exchanges blocked: `invalid_request` | granthandlers | `TestE2E_GenericExchangeRejected` |
+| R27 | sign-out, RFC 7009 | the issuing client revokes its device secret: `200`, then the exchange is `invalid_grant`; another client gets `invalid_grant` and nothing changes; other tokens get `unsupported_token_type` while the deny list is off; discovery lists `revocation_endpoint` | revocation, discovery, eSignet engine | `TestE2E_Revoke_DeviceSecret` |
 
 App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `android/*/src/androidTest` that need the emulator, or a recorded command). A rule with a JVM part and a device part has two rows in the test report (`a`, `b`):
 
@@ -784,8 +792,8 @@ App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `an
 
 ## 21. Future work
 
-- Revoke a device secret on the server (delete its session record at Super App sign-out) and cascade to every
-  token issued from it. Needs a Thunder revocation branch for device secrets; eSignet's revocation is off today.
+- Cascade a device secret revocation (R27) to every token already issued from it. Needs eSignet's deny-list
+  revocation (`oauth.token_revocation`, off today) and a token family shared by the exchange.
 - Audit events for "device secret issued", "exchange accepted", "exchange rejected" (reason code, client id, no
   personal data) through eSignet's audit plugin interface.
 - Consent-only re-consent authenticated by the device secret, so the user does not enter the OTP again.

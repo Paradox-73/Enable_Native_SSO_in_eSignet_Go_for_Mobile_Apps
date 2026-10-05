@@ -462,6 +462,13 @@ paths:
         unknown — is treated as a successful no-op per RFC 7009. Expired tokens with a valid
         signature remain revocable. Requires client authentication; a client may only revoke tokens
         issued to it. Implements RFC 7009.
+
+        **Native SSO**: the endpoint also revokes an OpenID Connect Native SSO device secret
+        (`token_type_hint=device_secret`, or no hint and a compact JWE). Revoking it ends its login
+        session in the Device Secret Provider, so every later token exchange with it is refused
+        with `invalid_grant`. Only the client the device secret was issued to may revoke it. When the
+        engine has a Device Secret Provider the endpoint exists even with token revocation turned
+        off; other tokens then get `unsupported_token_type`.
       tags:
         - Revocation
       requestBody:
@@ -478,7 +485,8 @@ paths:
         "400":
           description: >-
             Bad Request — the token parameter is missing (`invalid_request`), or the token was
-            issued to a different client (`invalid_grant`).
+            issued to a different client (`invalid_grant`), or token revocation is off and the token
+            is not a device secret (`unsupported_token_type`).
           content:
             application/json:
               schema:
@@ -492,7 +500,7 @@ paths:
         "500":
           description: >-
             Internal server error — the revocation could not be recorded, for example when the
-            runtime persistent database is unavailable.
+            runtime persistent database or the device secret session store is unavailable.
           content:
             application/json:
               schema:
@@ -878,13 +886,14 @@ components:
       properties:
         token:
           type: string
-          description: The access or refresh token to revoke.
+          description: The access token, refresh token or Native SSO device secret to revoke.
         token_type_hint:
           type: string
           description: >-
             Hint about the type of the submitted token (`access_token` or `refresh_token`). Accepted
             per RFC 7009 §2.1 but optional; ThunderID tokens are self-describing, so the hint does not
-            affect processing.
+            affect processing. Exception: `device_secret` sends the token to the Native SSO
+            device secret path.
 
     IntrospectResponse:
       type: object
