@@ -21,6 +21,19 @@ info:
     VID - Virtual Identifier</br>
     PSUT - Partner(Relying Party) Specific User Token</br>
     VC - Verifiable Credential</br>
+    SSO - Single sign-on</br>
+    DPoP - Demonstrating Proof of Possession (RFC 9449)</br>
+    PAR - Pushed Authorization Request (RFC 9126)</br>
+
+    <b>OpenID Connect Native SSO for Mobile Apps 1.0</b></br>
+    Apps of one vendor can share one login on a device. The first app (for example a "Hub" app) asks for the
+    <code>device_sso</code> scope at PAR or authorize and receives a <code>device_secret</code> next to its tokens at the token
+    endpoint. A second app (for example a "Health Card" app) of the same relying party then calls the token endpoint with the
+    token-exchange grant (RFC 8693): the first app's <code>id_token</code> as <code>subject_token</code> and its
+    <code>device_secret</code> as <code>actor_token</code>, and receives its own tokens without opening a browser. A request
+    for a wider scope than the first app was granted fails with <code>interaction_required</code>; the second app then runs its own
+    authorization request so the user can consent. The discovery document advertises the profile with
+    <code>native_sso_supported: true</code>. Endpoint sections below mark the Native SSO additions.</br>
   contact:
     name: MOSIP Team
     email: info@mosip.io
@@ -606,11 +619,15 @@ paths:
                           - address
                     grantTypes:
                       type: array
-                      description: Form of Authorization Grant presented to token endpoint
+                      description: |-
+                        Form of Authorization Grant presented to token endpoint. Add `urn:ietf:params:oauth:grant-type:token-exchange` for an app that signs in with another app's device secret (OpenID Connect Native SSO); the app also needs `device_sso` in `additionalConfig.allowed_authorization_scopes` (the app that issues the device secret needs it too).
                       minItems: 1
                       uniqueItems: true
                       items:
-                        const: authorization_code
+                        type: string
+                        enum:
+                          - authorization_code
+                          - urn:ietf:params:oauth:grant-type:token-exchange
                     clientAuthMethods:
                       type: array
                       description: Auth method supported for token endpoint. At present only "private_key_jwt" is supported.
@@ -658,7 +675,10 @@ paths:
                           uniqueItems: true
                           items:
                             type: string
-                          description: Additional OAuth scopes, beyond the standard scope claims, that this client is allowed to request.
+                          description: |-
+                            Additional OAuth scopes, beyond the standard scope claims, that this client is allowed to request. `device_sso` must be listed for an app that asks for a device secret at PAR or authorize, and for an app that exchanges one; PAR answers `invalid_scope` otherwise.
+                          examples:
+                            - - device_sso
             examples:
               example-1:
                 value:
@@ -706,6 +726,48 @@ paths:
                       consent_expire_in_mins: 30
                       require_pushed_authorization_requests: true
                       dpop_bound_access_tokens: true
+              native-sso-client:
+                summary: App of a Native SSO pair (Hub or Health Card)
+                description: Both apps of one relying party are registered like this, each with its own client id, redirect URI and key. The key pair is made by the app; only the public key is sent.
+                value:
+                  requestTime: '2026-10-05T10:00:00.000Z'
+                  request:
+                    clientId: ns-health-card
+                    clientName: Native SSO Health Card
+                    clientNameLangMap:
+                      eng: Native SSO Health Card
+                    relyingPartyId: ns-vendor
+                    logoUri: 'https://example.com/logo.png'
+                    redirectUris:
+                      - 'org.badmosip.nativesso.card://oauth/callback'
+                    publicKey:
+                      kty: EC
+                      crv: P-256
+                      use: sig
+                      kid: 3Xq0M1x0xV6bq3a0c5mQy1m2m6o9mJ0XkCqQYvJ7s1k
+                      x: Zz8sZ3xk0m1o3WZk0fQH0yTq8o4Tt1J1j0rK3m7oXyA
+                      'y': c4dF2uVfX9Zf0n2lq5mYk1dT9bQmZ0o7y3pL1u8GhE0
+                    authContextRefs:
+                      - 'mosip:idp:acr:generated-code'
+                    userClaims:
+                      - name
+                      - email
+                      - phone_number
+                    grantTypes:
+                      - authorization_code
+                      - urn:ietf:params:oauth:grant-type:token-exchange
+                    clientAuthMethods:
+                      - private_key_jwt
+                    additionalConfig:
+                      require_pushed_authorization_requests: true
+                      dpop_bound_access_tokens: true
+                      require_pkce: true
+                      allowed_authorization_scopes:
+                        - openid
+                        - profile
+                        - email
+                        - phone
+                        - device_sso
       responses:
         '200':
           description: OK
@@ -1286,10 +1348,14 @@ paths:
                           - 'mosip:idp:acr:knowledge'
                     grantTypes:
                       type: array
-                      description: Form of Authorization Grant presented to token endpoint.
+                      description: |-
+                        Form of Authorization Grant presented to token endpoint. Add `urn:ietf:params:oauth:grant-type:token-exchange` for an app that signs in with another app's device secret (OpenID Connect Native SSO); the app also needs `device_sso` in `additionalConfig.allowed_authorization_scopes` (the app that issues the device secret needs it too)..
                       minItems: 1
                       items:
-                        const: authorization_code
+                        type: string
+                        enum:
+                          - authorization_code
+                          - urn:ietf:params:oauth:grant-type:token-exchange
                     clientAuthMethods:
                       type: array
                       description: Auth method supported for token endpoint. At present only "private_key_jwt" is supported.
@@ -1337,7 +1403,10 @@ paths:
                           uniqueItems: true
                           items:
                             type: string
-                          description: Additional OAuth scopes, beyond the standard scope claims, that this client is allowed to request.
+                          description: |-
+                            Additional OAuth scopes, beyond the standard scope claims, that this client is allowed to request. `device_sso` must be listed for an app that asks for a device secret at PAR or authorize, and for an app that exchanges one; PAR answers `invalid_scope` otherwise.
+                          examples:
+                            - - device_sso
             examples:
               Example 1:
                 value:
@@ -1554,6 +1623,7 @@ paths:
                         type: string
                         enum:
                           - authorization_code
+                          - urn:ietf:params:oauth:grant-type:token-exchange
                     clientAuthMethods:
                       type: array
                       description: Auth method supported for token endpoint. At present only "private_key_jwt" is supported.
@@ -1607,7 +1677,7 @@ paths:
                           uniqueItems: true
                           items:
                             type: string
-                          description: Additional OAuth scopes, beyond the standard scope claims, that this client is allowed to request.
+                          description: Additional OAuth scopes, beyond the standard scope claims, that this client is allowed to request. List `device_sso` for Native SSO.
                     encPublicKey:
                       description: |-
                         Encryption public key in JWK format for userinfo JWE encryption.
@@ -1809,6 +1879,8 @@ paths:
         Successfully verified request parameters should be stored in the "par" cache with request_uri as the key. Objects in the "par" cache are set with TTL.
         TTL should be configurable and the expires_in parameter in the response should return same value.
 
+        **Native SSO (`device_sso`)**: a scope list that contains `device_sso` asks for a device secret. The client must list `device_sso` in `additionalConfig.allowed_authorization_scopes`, otherwise the request fails with `invalid_scope`. A DPoP key must be present (a `DPoP` header or `dpop_jkt`) because the device secret is bound to that key. The access token and the device secret that the token endpoint returns later are bound to the same key (`cnf.jkt`).
+
         **Not supported:**
           1. client authentication parameters in the PAR request header.
           2. The request parameter as defined in JAR [RFC9101].
@@ -1830,14 +1902,11 @@ paths:
               properties:
                 scope:
                   type: string
-                  description: Specifies what access privileges are being requested for Access Tokens. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints. OpenID Connect requests MUST contain the OpenID scope value.
-                  enum:
-                    - openid
-                    - profile
-                    - email
-                    - address
-                    - phone
-                    - offline_access
+                  description: |-
+                    Space delimited list of scope values. Supported values: `openid`, `profile`, `email`, `address`, `phone`, `offline_access` and `device_sso`. OpenID Connect requests MUST contain the `openid` scope value. `device_sso` (OpenID Connect Native SSO for Mobile Apps 1.0, section 3.1) asks for a device secret; the client must be allowed to request it (see the client registration field `allowed_authorization_scopes`).
+                  examples:
+                    - openid profile
+                    - openid profile email device_sso
                 response_type:
                   type: string
                   description: 'Value that determines the authorization processing flow to be used. When using the Authorization Code Flow, this value is code.'
@@ -1940,6 +2009,37 @@ paths:
                   code_challenge_method: S256
                   client_assertion: 
                   client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+              native-sso-first-app:
+                summary: First app asks for a device secret
+                description: Scope contains device_sso, dpop_jkt is the JWK thumbprint of the app's DPoP key, a DPoP proof is sent in the DPoP header. The client assertion aud is the issuer.
+                value:
+                  client_id: ns-hub
+                  scope: openid profile email device_sso
+                  response_type: code
+                  redirect_uri: 'org.badmosip.nativesso.hub://oauth/callback'
+                  state: 5pT0xqY2rBn1
+                  nonce: kR3vN8dQ1aZ4
+                  code_challenge: UK95aVX_y3R44DF3hssd3wATvtZmO_WejE0P33-pwTs
+                  code_challenge_method: S256
+                  dpop_jkt: 0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I
+                  client_assertion: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyJpc3MiOiJucy1odWIifQ.signature
+                  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+              native-sso-reconsent:
+                summary: Second app runs its own authorization after interaction_required
+                description: Sent by the second app after the token exchange answered interaction_required. It uses the second app's own client, key and DPoP key, asks for the wider scope and sets prompt=consent. The user logs in again and consents.
+                value:
+                  client_id: ns-health-card
+                  scope: openid email phone
+                  response_type: code
+                  redirect_uri: 'org.badmosip.nativesso.card://oauth/callback'
+                  prompt: consent
+                  state: Qm4sZ0t7LpX2
+                  nonce: bV6yH2eU9cT1
+                  code_challenge: E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+                  code_challenge_method: S256
+                  dpop_jkt: 7mV1sXy3C5aQz0bKq2Lr8nE4tUo6WjHdFgPiYc9ZhAk
+                  client_assertion: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjIifQ.eyJpc3MiOiJucy1oZWFsdGgtY2FyZCJ9.signature
+                  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
       responses:
         '201':
           description: CREATED
@@ -1986,6 +2086,9 @@ paths:
                       - invalid_response_type
                       - invalid_display
                       - invalid_prompt
+                      - invalid_dpop_proof
+                      - use_dpop_nonce
+                      - invalid_client
                   error_description:
                     type: string
                     description: 'Error description, available in error response.'
@@ -2033,6 +2136,8 @@ paths:
 
         This endpoint responds with a redirect to the UI application's login page, with `authId` and `executionId` query parameters identifying the authorization session and the underlying ThunderID flow execution respectively. The UI application then calls the "/flow/meta" endpoint to fetch rendering metadata, and drives the authentication ceremony step by step via the "/flow/execute" endpoint using the `executionId`. Once the flow reaches `flowStatus: COMPLETE`, the UI application calls "/oauth2/auth/callback" with the `authId` and the flow's signed assertion to obtain the authorization code redirect.
 
+        **Native SSO**: a request whose scope contains `device_sso` is answered like any other; the device secret is issued later by the token endpoint. A request with `prompt=consent` makes the user log in and consent again, which is what an app does after the token exchange answered `interaction_required`.
+
         **Authentication & Authroization**: None
       operationId: get-authorize
       parameters:
@@ -2042,7 +2147,7 @@ paths:
           required: true
           schema:
             type: string
-            description: 'Space delimited list of scope values. Supported values: openid, profile, email, address, phone, offline_access.'
+            description: 'Space delimited list of scope values. Supported values: openid, profile, email, address, phone, offline_access, device_sso. device_sso (OpenID Connect Native SSO for Mobile Apps) asks for a device secret and is accepted only for a client that lists it in additionalConfig.allowed_authorization_scopes. When the client requires PAR, send client_id and request_uri (from /oauth2/par) instead; the scope is then the one pushed.'
             examples:
               - openid profile
               - openid email
@@ -2561,6 +2666,33 @@ paths:
         **jti**<span style="color:#FF0000">*</span> (JWT ID): This MUST be unique for each client assertion generated.
 
         **Note**: The Client Assertion JWT can contain other Claims. Any Claims used that are not understood WILL be ignored.</p>
+
+        **Audience of the client assertion**: this server accepts the issuer (for example `http://localhost:38088`) as `aud` at the token, PAR and introspection endpoints, as FAPI 2.0 Security Profile 5.3.2.1 says. An endpoint URL as `aud` is answered with `invalid_client`.
+
+        **Grant types**
+
+        | `grant_type` | Parameters | Result |
+        |---|---|---|
+        | `authorization_code` | `code`, `redirect_uri`, `code_verifier`, client assertion, DPoP proof | `id_token`, `access_token`; also `device_secret` when `device_sso` was granted |
+        | `urn:ietf:params:oauth:grant-type:token-exchange` | `subject_token`, `subject_token_type`, `actor_token`, `actor_token_type`, `audience`, optional `scope`, client assertion, DPoP proof | tokens for the requesting app, from another app's login |
+
+        **Native SSO device secret (authorization_code grant)**: when the granted scope contains `device_sso` the response also carries `device_secret`, and the `id_token` carries `ds_hash` (base64url of the left-most 128 bits of the SHA-256 of the device secret's ASCII bytes) and `sid` (the login session). The id_token and the device secret are issued together or not at all (`server_error`). The access token and the device secret are bound to the DPoP key of the request (`cnf.jkt`); the device secret is an encrypted JWT whose content the app must not read.
+
+        **Native SSO token exchange**: sent by the second app. `subject_token` is the first app's `id_token` (it may be expired; `ds_hash` and `sid` must match the device secret), `subject_token_type` is `urn:ietf:params:oauth:token-type:id_token`, `actor_token` is the first app's `device_secret`, `actor_token_type` is `urn:openid:params:token-type:device-secret` and `audience` is exactly the issuer. The client assertion is the second app's own. The DPoP proof must be signed with the key the device secret is bound to (the first app's DPoP key, so the first app signs it on behalf of the second app). Both apps must belong to one relying party, both must be allowed `device_sso`, and the second app must be registered with the token-exchange grant. `scope` must contain `openid`, must not contain `device_sso` and must lie within the scope granted to the first app; without it the first app's scope minus `device_sso` is used. With `oauth.native_sso.exchange_only: true` (the shipped setting) the token-exchange grant is accepted only with a device secret as `actor_token`.
+
+        **Re-consent**: a `scope` wider than the first app's grant is answered with HTTP 400 `interaction_required` whose `error_description` names the missing scope values (`invalid_scope` instead when `oauth.native_sso.scope_exceeded_error` is `invalid_scope`). The app then pushes its own authorization request (`/oauth2/par`, `prompt=consent`, the wider scope) and logs the user in again.
+
+        **Errors of the token exchange** (all HTTP 400)
+
+        | `error` | Cause |
+        |---|---|
+        | `invalid_request` | `actor_token_type` is not `urn:openid:params:token-type:device-secret` (the older `urn:x-oath:params:oauth:token-type:device-secret` too); no `actor_token` while `exchange_only` is on; device secret invalid, tampered or expired; the two clients are not of one relying party |
+        | `invalid_grant` | DPoP proof signed with a key other than the one the device secret is bound to |
+        | `invalid_dpop_proof` | no DPoP proof, or a malformed one |
+        | `invalid_target` | `audience` is not the issuer |
+        | `invalid_scope` | `scope` contains `device_sso`, or lacks `openid` |
+        | `interaction_required` | `scope` is wider than the first app's grant |
+        | `unauthorized_client` | the requesting client is not registered with the token-exchange grant (or not allowed `device_sso`) |
       operationId: post-token-v2
       requestBody:
         description: ''
@@ -2570,8 +2702,11 @@ paths:
               type: object
               properties:
                 grant_type:
-                  const: authorization_code
-                  description: Authorization code grant type.
+                  type: string
+                  enum:
+                    - authorization_code
+                    - urn:ietf:params:oauth:grant-type:token-exchange
+                  description: Authorization code grant, or the token-exchange grant of the Native SSO profile.
                 code:
                   type: string
                   description: 'Authorization code, sent as query param in the client''s redirect URI.'
@@ -2592,12 +2727,31 @@ paths:
                   description: |-
                     A cryptographically random string that is used to correlate the
                           authorization request to the token request.
+                subject_token:
+                  type: string
+                  description: Token exchange only. The first app's id_token. It may be expired.
+                subject_token_type:
+                  type: string
+                  const: 'urn:ietf:params:oauth:token-type:id_token'
+                  description: Token exchange only. Underscore form `id_token`, as in RFC 8693 section 3.
+                actor_token:
+                  type: string
+                  description: Token exchange only. The `device_secret` the first app received.
+                actor_token_type:
+                  type: string
+                  const: 'urn:openid:params:token-type:device-secret'
+                  description: Token exchange only. Selects the Native SSO token exchange.
+                audience:
+                  type: string
+                  description: Token exchange only. Exactly one value, equal to the issuer.
+                scope:
+                  type: string
+                  description: Token exchange only. Space delimited, must contain `openid`, must not contain `device_sso`, must lie within the first app's granted scope. Default is the granted scope without `device_sso`.
               required:
                 - grant_type
-                - code
                 - client_assertion_type
                 - client_assertion
-                - redirect_uri
+              description: 'For `authorization_code`, `code` and `redirect_uri` are required. For the token exchange, `subject_token`, `subject_token_type`, `actor_token`, `actor_token_type` and `audience` are required.'
             examples:
               Example 1:
                 value:
@@ -2608,6 +2762,19 @@ paths:
                   client_assertion: eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJpYXQiOjE2OTg2MzE0NjAsIm5iZiI6MTY5ODYzMTQ2MCwiZXhwIjoxNjk4NjMxNTI1LCJqdGkiOiI1ZFFjaWhtb2lfQTlXMmlERGpYcDgiLCJzdWIiOiJXTVg1cE82ZFlkQ0ZSM2lhVldHY2xWUE54VE5TQUREdi1rVjdWQmNuenZZIiwiaXNzIjoiV01YNXBPNmRZZENGUjNpYVZXR2NsVlBOeFROU0FERHYta1Y3VkJjbnp2WSIsImF1ZCI6Imh0dHBzOi8vZXNpZ25ldC5jb2xsYWIubW9zaXAubmV0L3YxL2VzaWduZXQvb2F1dGgvdG9rZW4ifQ.G-OxPmb2wBq7R52PELNss9FCwvv_i2456FE4oag25BuZjwH6CgB8LDLmfCJdzeLGRuFp_MrKskGTkpsWI0RWLNtqZ7jvQTvSq8zQICusIFh9kcciWbkMsOZQqN91gPtdrn3WRS6xD7TxzwvrAeuqx4lTBbWNYTF2GQ3Zagq0t6ogOtPWg0wNioW3m11jWIdwooJ8jI2Z5oN772Lerrs1AXMnipLxQm4rdMM54taeHFrrXyxqFjoiq-bglrpHtCqeG6QFqhpQrRlIsLLoli8F1LU8Mu3Fw7ifCd6KEj9JNM_sPHjAy-JRg_dgjNdHL5tqtHzUsD5sSmLop33U4WH3Ow
                   redirect_uri: 'https://fastlane.com/homepage'
                   code_verifier: MN1Q0nNAKkqOu5EaNBKf2gYD4maYv9ZxLd-48N2_kTM
+              Token exchange with a device secret:
+                summary: Second app signs in with the first app's device secret
+                value:
+                  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange'
+                  subject_token: eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjM4MDg4Iiwic2lkIjoibnRyc3BtS2lJMmowZE9haFVfMUFXZyJ9.signature
+                  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token'
+                  actor_token: eyJhbGciOiJSU0EtT0FFUC0yNTYiLCJlbmMiOiJBMjU2R0NNIn0.encrypted-device-secret
+                  actor_token_type: 'urn:openid:params:token-type:device-secret'
+                  audience: 'http://localhost:38088'
+                  scope: openid email
+                  client_id: ns-health-card
+                  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+                  client_assertion: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJucy1oZWFsdGgtY2FyZCJ9.signature
       responses:
         '200':
           description: OK
@@ -2630,6 +2797,8 @@ paths:
                       <li>nonce</li>
                       <li>acr</li>
                       <li>at_hash</li>
+                      <li>sid - login session (Native SSO)</li>
+                      <li>ds_hash - hash of the device secret, present when a device secret is issued (Native SSO)</li>
                       </ul>
 
                       It is non-null only in OIDC flow. otherwise the id_token is not returned.
@@ -2651,6 +2820,16 @@ paths:
                   c_nonce_expires_in:
                     type: number
                     description: JSON integer denoting the lifetime in seconds of the c_nonce.
+                  scope:
+                    type: string
+                    description: Space delimited scopes granted. After a token exchange it is the requested subset of the first app's scope.
+                  device_secret:
+                    type: string
+                    description: |-
+                      Native SSO. Present in the authorization_code response when `device_sso` was granted. An encrypted JWT, opaque to the app. Another app of the same relying party presents it as `actor_token` of a token exchange with `actor_token_type` `urn:openid:params:token-type:device-secret`. It stays valid for the device secret lifetime (default 28800 seconds) and works only with a DPoP proof signed by the key it is bound to.
+                  issued_token_type:
+                    type: string
+                    description: Token exchange only. `urn:ietf:params:oauth:token-type:access_token`.
                 required:
                   - access_token
                   - token_type
@@ -2663,6 +2842,22 @@ paths:
                     expires_in: 3600
                     c_nonce: Ct9rpQFb96QSSwgHAfDO
                     c_nonce_expires_in: 40
+                Authorization code with device_sso:
+                  value:
+                    access_token: eyJhbGciOiJQUzI1NiIsImtpZCI6IjNlMmIifQ.payload.signature
+                    token_type: DPoP
+                    expires_in: 120
+                    scope: openid profile email device_sso
+                    id_token: eyJhbGciOiJQUzI1NiIsImtpZCI6IjNlMmIifQ.payload.signature
+                    device_secret: eyJhbGciOiJSU0EtT0FFUC0yNTYiLCJlbmMiOiJBMjU2R0NNIn0.encrypted.device.secret
+                Token exchange:
+                  value:
+                    access_token: eyJhbGciOiJQUzI1NiIsImtpZCI6IjNlMmIifQ.payload.signature
+                    token_type: DPoP
+                    expires_in: 120
+                    scope: openid email
+                    issued_token_type: 'urn:ietf:params:oauth:token-type:access_token'
+                    id_token: eyJhbGciOiJQUzI1NiIsImtpZCI6IjNlMmIifQ.payload.signature
           headers:
             Cache-Control:
               schema:
@@ -2691,12 +2886,23 @@ paths:
                       - unsupported_pkce_challenge_method
                       - invalid_dpop_proof
                       - use_dpop_nonce
-                    description: The error code.
+                      - invalid_target
+                      - invalid_scope
+                      - interaction_required
+                      - unauthorized_client
+                      - invalid_client
+                    description: The error code. The token exchange errors are listed in the endpoint description.
                   error_description:
                     type: string
                     description: Optional text providing additional information about the error that occurred.
                 required:
                   - error
+              examples:
+                interaction_required:
+                  summary: Token exchange asks for a scope the first app was not granted
+                  value:
+                    error: interaction_required
+                    error_description: 'The requested scope exceeds the scope granted to the first app; user consent is needed for: phone'
       security: []
       servers:
         - url: 'https://esignet.collab.mosip.net/v1/esignet'
@@ -2734,6 +2940,10 @@ paths:
         **Response 3**: When Claims are requested with claims_locales : "en fr"
 
         { "name#en" : "John Doe", "name#fr" : "Jean Doe", "phone" : "033456743" } 
+
+        **Native SSO**: an access token issued by the token exchange is bound to the DPoP key of the first app (`cnf.jkt`) and is sent with the `DPoP` authorization scheme and a DPoP proof that carries `ath` (the hash of the access token). The user is the same as for the first app's token; the claims returned are those the user released.
+
+        **Errors**: HTTP 401 with `error=invalid_token` when the DPoP proof is missing ("Exactly one DPoP header is required") or when a DPoP-bound token is sent with the `Bearer` scheme.
 
         **Supported User Info Claims**
         <ul>
@@ -2875,6 +3085,8 @@ paths:
       summary: Configuration Endpoint
       description: |-
         Open ID Connect dynamic provider discovery is not supported currently, this endpoint is only for facilitating the OIDC provider details in a standard way.
+
+        **Native SSO**: `native_sso_supported: true`, `device_sso` in `scopes_supported` and `urn:ietf:params:oauth:grant-type:token-exchange` in `grant_types_supported` tell an app that the server issues device secrets and exchanges them. `/.well-known/oauth-authorization-server` answers with the same metadata.
 
         **Reference**: https://openid.net/specs/openid-connect-discovery-1_0.html
       operationId: get-.well-known-openid-configuration
@@ -3035,6 +3247,25 @@ paths:
                     type: array
                     items: {}
                     description: JSON array containing a list of the JWS algorithms supported for DPoP proof JWTs
+                  grant_types_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: 'Grant types the server accepts. Contains `urn:ietf:params:oauth:grant-type:token-exchange` when the Native SSO token exchange is enabled.'
+                  native_sso_supported:
+                    type: boolean
+                    description: 'OpenID Connect Native SSO for Mobile Apps. True when the server issues device secrets and accepts the device-secret token exchange. The `scopes_supported` list then contains `device_sso`. The field is absent when the profile is off.'
+                  introspection_endpoint:
+                    type: string
+                    description: URL of the token introspection endpoint.
+                  authorization_response_iss_parameter_supported:
+                    type: boolean
+                    description: 'True: the authorization response carries the issuer in the `iss` parameter (RFC 9207).'
+                  code_challenge_methods_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: PKCE methods. `S256` only.
               examples:
                 Example 1:
                   value:
@@ -3045,7 +3276,18 @@ paths:
                     jwks_uri: 'https://esignet.collab.mosip.net/.well-known/jwks.json'
                     registration_endpoint: 'https://esignet.collab.mosip.net/v1/esignet/client-mgmt/oauth-client'
                     scopes_supported:
+                      - openid
+                      - profile
                       - email
+                      - phone
+                      - device_sso
+                    grant_types_supported:
+                      - authorization_code
+                      - 'urn:ietf:params:oauth:grant-type:token-exchange'
+                    native_sso_supported: true
+                    code_challenge_methods_supported:
+                      - S256
+                    authorization_response_iss_parameter_supported: true
                     response_types_supported:
                       - code
                     response_modes_supported:

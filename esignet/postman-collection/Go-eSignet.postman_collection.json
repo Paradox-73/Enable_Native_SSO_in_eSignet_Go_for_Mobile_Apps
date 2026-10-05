@@ -364,7 +364,7 @@
           ]
         }
       ],
-      "description": "Seeds identities in esignet-mock-services (https://github.com/mosip/esignet-mock-services) for local testing when MOSIP_ESIGNET_AUTHN_PROVIDER=mock. Run Create User before the FAPI2.0 flow's OTP or password branch — it reuses {{individual_id}} and {{password}} from the environment (generating sensible defaults if unset) so the seeded identity matches what the flow submits. The mock provider returns a fixed test OTP; {{otp}} does not need to be set here."
+      "description": "Seeds identities in esignet-mock-services (https://github.com/mosip/esignet-mock-services) for local testing when MOSIP_ESIGNET_AUTHN_PROVIDER=mock. Run Create User before the FAPI2.0 flow's OTP or password branch \u2014 it reuses {{individual_id}} and {{password}} from the environment (generating sensible defaults if unset) so the seeded identity matches what the flow submits. The mock provider returns a fixed test OTP; {{otp}} does not need to be set here."
     },
     {
       "name": "System Info",
@@ -1767,6 +1767,2342 @@
         }
       ],
       "description": "CRUD against the Sunbird registry (Insurance schema) used by the KBI flow. Run 'Create Policy (Identity)' first: it generates a random identity and stores it in the environment as sunbird_individual_id (policy number) / sunbird_full_name / sunbird_dob, then '5 \u2014 Sunbird KBI' authenticates against it. These dedicated vars keep the MOSIP individual_id (folders 1-3) untouched. 'Delete Policy' is opt-in (sunbird_cleanup=true) so it does not run automatically before KBI. Requires {{sunbird_url}} reachable."
+    },
+    {
+      "name": "Native SSO",
+      "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, re-consent error, negative cases. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
+      "item": [
+        {
+          "name": "00 Discovery shows Native SSO",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/.well-known/openid-configuration",
+            "description": "Checks the discovery fields Native SSO adds: native_sso_supported, device_sso in scopes_supported and the token-exchange grant."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('discovery 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('issuer is the configured issuer', () => pm.expect(d.issuer).to.eql(pm.environment.get('ns_issuer')));",
+                  "pm.test('native_sso_supported is true', () => pm.expect(d.native_sso_supported).to.eql(true));",
+                  "pm.test('scopes_supported lists device_sso', () => pm.expect(d.scopes_supported).to.include('device_sso'));",
+                  "pm.test('grant_types_supported lists token-exchange', () =>",
+                  "  pm.expect(d.grant_types_supported).to.include('urn:ietf:params:oauth:grant-type:token-exchange'));",
+                  "pm.test('DPoP ES256 is supported', () => pm.expect(d.dpop_signing_alg_values_supported).to.include('ES256'));",
+                  "pm.test('client authentication is private_key_jwt only', () =>",
+                  "  pm.expect(d.token_endpoint_auth_methods_supported).to.eql(['private_key_jwt']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01 Generate keys and register the Hub (first app)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/client-mgmt/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestTime\": \"{{ns_request_time}}\",\n  \"request\": {\n    \"clientId\": \"{{ns_hub_id}}\",\n    \"clientName\": \"Native SSO Hub\",\n    \"clientNameLangMap\": { \"eng\": \"Native SSO Hub\" },\n    \"relyingPartyId\": \"{{ns_rp_id}}\",\n    \"logoUri\": \"https://example.com/logo.png\",\n    \"redirectUris\": [\"org.badmosip.nativesso.hub://oauth/callback\"],\n    \"userClaims\": [\"name\", \"email\", \"phone_number\"],\n    \"authContextRefs\": [\"mosip:idp:acr:generated-code\"],\n    \"publicKey\": {{ns_hub_pub}},\n    \"grantTypes\": [\"authorization_code\", \"urn:ietf:params:oauth:grant-type:token-exchange\"],\n    \"clientAuthMethods\": [\"private_key_jwt\"],\n    \"additionalConfig\": {\"require_pushed_authorization_requests\": true, \"dpop_bound_access_tokens\": true, \"require_pkce\": true, \"allowed_authorization_scopes\": [\"openid\", \"profile\", \"email\", \"phone\", \"device_sso\"]}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Makes four ES256 key pairs and the Hub's DPoP key in the script, then registers the Hub: grantTypes with token-exchange and allowed_authorization_scopes with device_sso."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "// One key pair per client plus the Hub's DPoP key. All are made here, now, and live only in",
+                  "// environment variables of this run (see \"99 Cleanup\").",
+                  "const sfx = L.uuid().slice(0, 8);",
+                  "pm.environment.set('ns_rp_id', 'ns-rp-' + sfx);",
+                  "pm.environment.set('ns_other_rp_id', 'ns-rp-other-' + sfx);",
+                  "['hub', 'card', 'plain', 'other'].forEach((n) => {",
+                  "  const k = L.newKey();",
+                  "  pm.environment.set('ns_' + n + '_key', JSON.stringify(k));",
+                  "  pm.environment.set('ns_' + n + '_pub', JSON.stringify(Object.assign(L.publicJwk(k), { kid: k.kid, use: 'sig' })));",
+                  "  pm.environment.set('ns_' + n + '_id', 'ns-' + n + '-' + sfx);",
+                  "});",
+                  "pm.environment.set('ns_hub_dpop_key', JSON.stringify(L.newKey()));",
+                  "pm.environment.set('ns_request_time', new Date().toISOString());",
+                  "const t = pm.environment.get('client_mgmt_token');",
+                  "if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client registration 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('no errors', () => pm.expect(j.errors || []).to.have.lengthOf(0));",
+                  "pm.test('client is ACTIVE', () => pm.expect(j.response.status).to.eql('ACTIVE'));",
+                  "pm.test('client_id echoed', () => pm.expect(j.response.clientId).to.eql(pm.environment.get('ns_hub_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Register the Health Card (second app, same relying party)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/client-mgmt/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestTime\": \"{{ns_request_time}}\",\n  \"request\": {\n    \"clientId\": \"{{ns_card_id}}\",\n    \"clientName\": \"Native SSO Health Card\",\n    \"clientNameLangMap\": { \"eng\": \"Native SSO Health Card\" },\n    \"relyingPartyId\": \"{{ns_rp_id}}\",\n    \"logoUri\": \"https://example.com/logo.png\",\n    \"redirectUris\": [\"org.badmosip.nativesso.card://oauth/callback\"],\n    \"userClaims\": [\"name\", \"email\", \"phone_number\"],\n    \"authContextRefs\": [\"mosip:idp:acr:generated-code\"],\n    \"publicKey\": {{ns_card_pub}},\n    \"grantTypes\": [\"authorization_code\", \"urn:ietf:params:oauth:grant-type:token-exchange\"],\n    \"clientAuthMethods\": [\"private_key_jwt\"],\n    \"additionalConfig\": {\"require_pushed_authorization_requests\": true, \"dpop_bound_access_tokens\": true, \"require_pkce\": true, \"allowed_authorization_scopes\": [\"openid\", \"profile\", \"email\", \"phone\", \"device_sso\"]}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.environment.set('ns_request_time', new Date().toISOString());",
+                  "const t = pm.environment.get('client_mgmt_token');",
+                  "if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client registration 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('no errors', () => pm.expect(j.errors || []).to.have.lengthOf(0));",
+                  "pm.test('client is ACTIVE', () => pm.expect(j.response.status).to.eql('ACTIVE'));",
+                  "pm.test('client_id echoed', () => pm.expect(j.response.clientId).to.eql(pm.environment.get('ns_card_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Register a client that does not allow device_sso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/client-mgmt/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestTime\": \"{{ns_request_time}}\",\n  \"request\": {\n    \"clientId\": \"{{ns_plain_id}}\",\n    \"clientName\": \"Native SSO Plain\",\n    \"clientNameLangMap\": { \"eng\": \"Native SSO Plain\" },\n    \"relyingPartyId\": \"{{ns_rp_id}}\",\n    \"logoUri\": \"https://example.com/logo.png\",\n    \"redirectUris\": [\"org.badmosip.nativesso.plain://oauth/callback\"],\n    \"userClaims\": [\"name\", \"email\", \"phone_number\"],\n    \"authContextRefs\": [\"mosip:idp:acr:generated-code\"],\n    \"publicKey\": {{ns_plain_pub}},\n    \"grantTypes\": [\"authorization_code\"],\n    \"clientAuthMethods\": [\"private_key_jwt\"],\n    \"additionalConfig\": {\"require_pushed_authorization_requests\": true, \"dpop_bound_access_tokens\": true, \"require_pkce\": true, \"allowed_authorization_scopes\": [\"openid\", \"profile\", \"email\"]}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.environment.set('ns_request_time', new Date().toISOString());",
+                  "const t = pm.environment.get('client_mgmt_token');",
+                  "if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client registration 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('no errors', () => pm.expect(j.errors || []).to.have.lengthOf(0));",
+                  "pm.test('client is ACTIVE', () => pm.expect(j.response.status).to.eql('ACTIVE'));",
+                  "pm.test('client_id echoed', () => pm.expect(j.response.clientId).to.eql(pm.environment.get('ns_plain_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Register an app of another relying party",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/client-mgmt/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestTime\": \"{{ns_request_time}}\",\n  \"request\": {\n    \"clientId\": \"{{ns_other_id}}\",\n    \"clientName\": \"Native SSO Outsider\",\n    \"clientNameLangMap\": { \"eng\": \"Native SSO Outsider\" },\n    \"relyingPartyId\": \"{{ns_other_rp_id}}\",\n    \"logoUri\": \"https://example.com/logo.png\",\n    \"redirectUris\": [\"org.badmosip.nativesso.other://oauth/callback\"],\n    \"userClaims\": [\"name\", \"email\", \"phone_number\"],\n    \"authContextRefs\": [\"mosip:idp:acr:generated-code\"],\n    \"publicKey\": {{ns_other_pub}},\n    \"grantTypes\": [\"authorization_code\", \"urn:ietf:params:oauth:grant-type:token-exchange\"],\n    \"clientAuthMethods\": [\"private_key_jwt\"],\n    \"additionalConfig\": {\"require_pushed_authorization_requests\": true, \"dpop_bound_access_tokens\": true, \"require_pkce\": true, \"allowed_authorization_scopes\": [\"openid\", \"profile\", \"email\", \"phone\", \"device_sso\"]}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.environment.set('ns_request_time', new Date().toISOString());",
+                  "const t = pm.environment.get('client_mgmt_token');",
+                  "if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client registration 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('no errors', () => pm.expect(j.errors || []).to.have.lengthOf(0));",
+                  "pm.test('client is ACTIVE', () => pm.expect(j.response.status).to.eql('ACTIVE'));",
+                  "pm.test('client_id echoed', () => pm.expect(j.response.clientId).to.eql(pm.environment.get('ns_other_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 01 PAR with device_sso",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/par",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "{{ns_par_who_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{ns_par_redirect}}",
+                  "type": "text"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_par_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "{{ns_state}}",
+                  "type": "text"
+                },
+                {
+                  "key": "nonce",
+                  "value": "{{ns_nonce}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code_challenge",
+                  "value": "{{ns_code_challenge}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code_challenge_method",
+                  "value": "S256",
+                  "type": "text"
+                },
+                {
+                  "key": "dpop_jkt",
+                  "value": "{{ns_par_jkt}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_par_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "Pushed authorization request (RFC 9126) with scope `openid profile email device_sso`, PKCE, `dpop_jkt` (thumbprint of the Hub's DPoP key), a DPoP proof and a private_key_jwt whose aud is the issuer."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const who = 'hub';",
+                  "const pk = L.pkce();",
+                  "pm.environment.set('ns_code_verifier', pk.verifier);",
+                  "pm.variables.set('ns_code_challenge', pk.challenge);",
+                  "pm.environment.set('ns_state', L.uuid().slice(0, 12));",
+                  "pm.environment.set('ns_nonce', L.uuid().slice(0, 12));",
+                  "pm.variables.set('ns_par_who_id', pm.environment.get('ns_' + who + '_id'));",
+                  "pm.variables.set('ns_par_redirect', 'org.badmosip.nativesso.hub://oauth/callback');",
+                  "pm.variables.set('ns_par_scope', 'openid profile email device_sso');",
+                  "pm.variables.set('ns_par_assertion', sign(who));",
+                  "pm.variables.set('ns_par_jkt', L.thumbprint(L.getKey('ns_hub_dpop_key')));",
+                  "dpop('ns_hub_dpop_key', 'POST', '/oauth2/par');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('PAR answers 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('request_uri present', () => pm.expect(r.request_uri).to.be.a('string').and.not.empty);",
+                  "pm.test('expires_in is positive', () => pm.expect(r.expires_in).to.be.above(0));",
+                  "pm.environment.set('ns_request_uri', r.request_uri);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 02 Authorize",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/authorize?client_id={{ns_hub_id}}&request_uri={{ns_request_uri}}",
+            "description": "Redirects to the login page with authId and executionId. The request does not follow the redirect."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.test('authorize redirects to the login page', () => pm.expect(pm.response.code).to.be.oneOf([302, 303, 307]));",
+                  "const q = L.parseUrl(pm.response.headers.get('Location')).params;",
+                  "pm.test('redirect carries no error', () => pm.expect(q.error).to.be.undefined);",
+                  "pm.test('authId and executionId present', () => {",
+                  "  pm.expect(q.authId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(q.executionId).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.environment.set('ns_auth_id', q.authId);",
+                  "pm.environment.set('ns_execution_id', q.executionId);"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Hub 03 Login pages metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/flow/meta?type=APP&id={{ns_hub_id}}&language=en&namespace=auth"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('flow meta answers 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 04 Login screen: start the flow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/flow/execute",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"executionId\": \"{{ns_execution_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The browser takes executionId from the authorize redirect and opens the login page. The headless login helper in e2e/client/fapi.go (runFlow) never opens it and posts the same JSON to /flow/execute; so does this request."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('flow step answers 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "if (j.challengeToken) pm.environment.set('ns_challenge_token', j.challengeToken);",
+                  "const ids = ((j.data && j.data.inputs) || []).map((i) => i.identifier);",
+                  "const act = j.data && j.data.actions && j.data.actions[0];",
+                  "pm.environment.set('ns_action_ref', act ? act.ref : '');",
+                  "console.log('flow ' + j.flowStatus + ' inputs=[' + ids.join(',') + '] action=' + (act ? act.ref : ''));",
+                  "",
+                  "pm.test('flow is INCOMPLETE and asks for the identifier', () => {",
+                  "  pm.expect(j.flowStatus).to.eql('INCOMPLETE');",
+                  "  pm.expect(ids).to.include.members(['username']);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 05 Login screen: enter the UIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/flow/execute",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"executionId\": \"{{ns_execution_id}}\",\n  \"challengeToken\": \"{{ns_challenge_token}}\",\n  \"action\": \"{{ns_action_ref}}\",\n  \"inputs\": {\n    \"username\": \"{{ns_individual_id}}\",\n    \"captcha_token\": \"{{ns_captcha_token}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('flow step answers 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "if (j.challengeToken) pm.environment.set('ns_challenge_token', j.challengeToken);",
+                  "const ids = ((j.data && j.data.inputs) || []).map((i) => i.identifier);",
+                  "const act = j.data && j.data.actions && j.data.actions[0];",
+                  "pm.environment.set('ns_action_ref', act ? act.ref : '');",
+                  "console.log('flow ' + j.flowStatus + ' inputs=[' + ids.join(',') + '] action=' + (act ? act.ref : ''));",
+                  "",
+                  "pm.test('flow is INCOMPLETE and asks for the OTP', () => {",
+                  "  pm.expect(j.flowStatus).to.eql('INCOMPLETE');",
+                  "  pm.expect(ids).to.include('otp');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 06 Login screen: enter the OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/flow/execute",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"executionId\": \"{{ns_execution_id}}\",\n  \"challengeToken\": \"{{ns_challenge_token}}\",\n  \"action\": \"{{ns_action_ref}}\",\n  \"inputs\": {\n    \"otp\": \"{{ns_otp}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('flow step answers 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "if (j.challengeToken) pm.environment.set('ns_challenge_token', j.challengeToken);",
+                  "const ids = ((j.data && j.data.inputs) || []).map((i) => i.identifier);",
+                  "const act = j.data && j.data.actions && j.data.actions[0];",
+                  "pm.environment.set('ns_action_ref', act ? act.ref : '');",
+                  "console.log('flow ' + j.flowStatus + ' inputs=[' + ids.join(',') + '] action=' + (act ? act.ref : ''));",
+                  "",
+                  "pm.test('flow is INCOMPLETE and asks for consent', () => {",
+                  "  pm.expect(j.flowStatus).to.eql('INCOMPLETE');",
+                  "  pm.expect(ids).to.include('consent_decisions');",
+                  "});",
+                  "// The consent prompt lists the claim names the user is asked to release.",
+                  "const prompt = j.data && j.data.additionalData && j.data.additionalData.consentPrompt;",
+                  "pm.environment.set('ns_consent_prompt', prompt || '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 07 Consent screen: allow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/flow/execute",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"executionId\": \"{{ns_execution_id}}\",\n  \"challengeToken\": \"{{ns_challenge_token}}\",\n  \"action\": \"{{ns_action_ref}}\",\n  \"inputs\": {\n    \"consent_decisions\": \"{{ns_consent_decisions}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Approves every purpose and element the consent screen listed; falls back to the registered claims.",
+                  "let purposes;",
+                  "try {",
+                  "  const p = JSON.parse(pm.environment.get('ns_consent_prompt'));",
+                  "  purposes = p.purposes.map((x) => ({ purposeName: x.purposeName, approved: true, elements: (x.elements || []).map((e) => ({ name: e.name, approved: true })) }));",
+                  "} catch (e) {",
+                  "  purposes = [{ purposeName: 'attributes:' + pm.environment.get('ns_hub_id'), approved: true,",
+                  "    elements: ['name', 'email', 'phone_number'].map((n) => ({ name: n, approved: true })) }];",
+                  "}",
+                  "pm.variables.set('ns_consent_decisions', JSON.stringify(JSON.stringify({ approved: true, purposes: purposes })).slice(1, -1));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('consent answers 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('flow is COMPLETE with an assertion', () => {",
+                  "  pm.expect(j.flowStatus).to.eql('COMPLETE');",
+                  "  pm.expect(j.assertion).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.environment.set('ns_assertion', j.assertion);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 08 Callback: flow assertion to authorization code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ns_issuer}}/oauth2/auth/callback",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authId\": \"{{ns_auth_id}}\",\n  \"assertion\": \"{{ns_assertion}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "In the app the browser redirects to the app's custom scheme and the app reads code and state. Here the server's answer to the callback call carries the same URL."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.test('callback answers 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const ru = L.parseUrl(j.redirect_uri || j.redirectUri);",
+                  "pm.test('redirect goes to the Hub app scheme', () => pm.expect(ru.base).to.eql('org.badmosip.nativesso.hub://oauth/callback'));",
+                  "pm.test('state is echoed', () => pm.expect(ru.params.state).to.eql(pm.environment.get('ns_state')));",
+                  "pm.test('iss is the issuer (RFC 9207)', () => pm.expect(ru.params.iss).to.eql(pm.environment.get('ns_issuer')));",
+                  "pm.test('authorization code present', () => pm.expect(ru.params.code).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('ns_code', ru.params.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 09 Token: code for tokens and device_secret",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "text"
+                },
+                {
+                  "key": "code",
+                  "value": "{{ns_code}}",
+                  "type": "text"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "org.badmosip.nativesso.hub://oauth/callback",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_hub_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code_verifier",
+                  "value": "{{ns_code_verifier}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_tok_assertion}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "pm.variables.set('ns_tok_assertion', sign('hub'));",
+                  "dpop('ns_hub_dpop_key', 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.test('token answers 200', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json();",
+                  "pm.test('token_type is DPoP', () => pm.expect(t.token_type.toLowerCase()).to.eql('dpop'));",
+                  "pm.test('device_secret is returned', () => pm.expect(t.device_secret).to.be.a('string').and.not.empty);",
+                  "pm.test('scope includes device_sso', () => pm.expect(t.scope.split(' ')).to.include('device_sso'));",
+                  "const idt = L.decodeJwt(t.id_token).payload;",
+                  "pm.test('id_token aud is the Hub', () => pm.expect([].concat(idt.aud)).to.include(pm.environment.get('ns_hub_id')));",
+                  "pm.test('id_token carries sid', () => pm.expect(idt.sid).to.be.a('string').and.not.empty);",
+                  "pm.test('id_token ds_hash matches the device secret (left 128 bits of SHA-256, base64url)', () =>",
+                  "  pm.expect(idt.ds_hash).to.eql(L.b64u(L.sha256(L.utf8(t.device_secret)).slice(0, 16))));",
+                  "pm.test('id_token nonce matches', () => pm.expect(idt.nonce).to.eql(pm.environment.get('ns_nonce')));",
+                  "let at = null;",
+                  "try { at = L.decodeJwt(t.access_token).payload; } catch (e) { /* opaque token */ }",
+                  "if (at) pm.test('access token is bound to the Hub DPoP key (cnf.jkt)', () =>",
+                  "  pm.expect(at.cnf.jkt).to.eql(L.thumbprint(L.getKey('ns_hub_dpop_key'))));",
+                  "pm.environment.set('ns_hub_access_token', t.access_token);",
+                  "pm.environment.set('ns_hub_id_token', t.id_token);",
+                  "pm.environment.set('ns_device_secret', t.device_secret);",
+                  "pm.environment.set('ns_hub_sub', idt.sub);",
+                  "pm.environment.set('ns_hub_sid', idt.sid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hub 10 Userinfo with the Hub token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/userinfo"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const at = pm.environment.get('ns_hub_access_token');",
+                  "pm.request.headers.upsert({ key: 'Authorization', value: 'DPoP ' + at });",
+                  "dpop('ns_hub_dpop_key', 'GET', '/oauth2/userinfo', at);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.test('userinfo answers 200', () => pm.response.to.have.status(200));",
+                  "// eSignet signs the userinfo response (a JWT); a JSON body is accepted too.",
+                  "const body = pm.response.text().trim();",
+                  "const claims = body.split('.').length === 3 ? L.decodeJwt(body).payload : JSON.parse(body);",
+                  "pm.test('userinfo sub equals the sub of the id_token', () => pm.expect(claims.sub).to.eql(pm.environment.get('ns_hub_sub')));",
+                  "pm.test('userinfo has the email claim', () => pm.expect(claims.email).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Card 01 Token exchange with the device secret",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "Grant `urn:ietf:params:oauth:grant-type:token-exchange`: subject_token = the Hub id_token, actor_token = device_secret, audience = the issuer, scope `openid email`. The Health Card signs its own client assertion; the DPoP proof is signed with the Hub's key, the one the device secret is bound to. In the Android apps the Hub signs this proof for the Health Card."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.test('exchange answers 200', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json();",
+                  "pm.test('token_type is DPoP', () => pm.expect(t.token_type.toLowerCase()).to.eql('dpop'));",
+                  "pm.test('issued_token_type is access_token', () => pm.expect(t.issued_token_type).to.eql('urn:ietf:params:oauth:token-type:access_token'));",
+                  "pm.test('scope has no device_sso', () => pm.expect(t.scope.split(' ')).to.not.include('device_sso'));",
+                  "pm.test('scope is the requested subset', () => pm.expect(t.scope.split(' ').sort()).to.eql(['email', 'openid']));",
+                  "const idt = L.decodeJwt(t.id_token).payload;",
+                  "pm.test('id_token aud is the Health Card, not the Hub', () => {",
+                  "  pm.expect([].concat(idt.aud)).to.include(pm.environment.get('ns_card_id'));",
+                  "  pm.expect([].concat(idt.aud)).to.not.include(pm.environment.get('ns_hub_id'));",
+                  "});",
+                  "pm.test('id_token has the same sub as the Hub id_token', () => pm.expect(idt.sub).to.eql(pm.environment.get('ns_hub_sub')));",
+                  "pm.test('id_token has the same sid as the Hub id_token', () => pm.expect(idt.sid).to.eql(pm.environment.get('ns_hub_sid')));",
+                  "pm.test('no new device_secret is issued', () => pm.expect(t.device_secret).to.be.undefined);",
+                  "pm.environment.set('ns_card_access_token', t.access_token);",
+                  "pm.environment.set('ns_card_id_token', t.id_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Card 02 Userinfo with the Health Card token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/userinfo",
+            "description": "The Health Card token is bound to the Hub's DPoP key, so the userinfo proof is signed with that key and carries `ath`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const at = pm.environment.get('ns_card_access_token');",
+                  "pm.request.headers.upsert({ key: 'Authorization', value: 'DPoP ' + at });",
+                  "dpop('ns_hub_dpop_key', 'GET', '/oauth2/userinfo', at);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.test('userinfo answers 200', () => pm.response.to.have.status(200));",
+                  "// eSignet signs the userinfo response (a JWT); a JSON body is accepted too.",
+                  "const body = pm.response.text().trim();",
+                  "const claims = body.split('.').length === 3 ? L.decodeJwt(body).payload : JSON.parse(body);",
+                  "pm.test('userinfo sub equals the sub of the id_token', () => pm.expect(claims.sub).to.eql(pm.environment.get('ns_hub_sub')));",
+                  "pm.test('userinfo has the email claim (scope email)', () => pm.expect(claims.email).to.be.a('string').and.not.empty);",
+                  "pm.test('userinfo has no phone_number (scope phone not granted)', () => pm.expect(claims.phone_number).to.be.undefined);",
+                  "pm.test('userinfo has no name claim (scope profile not granted to the Health Card)', () => pm.expect(claims.name).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 01 Exchange: scope wider than the Hub grant -> interaction_required",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "The Hub was granted `openid profile email device_sso`. `phone` needs the user's consent, so the server asks the app to run its own authorization request (PAR with `prompt=consent`) instead of issuing tokens. Server setting `oauth.native_sso.scope_exceeded_error` can switch this error to `invalid_scope`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.scope = 'openid email phone';",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is interaction_required', () => pm.expect(e.error).to.be.oneOf([\"interaction_required\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);",
+                  "",
+                  "pm.test('error_description names the missing scope', () => pm.expect(pm.response.json().error_description).to.include('phone'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 02 Exchange: device_sso in the requested scope -> invalid_scope",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.scope = 'openid email device_sso';",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_scope', () => pm.expect(e.error).to.be.oneOf([\"invalid_scope\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 03 Exchange: audience is not the issuer -> invalid_target",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.audience = 'https://other.example.com';",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_target', () => pm.expect(e.error).to.be.oneOf([\"invalid_target\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 04 Exchange: old device-secret token type -> invalid_request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.actor_token_type = 'urn:x-oath:params:oauth:token-type:device-secret';",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_request', () => pm.expect(e.error).to.be.oneOf([\"invalid_request\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 05 Exchange: tampered device secret -> invalid_request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.actor_token = f.actor_token.slice(0, -4) + (f.actor_token.slice(-4) === 'AAAA' ? 'BBBB' : 'AAAA');",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_request', () => pm.expect(e.error).to.be.oneOf([\"invalid_request\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 06 Exchange: DPoP proof from another key -> invalid_grant",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "The device secret is bound to the Hub's DPoP key (cnf.jkt). A proof signed by another key must not unlock it."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "dpopKey = 'ns_card_key';",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_grant', () => pm.expect(e.error).to.be.oneOf([\"invalid_grant\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 07 Exchange: no DPoP proof -> invalid_dpop_proof",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "sendDpop = false;",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_dpop_proof', () => pm.expect(e.error).to.be.oneOf([\"invalid_dpop_proof\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 08 Exchange: no actor_token -> invalid_request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "With `oauth.native_sso.exchange_only: true` the token-exchange grant works only with a device secret."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.actor_token = null; f.actor_token_type = null;",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_request', () => pm.expect(e.error).to.be.oneOf([\"invalid_request\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 09 Exchange: client of another relying party -> invalid_request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "The Hub and the app must belong to one relying party."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.client_id = pm.environment.get('ns_other_id'); f.client_assertion = sign('other');",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_request', () => pm.expect(e.error).to.be.oneOf([\"invalid_request\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 10 Exchange: client without the token-exchange grant -> unauthorized_client",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.client_id = pm.environment.get('ns_plain_id'); f.client_assertion = sign('plain');",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is unauthorized_client', () => pm.expect(e.error).to.be.oneOf([\"unauthorized_client\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 11 PAR with device_sso from a client that does not allow it -> invalid_scope",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/par",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "{{ns_par_who_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{ns_par_redirect}}",
+                  "type": "text"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_par_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "{{ns_state}}",
+                  "type": "text"
+                },
+                {
+                  "key": "nonce",
+                  "value": "{{ns_nonce}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code_challenge",
+                  "value": "{{ns_code_challenge}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code_challenge_method",
+                  "value": "S256",
+                  "type": "text"
+                },
+                {
+                  "key": "dpop_jkt",
+                  "value": "{{ns_par_jkt}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_par_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "`device_sso` is accepted only for a client whose additionalConfig.allowed_authorization_scopes lists it."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const who = 'plain';",
+                  "const pk = L.pkce();",
+                  "pm.environment.set('ns_code_verifier', pk.verifier);",
+                  "pm.variables.set('ns_code_challenge', pk.challenge);",
+                  "pm.environment.set('ns_state', L.uuid().slice(0, 12));",
+                  "pm.environment.set('ns_nonce', L.uuid().slice(0, 12));",
+                  "pm.variables.set('ns_par_who_id', pm.environment.get('ns_' + who + '_id'));",
+                  "pm.variables.set('ns_par_redirect', 'org.badmosip.nativesso.plain://oauth/callback');",
+                  "pm.variables.set('ns_par_scope', 'openid email device_sso');",
+                  "pm.variables.set('ns_par_assertion', sign(who));",
+                  "pm.variables.set('ns_par_jkt', L.thumbprint(L.getKey('ns_hub_dpop_key')));",
+                  "dpop('ns_hub_dpop_key', 'POST', '/oauth2/par');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('PAR is refused with 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is invalid_scope', () => pm.expect(e.error).to.eql('invalid_scope'));",
+                  "pm.test('no request_uri is returned', () => pm.expect(e.request_uri).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 12 Userinfo without a DPoP proof -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/userinfo"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({ key: 'Authorization', value: 'DPoP ' + pm.environment.get('ns_card_access_token') });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('userinfo without a proof answers 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Neg 13 Userinfo with the Bearer scheme for a DPoP-bound token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/userinfo"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('ns_card_access_token') });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('a DPoP-bound token used as Bearer is refused with 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "99 Cleanup: remove keys and tokens from the environment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/jwks"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "['hub', 'card', 'plain', 'other'].forEach((n) => ['key', 'pub', 'id'].forEach((s) => pm.environment.unset('ns_' + n + '_' + s)));",
+                  "['ns_hub_dpop_key', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',",
+                  " 'ns_card_id_token', 'ns_code', 'ns_code_verifier', 'ns_assertion', 'ns_challenge_token', 'ns_request_uri',",
+                  " 'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt'].forEach((k) => pm.environment.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('JWKS answers 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [
@@ -1836,6 +4172,11 @@
     {
       "key": "introspect_client_assertion",
       "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ns_lib",
+      "value": "// SPDX-License-Identifier: MIT\n// Copyright (c) 2026 Team Badmosip\n//\n// Helper library of the \"Native SSO\" folder. build.py stores this file in the collection variable\n// `ns_lib`; each request script loads it with\n//   const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);\n// It needs only CryptoJS (SHA-256, HMAC-SHA-256) and BigInt, both present in the Postman app and in\n// newman, because newman has no crypto.subtle. ES256 (ECDSA over P-256) is done here in BigInt.\n// Keys are made at run time and kept only in variables; nothing is stored in the collection file.\n'use strict';\n\nconst P = BigInt('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');\nconst N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');\nconst A = P - 3n;\nconst GX = BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296');\nconst GY = BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5');\n\nconst mod = (a, m) => { const r = a % m; return r >= 0n ? r : r + m; };\nfunction inv(a, m) {\n  let r0 = mod(a, m), r1 = m, s0 = 1n, s1 = 0n;\n  while (r1 !== 0n) {\n    const q = r0 / r1;\n    const r2 = r0 - q * r1; r0 = r1; r1 = r2;\n    const s2 = s0 - q * s1; s0 = s1; s1 = s2;\n  }\n  return mod(s0, m);\n}\n// Jacobian coordinates (X, Y, Z); the point at infinity has Z = 0.\nfunction dbl(p) {\n  const X = p[0], Y = p[1], Z = p[2];\n  if (Z === 0n || Y === 0n) return [0n, 1n, 0n];\n  const YY = mod(Y * Y, P), S = mod(4n * X * YY, P), ZZ = mod(Z * Z, P);\n  const M = mod(3n * X * X + A * ZZ * ZZ, P);\n  const X3 = mod(M * M - 2n * S, P);\n  return [X3, mod(M * (S - X3) - 8n * YY * YY, P), mod(2n * Y * Z, P)];\n}\nfunction add(p, q) {\n  if (p[2] === 0n) return q;\n  if (q[2] === 0n) return p;\n  const X1 = p[0], Y1 = p[1], Z1 = p[2], X2 = q[0], Y2 = q[1], Z2 = q[2];\n  const Z1Z1 = mod(Z1 * Z1, P), Z2Z2 = mod(Z2 * Z2, P);\n  const U1 = mod(X1 * Z2Z2, P), U2 = mod(X2 * Z1Z1, P);\n  const S1 = mod(Y1 * Z2 * Z2Z2, P), S2 = mod(Y2 * Z1 * Z1Z1, P);\n  if (U1 === U2) return S1 === S2 ? dbl(p) : [0n, 1n, 0n];\n  const H = mod(U2 - U1, P), R = mod(S2 - S1, P), HH = mod(H * H, P), HHH = mod(H * HH, P), V = mod(U1 * HH, P);\n  const X3 = mod(R * R - HHH - 2n * V, P);\n  return [X3, mod(R * (V - X3) - S1 * HHH, P), mod(H * Z1 * Z2, P)];\n}\nfunction mul(k, pt) {\n  let r = [0n, 1n, 0n], q = pt;\n  while (k > 0n) { if (k & 1n) r = add(r, q); q = dbl(q); k >>= 1n; }\n  return r;\n}\nfunction affine(p) {\n  const zi = inv(p[2], P), zi2 = mod(zi * zi, P);\n  return [mod(p[0] * zi2, P), mod(p[1] * zi2 * zi, P)];\n}\n\n// bytes <-> BigInt, base64url, CryptoJS word arrays\nconst toBig = (bytes) => BigInt('0x' + (bytes.map((b) => b.toString(16).padStart(2, '0')).join('') || '0'));\nfunction toBytes(n, len) {\n  const h = n.toString(16).padStart(len * 2, '0'), out = [];\n  for (let i = 0; i < len; i++) out.push(parseInt(h.substr(i * 2, 2), 16));\n  return out;\n}\nconst toWords = (bytes) => CryptoJS.lib.WordArray.create(new Uint8Array(bytes));\nfunction fromWords(w) {\n  const out = [];\n  for (let i = 0; i < w.sigBytes; i++) out.push((w.words[i >>> 2] >>> (24 - (i % 4) * 8)) & 255);\n  return out;\n}\nconst utf8 = (s) => Array.from(unescape(encodeURIComponent(s)), (c) => c.charCodeAt(0));\nfunction b64u(bytes) {\n  return CryptoJS.enc.Base64.stringify(toWords(bytes)).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\n}\nconst fromB64u = (s) => fromWords(CryptoJS.enc.Base64.parse(s.replace(/-/g, '+').replace(/_/g, '/')));\nconst b64uStr = (s) => b64u(utf8(s));\nconst sha256 = (bytes) => fromWords(CryptoJS.SHA256(toWords(bytes)));\nconst hmac = (key, bytes) => fromWords(CryptoJS.HmacSHA256(toWords(bytes), toWords(key)));\n\n// Random bytes: crypto.getRandomValues when the runtime has it, else a SHA-256 mix of Math.random,\n// time and CryptoJS random words (test keys only).\nlet counter = 0;\nfunction randomBytes(n) {\n  try {\n    if (typeof crypto !== 'undefined' && crypto.getRandomValues) return Array.from(crypto.getRandomValues(new Uint8Array(n)));\n  } catch (e) { /* fall through */ }\n  const out = [];\n  while (out.length < n) {\n    const seed = utf8([Math.random(), Math.random(), Date.now(), ++counter].join(':'));\n    out.push(...sha256(seed.concat(fromWords(CryptoJS.lib.WordArray.random(16)))));\n  }\n  return out.slice(0, n);\n}\nfunction uuid() {\n  const b = randomBytes(16);\n  b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;\n  const h = b.map((x) => x.toString(16).padStart(2, '0')).join('');\n  return [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20)].join('-');\n}\n\n// Deterministic nonce k (RFC 6979, SHA-256) so signing never depends on a weak random source.\nfunction nonceK(d, hash) {\n  const x = toBytes(d, 32), h1 = toBytes(mod(toBig(hash), N), 32);\n  let V = new Array(32).fill(1), K = new Array(32).fill(0);\n  K = hmac(K, V.concat([0], x, h1)); V = hmac(K, V);\n  K = hmac(K, V.concat([1], x, h1)); V = hmac(K, V);\n  for (;;) {\n    V = hmac(K, V);\n    const k = toBig(V);\n    if (k > 0n && k < N) return k;\n    K = hmac(K, V.concat([0])); V = hmac(K, V);\n  }\n}\n// Returns the 64-byte r||s signature (JWS ES256 form) of the message bytes.\nfunction ecdsa(d, msg) {\n  const hash = sha256(msg), z = toBig(hash);\n  for (;;) {\n    const k = nonceK(d, hash);\n    const r = mod(affine(mul(k, [GX, GY, 1n]))[0], N);\n    if (r === 0n) continue;\n    const s = mod(inv(k, N) * (z + r * d), N);\n    if (s === 0n) continue;\n    return toBytes(r, 32).concat(toBytes(s, 32));\n  }\n}\n\n// A key is {kty:'EC', crv:'P-256', x, y, d, kid}; publicJwk() drops d.\nfunction newKey() {\n  let d;\n  do { d = toBig(randomBytes(32)); } while (d <= 0n || d >= N);\n  const xy = affine(mul(d, [GX, GY, 1n]));\n  const jwk = { kty: 'EC', crv: 'P-256', x: b64u(toBytes(xy[0], 32)), y: b64u(toBytes(xy[1], 32)), d: b64u(toBytes(d, 32)) };\n  jwk.kid = thumbprint(jwk);\n  return jwk;\n}\nconst publicJwk = (k) => ({ kty: k.kty, crv: k.crv, x: k.x, y: k.y });\n// RFC 7638: SHA-256 over the members crv, kty, x, y in that order.\nfunction thumbprint(k) {\n  return b64u(sha256(utf8('{\"crv\":\"' + k.crv + '\",\"kty\":\"' + k.kty + '\",\"x\":\"' + k.x + '\",\"y\":\"' + k.y + '\"}')));\n}\nfunction jws(header, payload, key) {\n  const input = b64uStr(JSON.stringify(header)) + '.' + b64uStr(JSON.stringify(payload));\n  return input + '.' + b64u(ecdsa(toBig(fromB64u(key.d)), utf8(input)));\n}\nconst now = () => Math.floor(Date.now() / 1000);\n// private_key_jwt. The audience is the issuer: this server rejects an endpoint URL as audience.\nconst clientAssertion = (clientId, key, aud) =>\n  jws({ alg: 'ES256', typ: 'JWT', kid: key.kid }, { iss: clientId, sub: clientId, aud: aud, jti: uuid(), iat: now(), exp: now() + 120 }, key);\n// DPoP proof (RFC 9449). ath is set for requests that carry an access token.\nfunction dpopProof(key, htm, htu, accessToken, nonce) {\n  const p = { jti: uuid(), htm: htm, htu: htu, iat: now() };\n  if (accessToken) p.ath = b64u(sha256(utf8(accessToken)));\n  if (nonce) p.nonce = nonce;\n  return jws({ typ: 'dpop+jwt', alg: 'ES256', jwk: publicJwk(key) }, p, key);\n}\nfunction pkce() {\n  const verifier = b64u(randomBytes(32));\n  return { verifier: verifier, challenge: b64u(sha256(utf8(verifier))) };\n}\nfunction decodeJwt(token) {\n  const part = (s) => JSON.parse(CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(s.replace(/-/g, '+').replace(/_/g, '/'))));\n  const p = String(token).split('.');\n  return { header: part(p[0]), payload: part(p[1]) };\n}\n// Splits a URL into the part before the query and a map of its query parameters (newman has no URL class).\nfunction parseUrl(u) {\n  const i = String(u).indexOf('?');\n  const base = i < 0 ? String(u) : String(u).slice(0, i);\n  const params = {};\n  if (i >= 0) {\n    String(u).slice(i + 1).split('#')[0].split('&').forEach((kv) => {\n      if (!kv) return;\n      const j = kv.indexOf('=');\n      const k = decodeURIComponent((j < 0 ? kv : kv.slice(0, j)).replace(/\\+/g, ' '));\n      params[k] = j < 0 ? '' : decodeURIComponent(kv.slice(j + 1).replace(/\\+/g, ' '));\n    });\n  }\n  return { base: base, params: params };\n}\n// Reads a variable (environment first, then collection).\nconst getVar = (name) => pm.environment.get(name) || pm.collectionVariables.get(name);\nconst getKey = (name) => {\n  const v = getVar(name);\n  if (!v) throw new Error('Variable ' + name + ' is empty: run the Setup requests first');\n  return JSON.parse(v);\n};\n\nreturn { newKey, publicJwk, thumbprint, jws, clientAssertion, dpopProof, pkce, decodeJwt, parseUrl, b64u, b64uStr, sha256, utf8, uuid, getVar, getKey, now };\n",
       "type": "string"
     }
   ]

@@ -11,7 +11,9 @@ Variable names follow the standard eSignet Postman convention (snake_case: `base
 | File | Purpose |
 |------|---------|
 | `Go-eSignet (local).postman_environment.json` | Environment variables (`baseUrl`, audiences, credentials, runtime tokens/keys) |
-| `Go-eSignet.postman_collection.json` | The collection: client management + mock identity creation + a single FAPI2.0 (PAR + DPoP) flow covering OTP, password, and Sunbird KBI authentication + Sunbird registry CRUD |
+| `Go-eSignet.postman_collection.json` | The collection: client management + mock identity creation + a single FAPI2.0 (PAR + DPoP) flow covering OTP, password, and Sunbird KBI authentication + Sunbird registry CRUD + the **Native SSO** folder (see [Native SSO](#native-sso)) |
+| `Go-eSignet Native SSO (local stack).postman_environment.json` | Environment for the Native SSO folder: issuer `http://localhost:38088`, the seeded user, empty run-time variables |
+| `native-sso/` | Source of the Native SSO folder: `lib.js` (key, client assertion and DPoP helpers), `build.py` (writes the folder into the collection), `run.sh` (newman) |
 
 ## Quick start
 
@@ -139,3 +141,68 @@ Both **Initiate PAR** and **Exchange Code for Token** sign their own `private_ke
 | `Flow execute — sunbird KBI` fails with a "Set sunbird_*" error | Run **Sunbird Registry → Create Policy (Identity)** first to seed `sunbird_individual_id`/`sunbird_full_name`/`sunbird_dob`, and make sure `authContextRefs` on the client includes `"mosip:idp:acr:knowledge"` |
 | A `Flow execute` step returns an unexpected-input error | You ran a branch that doesn't match the ACR the server actually offered after **select acr** — check the response's `data.inputs` and run the matching branch only (see [FAPI2.0 flow](#fapi20-flow)) |
 | `Flow execute — enter uin` captcha rejected | The request sends a hardcoded placeholder (`test-captcha-token`); this only passes if the server's captcha validation is disabled/mocked for your environment |
+
+## Native SSO
+
+The **Native SSO** folder runs OpenID Connect Native SSO for Mobile Apps 1.0 end to end against the local stack
+(`deploy/` at the repository root): a first app ("Hub") signs in with `device_sso` and receives a `device_secret`; a
+second app ("Health Card") of the same relying party signs in without a browser by token exchange. It has 31
+requests: setup (discovery check, four client registrations), the Hub sign-in, the Health Card exchange and userinfo,
+13 negative requests with tests, and a cleanup request.
+
+### Run it in newman
+
+```bash
+bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh
+```
+
+`with-stack.sh` starts the stack, runs the command and stops the stack. `run.sh` calls
+`newman run Go-eSignet.postman_collection.json -e "Go-eSignet Native SSO (local stack).postman_environment.json" --folder "Native SSO"`.
+It needs newman 6. Expected result: 31 requests, 0 failed.
+
+### Run it in the Postman app
+
+1. Start the stack: `bash deploy/stack.sh up` (or `PS03_KEEP_STACK=1 bash scripts/with-stack.sh true`). Stop it with `bash deploy/stack.sh down`.
+2. Import the collection and the environment `Go-eSignet Native SSO (local stack)`, select it.
+3. Run the **Native SSO** folder top to bottom (Runner, or each request in order).
+
+### How the steps work
+
+| Part | What the request scripts do |
+|---|---|
+| Keys | `01 Generate keys and register the Hub` makes four ES256 (P-256) client key pairs and the Hub's DPoP key in its pre-request script. The keys live in environment variables of the run (initial values stay empty); `99 Cleanup` unsets them. Nothing secret is stored in the collection or the environment file. |
+| Client assertion | Every token, PAR request is authenticated with a `private_key_jwt` (ES256) whose `aud` is the **issuer**, `http://localhost:38088`. The upstream folders use the endpoint URL; this server answers `invalid_client` to that. |
+| DPoP | Each request sets its `DPoP` header: `htm` and `htu` of that request, `ath` for userinfo. The Hub's DPoP key signs the Hub requests **and the Health Card's token exchange**, because the device secret is bound to the Hub's key (in the Android apps the Hub signs that proof for the Health Card). |
+| Login | `Hub 04` to `Hub 07` post the screens of the login page to `/flow/execute` (identifier and captcha token, OTP, consent). No browser is opened: the collection takes `authId` and `executionId` from the `Location` header of `Hub 02 Authorize` (the request does not follow the redirect), and the code from the `/oauth2/auth/callback` answer. The headless login helper `e2e/client/fapi.go` (`runFlow`) posts the same JSON in the same order, so the two can be compared. Seeded user: UIN `1774231323`, OTP `111111`. |
+| Re-consent | `Neg 01` shows the `interaction_required` answer (scope `openid email phone`, the Hub was granted `openid profile email device_sso`). The follow-up (the Health Card's own PAR with `prompt=consent`, a new login, its own token request) uses the same requests as the Hub sign-in with the Health Card's client and key; the Go e2e suite and the Android test `ChildAppReconsentTest` run it. |
+
+### Why it runs in newman
+
+newman has no `crypto.subtle` and no top-level `await`, so the upstream scripts fail there (24 of 26 assertions failed
+on 2026-10-04). The Native SSO scripts use only `CryptoJS` and `BigInt`: `native-sso/lib.js` implements ES256
+(ECDSA over P-256 with an RFC 6979 nonce), JWK thumbprints, PKCE, client assertions and DPoP proofs, and is stored in
+the collection variable `ns_lib`, which each script loads with `new Function(...)`. The other folders still need the
+Postman desktop app. To change the folder, edit `native-sso/lib.js` or `native-sso/build.py` and run
+`python esignet/postman-collection/native-sso/build.py`; do not edit the folder in the app and export it over the file.
+
+### Environment variables of the Native SSO folder
+
+| Variable | Set by | Meaning |
+|---|---|---|
+| `ns_issuer` | you | Issuer and base URL, `http://localhost:38088` |
+| `ns_individual_id`, `ns_otp`, `ns_captcha_token` | you | Seeded user, its OTP, any non-empty captcha token (the stack has no captcha validator) |
+| `client_mgmt_token` | you | Bearer JWT for `/client-mgmt/*`; empty on the local stack |
+| `ns_hub_*`, `ns_card_*`, `ns_plain_*`, `ns_other_*` (`_id`, `_key`, `_pub`) | script | Client ids and key pairs of the Hub, the Health Card, a client without `device_sso`, and an app of another relying party |
+| `ns_hub_dpop_key` | script | The Hub's DPoP key |
+| `ns_request_uri`, `ns_auth_id`, `ns_execution_id`, `ns_challenge_token`, `ns_action_ref`, `ns_assertion`, `ns_code`, `ns_code_verifier`, `ns_state`, `ns_nonce` | script | State of the authorization and login steps |
+| `ns_device_secret`, `ns_hub_id_token`, `ns_hub_access_token`, `ns_card_id_token`, `ns_card_access_token`, `ns_hub_sub`, `ns_hub_sid` | script | Results of the token requests |
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `invalid_client` at PAR or token | The client assertion `aud` is not the issuer, or `ns_issuer` differs from the server's issuer |
+| `ReferenceError: BigInt` or a script error naming `new Function` | Postman or newman too old; use newman 6 or Postman 10 and newer |
+| `Variable ns_hub_key is empty` | Run `01 Generate keys and register the Hub` first (it makes every key) |
+| `Neg 08` returns something other than `invalid_request` | `oauth.native_sso.exchange_only` is `false` on the server |
+| Card userinfo has a `name` claim | The server image predates the commit that limits userinfo to the granted scope; rebuild the stack |
