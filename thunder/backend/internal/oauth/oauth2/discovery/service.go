@@ -68,7 +68,8 @@ func (ds *discoveryService) GetOAuth2AuthorizationServerMetadata(
 		metadata.BackchannelTokenDeliveryModesSupported = []string{"poll"}
 		metadata.BackchannelUserCodeParameterSupported = false
 	}
-	if ds.cfg.OAuth.TokenRevocation.IsEnabled() {
+	// With Native SSO the endpoint also exists without the deny list: apps revoke device secrets there.
+	if ds.cfg.OAuth.TokenRevocation.IsEnabled() || ds.cfg.NativeSSOEnabled {
 		metadata.RevocationEndpoint = ds.getRevocationEndpoint()
 	}
 	if ds.cfg.OAuth.DCR.IsEnabled() {

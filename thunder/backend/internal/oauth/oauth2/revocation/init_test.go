@@ -68,7 +68,7 @@ func (suite *InitTestSuite) TestInitialize_RegistersRoutes() {
 	mux := http.NewServeMux()
 	_, revocationService := Initialize(suite.mockJWTService, nil, time.Hour, true)
 
-	RegisterRoutes(mux, suite.mockJWTService, nil, nil, suite.mockDiscoveryService, revocationService, nil, 0)
+	RegisterRoutes(mux, suite.mockJWTService, nil, nil, suite.mockDiscoveryService, revocationService, nil, nil, 0)
 
 	// The pattern includes the method because of CORS middleware wrapping.
 	_, pattern := mux.Handler(&http.Request{Method: "POST", URL: &url.URL{Path: "/oauth2/revoke"}})

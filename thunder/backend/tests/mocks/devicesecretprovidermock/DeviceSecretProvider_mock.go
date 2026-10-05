@@ -178,3 +178,62 @@ func (_c *DeviceSecretProviderMock_ValidateDeviceSecret_Call) RunAndReturn(run f
 	_c.Call.Return(run)
 	return _c
 }
+
+// EndDeviceSecretSession provides a mock function for the type DeviceSecretProviderMock
+func (_mock *DeviceSecretProviderMock) EndDeviceSecretSession(ctx context.Context, claims *providers.DeviceSecretClaims) *common.ServiceError {
+	ret := _mock.Called(ctx, claims)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EndDeviceSecretSession")
+	}
+
+	var r0 *common.ServiceError
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *providers.DeviceSecretClaims) *common.ServiceError); ok {
+		r0 = returnFunc(ctx, claims)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*common.ServiceError)
+		}
+	}
+	return r0
+}
+
+// DeviceSecretProviderMock_EndDeviceSecretSession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EndDeviceSecretSession'
+type DeviceSecretProviderMock_EndDeviceSecretSession_Call struct {
+	*mock.Call
+}
+
+// EndDeviceSecretSession is a helper method to define mock.On call
+//   - ctx context.Context
+//   - claims *providers.DeviceSecretClaims
+func (_e *DeviceSecretProviderMock_Expecter) EndDeviceSecretSession(ctx interface{}, claims interface{}) *DeviceSecretProviderMock_EndDeviceSecretSession_Call {
+	return &DeviceSecretProviderMock_EndDeviceSecretSession_Call{Call: _e.mock.On("EndDeviceSecretSession", ctx, claims)}
+}
+
+func (_c *DeviceSecretProviderMock_EndDeviceSecretSession_Call) Run(run func(ctx context.Context, claims *providers.DeviceSecretClaims)) *DeviceSecretProviderMock_EndDeviceSecretSession_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *providers.DeviceSecretClaims
+		if args[1] != nil {
+			arg1 = args[1].(*providers.DeviceSecretClaims)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *DeviceSecretProviderMock_EndDeviceSecretSession_Call) Return(serviceError *common.ServiceError) *DeviceSecretProviderMock_EndDeviceSecretSession_Call {
+	_c.Call.Return(serviceError)
+	return _c
+}
+
+func (_c *DeviceSecretProviderMock_EndDeviceSecretSession_Call) RunAndReturn(run func(ctx context.Context, claims *providers.DeviceSecretClaims) *common.ServiceError) *DeviceSecretProviderMock_EndDeviceSecretSession_Call {
+	_c.Call.Return(run)
+	return _c
+}

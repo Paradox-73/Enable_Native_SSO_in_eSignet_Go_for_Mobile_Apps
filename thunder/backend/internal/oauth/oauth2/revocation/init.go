@@ -32,7 +32,10 @@ func Initialize(
 		jwtService, store, tokenFamilyRevocationTTL, revokeTokenFamilyOnExplicit, observabilitySvc)
 }
 
-// RegisterRoutes registers the RFC 7009 revocation endpoint using the shared revocation service.
+// RegisterRoutes registers the RFC 7009 revocation endpoint. revocationService revokes the engine's
+// JWTs and is nil when token revocation is turned off; deviceSecretProvider revokes OpenID Connect
+// Native SSO device secrets and is nil when Native SSO is off. The caller registers the routes only
+// when at least one of them is set.
 func RegisterRoutes(
 	mux *http.ServeMux,
 	jwtService jwt.JWTServiceInterface,
@@ -40,10 +43,11 @@ func RegisterRoutes(
 	authnProvider providers.AuthnProviderManager,
 	discoveryService discovery.DiscoveryServiceInterface,
 	revocationService RevocationServiceInterface,
+	deviceSecretProvider providers.DeviceSecretProvider,
 	jtiStore jti.JTIStoreInterface,
 	leeway int64,
 ) {
-	revocationHandler := newRevocationHandler(revocationService)
+	revocationHandler := newRevocationHandler(revocationService, deviceSecretProvider)
 	registerRoutes(mux, revocationHandler, actorProvider, authnProvider, jwtService, discoveryService,
 		jtiStore, leeway)
 }

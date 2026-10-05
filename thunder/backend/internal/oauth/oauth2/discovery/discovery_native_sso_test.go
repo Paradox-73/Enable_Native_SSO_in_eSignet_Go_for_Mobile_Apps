@@ -85,3 +85,20 @@ func (suite *DiscoveryTestSuite) TestDiscovery_NativeSSONotAdvertisedWithoutToke
 	suite.False(metadata.NativeSSOSupported)
 	suite.NotContains(metadata.ScopesSupported, constants.ScopeDeviceSSO)
 }
+
+// Rule R27: with a provider the revocation endpoint is advertised even when the deny list is off,
+// because apps revoke device secrets there.
+func (suite *DiscoveryTestSuite) TestDiscovery_NativeSSOAdvertisesRevocationEndpoint() {
+	cfg := suite.oauthCfg
+	cfg.OAuth.TokenRevocation.Enabled = boolPtr(false)
+	cfg.NativeSSOEnabled = true
+	svc := newDiscoveryService(suite.cryptoMock, newTestJWEService(suite.cryptoMock), cfg)
+
+	metadata := svc.GetOAuth2AuthorizationServerMetadata(context.Background())
+
+	suite.Equal(cfg.BaseURL+constants.OAuth2RevokeEndpoint, metadata.RevocationEndpoint)
+
+	cfg.NativeSSOEnabled = false
+	svc = newDiscoveryService(suite.cryptoMock, newTestJWEService(suite.cryptoMock), cfg)
+	suite.Empty(svc.GetOAuth2AuthorizationServerMetadata(context.Background()).RevocationEndpoint)
+}

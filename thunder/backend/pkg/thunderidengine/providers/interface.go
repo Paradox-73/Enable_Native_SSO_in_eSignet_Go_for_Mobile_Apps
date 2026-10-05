@@ -237,6 +237,12 @@ type DeviceSecretProvider interface {
 	// issuer, ErrorDeviceSecretSessionEnded for a genuine value whose login session has ended, and
 	// a server error for an operational failure.
 	ValidateDeviceSecret(ctx context.Context, deviceSecret string) (*DeviceSecretClaims, *common.ServiceError)
+
+	// EndDeviceSecretSession ends the login session of a device secret that ValidateDeviceSecret
+	// accepted, so that it and every other device secret of that session are refused from then on
+	// with ErrorDeviceSecretSessionEnded. The engine calls it when the client the device secret was
+	// issued to revokes it (RFC 7009). Ending a session that has already ended is not an error.
+	EndDeviceSecretSession(ctx context.Context, claims *DeviceSecretClaims) *common.ServiceError
 }
 
 // RuntimeStoreProvider defines the interface for runtime store operations.

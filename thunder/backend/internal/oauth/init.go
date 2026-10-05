@@ -73,12 +73,15 @@ func Initialize(
 	// The revocation services are constructed by the service manager, not here: the session service
 	// needs the same criteria revoker, and it is wired before the OAuth engine. This registers the
 	// RFC 7009 routes against the already-built service.
-	if cfg.OAuth.TokenRevocation.IsEnabled() {
-		revocation.RegisterRoutes(mux, jwtService, actorProvider, authnProvider, discoveryService,
-			revocationSvc, jtiStore, cfg.JWT.Leeway)
-	} else {
+	if !cfg.OAuth.TokenRevocation.IsEnabled() {
 		enforcementService = nil
 		revocationSvc = nil
+	}
+	// With Native SSO on, the endpoint exists even without the deny list: the app a device secret was
+	// issued to revokes it there, which ends its login session in the DeviceSecretProvider.
+	if revocationSvc != nil || deviceSecretProvider != nil {
+		revocation.RegisterRoutes(mux, jwtService, actorProvider, authnProvider, discoveryService,
+			revocationSvc, deviceSecretProvider, jtiStore, cfg.JWT.Leeway)
 	}
 
 	tokenBuilder, tokenValidator := tokenservice.Initialize(

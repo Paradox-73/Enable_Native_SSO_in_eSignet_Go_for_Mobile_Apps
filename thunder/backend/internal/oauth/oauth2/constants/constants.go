@@ -160,6 +160,12 @@ const (
 // token exchange keeps rejecting it; only the Native SSO profile may accept it.
 const TokenTypeIdentifierDeviceSecret = TokenTypeIdentifier(providers.TokenTypeDeviceSecret)
 
+// TokenTypeHintDeviceSecret is the token_type_hint (RFC 7009 2.1) with which the client a device
+// secret was issued to revokes it, ending its login session.
+//
+//nolint:gosec // Token type hint, not a credential
+const TokenTypeHintDeviceSecret = "device_secret"
+
 // supportedTokenTypeIdentifiers is the single source of truth for all supported token type identifiers.
 var supportedTokenTypeIdentifiers = []TokenTypeIdentifier{
 	TokenTypeIdentifierAccessToken,
