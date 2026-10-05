@@ -274,6 +274,57 @@ class HubAuthenticatorTest {
     }
 
     @Test
+    fun `sign out ends the device secret session on the server with Hub's client key`() {
+        esignet.deviceSecret = "ds-" + "y".repeat(60)
+        val hub = authenticator()
+        hub.startLogin(shareWithFamily = true)
+        hub.completeLogin(esignet.redirect(redirectUri))
+
+        hub.signOut()
+
+        val form = checkNotNull(esignet.revokeForm) { "no revocation request" }
+        assertEquals(esignet.deviceSecret, form["token"])
+        assertEquals("device_secret", form["token_type_hint"])
+        assertEquals(clientId, form["client_id"])
+        assertNull("revocation needs no DPoP proof", esignet.dpopHeaders["/oauth2/revoke"])
+        assertNull(hub.currentSession())
+        assertTrue(logs.contains("device secret revoked on the server"))
+    }
+
+    @Test
+    fun `a failed revocation still signs out locally`() {
+        esignet.deviceSecret = "ds-" + "y".repeat(60)
+        esignet.revokeStatus = 503
+        val hub = authenticator()
+        hub.startLogin(shareWithFamily = true)
+        hub.completeLogin(esignet.redirect(redirectUri))
+
+        hub.signOut()
+
+        assertNull(hub.currentSession())
+        assertEquals(1, keysForgotten)
+        assertTrue(logs.any { it.startsWith("device secret not revoked on the server") })
+    }
+
+    @Test
+    fun `without a device secret or a revocation endpoint sign out sends nothing`() {
+        val hub = authenticator()
+        hub.startLogin(shareWithFamily = false)
+        hub.completeLogin(esignet.redirect(redirectUri))
+        hub.signOut()
+        assertNull(esignet.revokeForm)
+
+        esignet.advertiseRevocation = false
+        esignet.deviceSecret = "ds-" + "y".repeat(60)
+        val other = authenticator()
+        other.startLogin(shareWithFamily = true)
+        other.completeLogin(esignet.redirect(redirectUri))
+        other.signOut()
+        assertNull(esignet.revokeForm)
+        assertTrue(logs.contains("server has no revocation endpoint"))
+    }
+
+    @Test
     fun `on disk the session is ciphertext and reads back through the store`() {
         val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         val fileStore = EncryptedFileStore(folder.newFolder("secure-store"), AesGcmAead { key })

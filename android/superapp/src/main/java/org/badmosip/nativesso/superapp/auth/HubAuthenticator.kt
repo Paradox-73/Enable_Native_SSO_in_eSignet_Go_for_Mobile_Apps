@@ -19,6 +19,7 @@ import org.badmosip.nativesso.oidc.OidcException
 import org.badmosip.nativesso.oidc.Pkce
 import org.badmosip.nativesso.oidc.ProviderMetadata
 import org.badmosip.nativesso.oidc.Scopes
+import org.badmosip.nativesso.oidc.TokenTypes
 import org.badmosip.nativesso.oidc.JwkThumbprint
 import org.badmosip.nativesso.securestore.BlobStore
 import org.badmosip.nativesso.securestore.SecureStoreException
@@ -207,14 +208,32 @@ class HubAuthenticator(
      * "Sign out of all apps": forgets the tokens, the device secret, any login in progress and the
      * family access list, and deletes the DPoP key ([forgetDpopKey]; a new one is made at the next
      * sign-in). Every device secret and every family app token bound to the old key stops working,
-     * and the family service answers `ERROR_NOT_SIGNED_IN`.
+     * and the family service answers `ERROR_NOT_SIGNED_IN`. Then it ends the device secret's session
+     * on the server too ([endServerSession]).
      */
     fun signOut() {
+        val deviceSecret = currentSession()?.deviceSecret
         store.delete(SESSION)
         store.delete(PENDING)
         store.delete(FAMILY_ACCESS)
         forgetDpopKey()
         log("signed out")
+        if (deviceSecret != null) endServerSession(deviceSecret)
+    }
+
+    /**
+     * Asks eSignet to end the device secret's login session (RFC 7009 revocation with the device
+     * secret). Afterwards no family app can exchange it, even with a copy of Hub's key. Runs after
+     * the local sign-out, so a missing network never keeps the user signed in; a failure is logged
+     * and the session record then ends by its time to live.
+     */
+    private fun endServerSession(deviceSecret: String) {
+        try {
+            val sent = oidc().revokeToken(deviceSecret, TokenTypes.DEVICE_SECRET_HINT)
+            log(if (sent) "device secret revoked on the server" else "server has no revocation endpoint")
+        } catch (e: OidcException) {
+            log("device secret not revoked on the server: ${e.javaClass.simpleName}")
+        }
     }
 
     private fun sameState(redirect: String, expected: String): Boolean {

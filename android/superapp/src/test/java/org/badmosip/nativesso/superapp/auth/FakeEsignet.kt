@@ -45,6 +45,7 @@ internal class FakeEsignet(val clientId: String) : Dispatcher() {
     /** Form of the last PAR and token requests, and the DPoP headers seen per path. */
     @Volatile var parForm: Map<String, String> = emptyMap()
     @Volatile var tokenForm: Map<String, String> = emptyMap()
+    @Volatile var revokeForm: Map<String, String>? = null
     val dpopHeaders = ConcurrentHashMap<String, String>()
 
     // What the token endpoint answers; tests change these.
@@ -54,6 +55,8 @@ internal class FakeEsignet(val clientId: String) : Dispatcher() {
     @Volatile var userinfoStatus: Int = 200
     @Volatile var userinfoName: String? = "Siddharth K Mansour"
     @Volatile var userinfoSub: String? = null
+    @Volatile var revokeStatus: Int = 200
+    @Volatile var advertiseRevocation: Boolean = true
 
     val subject = "psut-hub-123"
     val accessToken = "at-" + "x".repeat(40)
@@ -83,6 +86,10 @@ internal class FakeEsignet(val clientId: String) : Dispatcher() {
                 json(tokenResponse())
             }
             "/oauth2/jwks" -> json(JWKSet(IssuerKey.rsa.toPublicJWK()).toString())
+            "/oauth2/revoke" -> {
+                revokeForm = request.form()
+                if (revokeStatus == 200) MockResponse() else json("""{"error":"invalid_grant"}""", revokeStatus)
+            }
             "/oidc/userinfo" -> if (userinfoStatus != 200) {
                 MockResponse().setResponseCode(userinfoStatus)
             } else {
@@ -99,7 +106,7 @@ internal class FakeEsignet(val clientId: String) : Dispatcher() {
           "token_endpoint": "${server.url("/oauth2/token")}",
           "pushed_authorization_request_endpoint": "${server.url("/oauth2/par")}",
           "userinfo_endpoint": "${server.url("/oidc/userinfo")}",
-          "jwks_uri": "${server.url("/oauth2/jwks")}",
+          "jwks_uri": "${server.url("/oauth2/jwks")}",${if (advertiseRevocation) "\n          \"revocation_endpoint\": \"${server.url("/oauth2/revoke")}\"," else ""}
           "scopes_supported": ["openid", "profile", "device_sso"],
           "dpop_signing_alg_values_supported": ["ES256"]
         }
