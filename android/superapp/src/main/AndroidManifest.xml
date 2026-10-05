@@ -63,5 +63,19 @@
                     android:scheme="org.badmosip.nativesso.superapp" />
             </intent-filter>
         </activity>
+
+        <!--
+          Family single sign-on (IFamilySso). Exported, but bindable only by apps holding the
+          signature permission; every call also checks the caller's certificate and package
+          (sso/FamilySsoGate.kt), because a permission alone can be taken over.
+        -->
+        <service
+            android:name=".sso.FamilySsoService"
+            android:exported="true"
+            android:permission="org.badmosip.nativesso.permission.FAMILY_SSO">
+            <intent-filter>
+                <action android:name="org.badmosip.nativesso.action.FAMILY_SSO" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!--
+  Only for the intruder test build (-Pps03.intruder=true): removes the declaration of the family
+  permission, so this differently signed build installs next to Hub and Android refuses its bind.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <permission
+        android:name="org.badmosip.nativesso.permission.FAMILY_SSO"
+        tools:node="remove" />
+</manifest>

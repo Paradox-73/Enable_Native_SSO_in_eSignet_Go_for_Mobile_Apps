@@ -16,6 +16,7 @@ import org.badmosip.nativesso.oidc.OAuthErrorException
 import org.badmosip.nativesso.oidc.OidcException
 import org.badmosip.nativesso.superapp.auth.LoginException
 import org.badmosip.nativesso.superapp.auth.TokenBundle
+import org.badmosip.nativesso.superapp.sso.FamilyAccess
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -24,7 +25,7 @@ sealed interface HubScreen {
     data object Starting : HubScreen
     data class Welcome(val error: String? = null) : HubScreen
     data class Working(val inBrowser: Boolean) : HubScreen
-    data class Home(val session: TokenBundle) : HubScreen
+    data class Home(val session: TokenBundle, val familyApps: List<FamilyAccess> = emptyList()) : HubScreen
 }
 
 /**
@@ -54,9 +55,17 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (screen != HubScreen.Starting) return
         background({
-            services.authenticator.currentSession()
-        }) { session ->
-            screen = if (session != null) HubScreen.Home(session) else HubScreen.Welcome()
+            services.authenticator.currentSession()?.let { it to services.familyAccess.list() }
+        }) { found ->
+            screen = if (found != null) HubScreen.Home(found.first, found.second) else HubScreen.Welcome()
+        }
+    }
+
+    /** Reloads "Apps using this sign-in" (a family app may have used it while Hub was in the background). */
+    fun refreshFamilyApps() {
+        if (screen !is HubScreen.Home) return
+        background({ services.familyAccess.list() }) { apps ->
+            (screen as? HubScreen.Home)?.let { screen = it.copy(familyApps = apps) }
         }
     }
 

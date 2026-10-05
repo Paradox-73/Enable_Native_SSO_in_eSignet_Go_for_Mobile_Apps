@@ -130,6 +130,9 @@ class HubAuthenticatorTest {
         assertEquals(esignet.deviceSecret, session.deviceSecret)
         assertEquals("sid-1", session.sessionId)
         assertEquals(esignet.deviceSecret, hub.currentSession()!!.deviceSecret)
+        // The family service signs proofs only for these two, as discovered at this login.
+        assertEquals(esignet.server.url("/oauth2/token").toString(), hub.currentSession()!!.tokenEndpoint)
+        assertEquals(esignet.server.url("/oidc/userinfo").toString(), hub.currentSession()!!.userinfoEndpoint)
     }
 
     @Test
@@ -259,9 +262,11 @@ class HubAuthenticatorTest {
         hub.startLogin(false)
         hub.completeLogin(esignet.redirect(redirectUri))
         hub.startLogin(false)
+        store.write(HubAuthenticator.FAMILY_ACCESS, "{}".toByteArray())
         hub.signOut()
         assertNull(hub.currentSession())
         assertFalse(hub.hasPendingLogin())
+        assertFalse(store.contains(HubAuthenticator.FAMILY_ACCESS))
     }
 
     @Test

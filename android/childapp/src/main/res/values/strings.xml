@@ -11,4 +11,14 @@
     <string name="super_app_missing">Not installed. Install Hub and sign in there first.</string>
     <string name="super_app_same_family">Installed, same certificate as this app</string>
     <string name="super_app_other_family">Installed, but signed with another certificate: it cannot share its sign-in</string>
+    <string name="hub_sign_in_label">Sign-in from Hub</string>
+    <string name="hub_checking">Asking Hub for its sign-in…</string>
+    <string name="hub_check_again">Check again</string>
+    <string name="hub_available">Available (%1$s). Health Card can sign you in without a password or OTP.</string>
+    <string name="hub_not_signed_in">Not available. Sign in to Hub first, with \"Use this sign-in in my other apps\" turned on.</string>
+    <string name="hub_refused">Hub refused this app: it is not signed with the same certificate.</string>
+    <string name="hub_timeout">Hub did not answer in time. Try again.</string>
+    <string name="hub_rate_limited">Hub is busy. Try again in a minute.</string>
+    <string name="hub_version">This Hub version cannot share its sign-in with this Health Card version. Update both apps.</string>
+    <string name="hub_failed">Something went wrong while asking Hub. Try again.</string>
 </resources>

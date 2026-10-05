@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!--
+  Debug builds only. A receiver that puts a made-up session into Hub's encrypted store (or removes
+  it), so the family service can be tested on a device without a server. android.permission.DUMP is
+  held by adb shell and by no ordinary app, so only `adb shell am broadcast` reaches it:
+
+    adb shell am broadcast -f 32 -n org.badmosip.nativesso.superapp/.sso.DebugSessionSeeder -e op seed
+    adb shell am broadcast -f 32 -n org.badmosip.nativesso.superapp/.sso.DebugSessionSeeder -e op clear
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name=".sso.DebugSessionSeeder"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+    </application>
+</manifest>

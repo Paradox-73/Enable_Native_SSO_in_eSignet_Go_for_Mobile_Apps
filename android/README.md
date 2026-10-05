@@ -8,11 +8,12 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
   password or OTP, by sending Hub's id_token and device secret to eSignet in a token exchange.
 
 > **State on 2026-10-05.** Built and tested: the Gradle project, shared signing, the binder contract,
-> the `oidc-client` library (64 JVM tests), the `secure-store` module (13 JVM tests) and Hub's
-> sign-in with eSignet (29 JVM tests against a fake eSignet): Android Keystore keys, Custom Tab login,
-> id_token checks, tokens stored encrypted. The on-emulator run of `SuperAppSignInTest` is NOT RUN yet
-> (see [Hub sign-in](#hub-sign-in-with-esignet)). Health Card is still a shell; the single sign-on
-> service is the next work package.
+> the `oidc-client` library (64 JVM tests), the `secure-store` module (13 JVM tests), Hub's
+> sign-in with eSignet and Hub's family single sign-on service (50 JVM and Robolectric tests), and
+> Health Card's connection to Hub (10 Robolectric tests). NOT RUN yet on the emulator:
+> `SuperAppSignInTest` (see [Hub sign-in](#hub-sign-in-with-esignet)) and the family steps (see
+> [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)). Health Card's token
+> exchange (silent sign-in) is the next work package.
 
 ## Modules
 
@@ -21,8 +22,8 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 | `oidc-client` | Kotlin/JVM library, no Android code | discovery, PKCE, DPoP proofs, `private_key_jwt`, PAR, authorization-code and Native SSO token-exchange requests, userinfo, `use_dpop_nonce` retry, RFC 7638 thumbprints, id_token checks including `ds_hash` and `sid`, typed errors |
 | `sso-contract` | Android library | `IFamilySso.aidl` and the `SsoBundle` parcelable, the permission, action and package names, error codes, a signing-certificate helper |
 | `secure-store` | Android library | `EncryptedFileStore`: one AES-256-GCM file per blob in `noBackupFilesDir`, key in Android Keystore (`KeystoreSecureStore`) |
-| `superapp` | Android app | Hub: sign-in with eSignet (Custom Tab, PAR, PKCE, DPoP, `private_key_jwt`), Keystore keys, encrypted token storage; declares the family permission |
-| `childapp` | Android app | Health Card shell, declares the same permission and a `<queries>` entry for Hub |
+| `superapp` | Android app | Hub: sign-in with eSignet (Custom Tab, PAR, PKCE, DPoP, `private_key_jwt`), Keystore keys, encrypted token storage; the family single sign-on service (`sso/`); declares the family permission |
+| `childapp` | Android app | Health Card: asks Hub for its shared sign-in over the binder (`HubConnection`); declares the same permission and a `<queries>` entry for Hub |
 
 Toolchain: AGP 8.6.0, Gradle 8.7 (wrapper, checksum pinned), Kotlin 2.0.20, Jetpack Compose (BOM
 2024.09.02) with Material 3, Java 17 bytecode, compileSdk and targetSdk 34, minSdk 28 (Android 9:
@@ -36,7 +37,7 @@ newer; the team uses JDK 21. Versions live in [`gradle/libs.versions.toml`](grad
 source /e/Projects/MOSIP/toolchain/env.sh && use_java21
 cd android
 bash gradlew --no-daemon :oidc-client:test assembleDebug   # BUILD SUCCESSFUL
-bash gradlew --no-daemon :secure-store:testDebugUnitTest :superapp:testDebugUnitTest
+bash gradlew --no-daemon :secure-store:testDebugUnitTest :superapp:testDebugUnitTest :childapp:testDebugUnitTest
 bash gradlew --no-daemon assembleDebug assembleDebugAndroidTest   # BUILD SUCCESSFUL (APKs and test APKs)
 bash scripts/verify-family-signing.sh                      # family-signing: OK <sha-256>
 ```
@@ -61,7 +62,7 @@ Measured on 2026-10-04 (Windows 11 laptop shared with other builds, `--no-daemon
 
 ## One signing certificate for the family
 
-Hub's single sign-on service will be guarded by the permission
+Hub's single sign-on service is guarded by the permission
 `org.badmosip.nativesso.permission.FAMILY_SSO` with `protectionLevel="signature"`: Android grants it
 only to apps signed with the same certificate as the app that declared it. So both apps must carry
 one certificate, in debug builds too.
@@ -161,7 +162,7 @@ What the JVM tests cover:
 - `secure-store` (13): round trip, ciphertext only on disk, new IV per write, atomic replace, a
   changed ciphertext or IV byte, a file copied under another name, wrong magic or version, truncation,
   another key, delete, empty blob, name rules.
-- `superapp` (29): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
+- `superapp` (29 of its 50; the other 21 are listed under [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
   PKCE pairing, client assertion audience and `kid`, DPoP proofs at PAR, token and userinfo with the
   right `htu`); `device_sso` on with the device secret kept after the `ds_hash` check; wrong `ds_hash`,
   wrong `nonce`, an unasked device secret, error redirects: nothing stored; `state` mismatch keeps the
@@ -184,8 +185,79 @@ parcelable SsoBundle { String issuer; String idToken; String deviceSecret; Strin
 - Hub never hands out its access token or any private key. It shares the id_token and device secret,
   and signs DPoP proofs itself, because the token exchange must be proven with the key the device
   secret is bound to (statement task 9 iii.4, `cnf.jkt`).
-- Errors travel as `ServiceSpecificException` codes: `ERROR_NOT_SIGNED_IN`, `ERROR_CALLER_NOT_ALLOWED`,
-  `ERROR_HTU_NOT_ALLOWED`, `ERROR_RATE_LIMITED`.
+- Refusals carry one of the codes `ERROR_NOT_SIGNED_IN`, `ERROR_CALLER_NOT_ALLOWED`,
+  `ERROR_HTU_NOT_ALLOWED`, `ERROR_RATE_LIMITED` in the exception message:
+  `FamilySsoContract.exceptionFor(code, message)` makes a `SecurityException` for a caller that is
+  not allowed and an `IllegalStateException` otherwise; `FamilySsoContract.errorCodeOf(e)` reads the
+  code back. `android.os.ServiceSpecificException` was the first plan, but it is not in the public
+  SDK (absent from android-34's `android.jar`), and a binder call can only rethrow public exception
+  types. A bad `ath` or `nonce` arrives as `IllegalArgumentException` without a code.
+
+## Family single sign-on: Hub service and Health Card
+
+Hub (`superapp/.../sso/`):
+
+- `FamilySsoService`: the bound service. Exported, `android:permission` = the family permission,
+  intent action `org.badmosip.nativesso.action.FAMILY_SSO`; any other action gets no binder. It
+  passes `Binder.getCallingUid()` to `FamilySsoGate` on every call.
+- `FamilySsoGate` (no Android types, so all rules run in JVM tests), checked in this order on every
+  call:
+  1. caller: a package of the calling uid is on the allow-list (Health Card only) and is signed with
+     Hub's own current certificate (`PackageManager` `GET_SIGNING_CERTIFICATES`, SHA-256). The
+     permission alone is not trusted: an app of another signer can hold it after the takeover
+     sequence recorded in `docs/STATUS.md` (WP-11);
+  2. rate: 30 calls per caller uid in any 60 s (one silent sign-in takes about five);
+  3. session: only a sign-in with a device secret, that is, one made with "Use this sign-in in my
+     other apps" on. Otherwise `getSsoBundle()` is null and `signDpopProof` refuses with
+     `ERROR_NOT_SIGNED_IN`;
+  4. proofs: `POST` to the token endpoint, `GET` or `POST` to the userinfo endpoint, exactly as
+     discovered at Hub's login (stored with the session); no query, fragment or user info; host
+     compared without case. Hub builds `jti`, `iat`, `htm`, `htu` itself; the caller gives only `ath`
+     (43 base64url characters) and `nonce` (RFC 9449 `NQCHAR`, at most 512).
+- The bundle is the id_token, the device secret, the issuer and the granted scope.
+  `expiresAtEpochSec` is 0: the device secret is encrypted for the server, so Hub cannot read its
+  expiry.
+- "Apps using this sign-in" on Hub's home screen: package and last time of each `getSsoBundle()`,
+  kept in the encrypted store (blob `family-access`), cleared at sign-out. Logs name the package and
+  the method, never a token.
+- Debug builds only: `DebugSessionSeeder` (`src/debug/`), a receiver guarded by
+  `android.permission.DUMP` (held by `adb shell`, by no ordinary app), stores a made-up shared
+  session (`op=seed`) or signs out (`op=clear`), so the family steps need no server.
+
+Health Card (`childapp/.../HubConnection.kt`):
+
+- `HubConnection.use { service -> ... }` binds with an explicit intent to Hub's service class,
+  waits at most 5 s, runs the calls, unbinds. Call it off the main thread.
+- `status()` gives `Available(bundle)` or `Unavailable(reason)`: `NOT_SIGNED_IN`, `HUB_MISSING`,
+  `BIND_REFUSED` (Android refused the bind: no permission), `CALLER_REFUSED` (Hub's per-call
+  check), `TIMEOUT`, `RATE_LIMITED`, `VERSION_MISMATCH`, `FAILED`. The screen says what the user
+  can do for each.
+- `HubDpopProofSource(service)` is the `DpopProofSource` the token exchange (next work package) uses.
+
+Test builds and scripts:
+
+| Command | What it does |
+|---|---|
+| `bash android/scripts/build-apks.sh` | three Gradle builds, copied to `$PS03_RUN_DIR/apks/`: `family` (Hub, Health Card, its test APK), `intruder` (`-Pps03.intruder=true`: Health Card's package signed with the Android debug certificate, permission not declared), `takeover` (`-Pps03.intruder=takeover`: the same, permission declared) |
+| `bash android/scripts/with-emulator.sh bash android/scripts/run-family-tests.sh` | installs the sets and runs `FamilySsoBindTest` step by step; prints `family-bind PASS`, `htu-allow-list PASS`, `signed-out PASS (ERROR_NOT_SIGNED_IN)`, `intruder PASS (SecurityException)`, then `takeover PASS (rejected)` or, when Android refuses to install Hub next to the app that defined the permission, `takeover PASS (install refused: ...)`; leaves the family set installed |
+
+What the JVM and Robolectric tests cover:
+
+- `superapp` `FamilySsoGateTest` (14): bundle contents; another certificate refused on all three
+  calls; a family-signed package outside the allow-list; an unknown uid; Hub without a readable
+  certificate admits nobody; no session and a session without device secret; proofs verified with
+  Hub's key (`htm`, `htu`, `ath`, `nonce`, `iat`, new `jti` each time); 13 refused method and URL
+  forms; no endpoints stored; malformed `ath` and `nonce`; rate limit and its window; refused
+  callers do not use up the rate; the access list (no tokens in it or in logs, unreadable blob
+  dropped, one row per package).
+- `superapp` `FamilySsoServiceTest` (7, Robolectric, Android 14): the merged manifest (exported,
+  permission, signature protection), the stub with `Binder.getCallingUid()` and certificates read
+  through `PackageManager`: family caller served; a caller with Health Card's package name and a
+  different signature refused on every call; an unknown uid; not signed in; a foreign `htu`.
+- `childapp` `HubConnectionTest` (10, Robolectric): the explicit intent, bundle available and
+  connection released, not signed in, each coded refusal, Android refusing the bind, Hub missing,
+  the timeout, another contract version, proofs forwarded and an `htu` refusal surfaced, an
+  uncoded exception passed through.
 
 ## The client library (`oidc-client`)
 

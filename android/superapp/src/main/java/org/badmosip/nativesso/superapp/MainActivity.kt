@@ -37,6 +37,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import org.badmosip.nativesso.superapp.auth.TokenBundle
+import org.badmosip.nativesso.superapp.sso.FamilyAccess
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 /**
  * Hub's only screen host: welcome (sign in, and whether to share the sign-in with the family),
@@ -60,6 +64,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        model.refreshFamilyApps()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -96,7 +105,7 @@ class MainActivity : ComponentActivity() {
                 HubScreen.Starting -> CircularProgressIndicator()
                 is HubScreen.Welcome -> Welcome(model, screen.error)
                 is HubScreen.Working -> Working(screen.inBrowser, model::cancel)
-                is HubScreen.Home -> Home(screen.session, model::signOut)
+                is HubScreen.Home -> Home(screen.session, screen.familyApps, model::signOut)
             }
         }
     }
@@ -141,7 +150,7 @@ private fun Working(inBrowser: Boolean, onCancel: () -> Unit) {
 }
 
 @Composable
-private fun Home(session: TokenBundle, onSignOut: () -> Unit) {
+private fun Home(session: TokenBundle, familyApps: List<FamilyAccess>, onSignOut: () -> Unit) {
     Text(stringResource(R.string.signed_in_as), style = MaterialTheme.typography.labelLarge)
     Text(
         session.displayName ?: stringResource(R.string.name_unknown),
@@ -153,6 +162,19 @@ private fun Home(session: TokenBundle, onSignOut: () -> Unit) {
         stringResource(if (session.deviceSecret != null) R.string.sharing_on else R.string.sharing_off),
         Modifier.testTag("sharing_status"),
     )
+    if (session.deviceSecret != null) {
+        val format = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault())
+        LabelledValue(
+            stringResource(R.string.family_apps_label),
+            if (familyApps.isEmpty()) {
+                stringResource(R.string.family_apps_none)
+            } else {
+                val row = stringResource(R.string.family_app_row)
+                familyApps.joinToString("\n") { row.format(it.packageName, format.format(it.lastUsed)) }
+            },
+            Modifier.testTag("family_apps"),
+        )
+    }
     LabelledValue(stringResource(R.string.issuer_label), session.issuer)
     OutlinedButton(onClick = onSignOut, modifier = Modifier.testTag("sign_out_button")) {
         Text(stringResource(R.string.sign_out))

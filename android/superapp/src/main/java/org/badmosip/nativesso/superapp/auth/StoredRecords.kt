@@ -57,6 +57,9 @@ data class PendingLogin(
  * @property deviceSecret present when the login asked for and got `device_sso` (Native SSO 1.0 3.4)
  * @property dpopKeyThumbprint `jkt` of the DPoP key the tokens (and the device secret) are bound to
  * @property displayName the user's name from userinfo, when the server sent one
+ * @property tokenEndpoint the token endpoint from discovery at login; the family service signs
+ *   DPoP proofs only for this URL and [userinfoEndpoint] (null in sessions saved before WP-11)
+ * @property userinfoEndpoint the userinfo endpoint from discovery at login, or null
  */
 data class TokenBundle(
     val issuer: String,
@@ -74,6 +77,8 @@ data class TokenBundle(
     val dpopKeyThumbprint: String,
     val displayName: String?,
     val signedInAt: Instant,
+    val tokenEndpoint: String? = null,
+    val userinfoEndpoint: String? = null,
 ) {
     override fun toString(): String =
         "TokenBundle(issuer=$issuer, clientId=$clientId, sid=$sessionId, scope=$scope, " +
@@ -97,6 +102,8 @@ data class TokenBundle(
             "dpop_jkt" to dpopKeyThumbprint,
             "display_name" to displayName,
             "signed_in_at" to signedInAt.epochSecond,
+            "token_endpoint" to tokenEndpoint,
+            "userinfo_endpoint" to userinfoEndpoint,
         ).filterValues { it != null },
     ).toByteArray(Charsets.UTF_8)
 
@@ -120,6 +127,8 @@ data class TokenBundle(
                 dpopKeyThumbprint = m.str("dpop_jkt"),
                 displayName = m.optStr("display_name"),
                 signedInAt = Instant.ofEpochSecond(m.long("signed_in_at")),
+                tokenEndpoint = m.optStr("token_endpoint"),
+                userinfoEndpoint = m.optStr("userinfo_endpoint"),
             )
         }
     }

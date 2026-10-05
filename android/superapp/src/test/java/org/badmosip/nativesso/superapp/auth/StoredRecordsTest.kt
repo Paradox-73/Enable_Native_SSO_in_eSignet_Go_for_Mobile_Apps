@@ -34,6 +34,8 @@ class StoredRecordsTest {
     @Test
     fun `token bundle round trips, also without optional fields`() {
         assertEquals(bundle, TokenBundle.fromJson(bundle.toJson()))
+        val withEndpoints = bundle.copy(tokenEndpoint = "http://localhost:38088/token", userinfoEndpoint = "http://localhost:38088/userinfo")
+        assertEquals(withEndpoints, TokenBundle.fromJson(withEndpoints.toJson()))
         val minimal = bundle.copy(sessionId = null, accessTokenExpiresAt = null, deviceSecret = null, scope = null, displayName = null)
         assertEquals(minimal, TokenBundle.fromJson(minimal.toJson()))
         assertFalse(String(minimal.toJson()).contains("device_secret"))

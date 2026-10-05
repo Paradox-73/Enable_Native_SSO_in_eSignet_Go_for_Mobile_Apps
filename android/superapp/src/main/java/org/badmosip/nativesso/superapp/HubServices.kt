@@ -7,6 +7,8 @@ import android.content.Context
 import android.util.Log
 import com.nimbusds.jose.util.JSONObjectUtils
 import okhttp3.OkHttpClient
+import org.badmosip.nativesso.contract.SigningCertificates
+import org.badmosip.nativesso.oidc.DpopProofFactory
 import org.badmosip.nativesso.securestore.EncryptedFileStore
 import org.badmosip.nativesso.securestore.KeystoreSecureStore
 import org.badmosip.nativesso.superapp.auth.ClientIdentity
@@ -14,13 +16,19 @@ import org.badmosip.nativesso.superapp.auth.HubAuthenticator
 import org.badmosip.nativesso.superapp.auth.HubConfig
 import org.badmosip.nativesso.superapp.keys.AndroidKeystoreKeys
 import org.badmosip.nativesso.superapp.keys.EcKeyJwsSigner
+import org.badmosip.nativesso.superapp.sso.AndroidCallerLookup
+import org.badmosip.nativesso.superapp.sso.FamilyAccessLog
+import org.badmosip.nativesso.superapp.sso.FamilySsoGate
+import org.badmosip.nativesso.superapp.sso.FamilySsoHost
 import java.io.File
 import java.util.concurrent.TimeUnit
 
 /** Hub's Application: holds the one [HubServices] of the process. */
-class HubApp : Application() {
+class HubApp : Application(), FamilySsoHost {
     /** Created on first use; touches Android Keystore, so call it off the main thread. */
     val services: HubServices by lazy { HubServices(this) }
+
+    override val familySsoGate: FamilySsoGate get() = services.familySso
 }
 
 /**
@@ -58,6 +66,19 @@ class HubServices(context: Context) {
         clientSigner = clientSigner,
         store = store,
         log = { Log.i(TAG, it) },
+    )
+
+    /** "Apps using this sign-in", shown on the home screen. */
+    val familyAccess = FamilyAccessLog(store)
+
+    /** The rules of the family single sign-on service (`sso/FamilySsoService`). */
+    val familySso = FamilySsoGate(
+        callers = AndroidCallerLookup(context.packageManager),
+        familyCertificates = { SigningCertificates.sha256Of(context.packageManager, context.packageName) },
+        session = authenticator::currentSession,
+        proofs = DpopProofFactory(dpopSigner),
+        accessLog = familyAccess,
+        log = { Log.i(TAG, "family sso: $it") },
     )
 
     init {

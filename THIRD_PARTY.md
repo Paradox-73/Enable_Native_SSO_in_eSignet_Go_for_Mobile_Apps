@@ -61,3 +61,5 @@ Declared in `android/gradle/libs.versions.toml`; downloaded by Gradle, not store
 | AndroidX Test runner, AndroidX Test JUnit extension | 1.6.2, 1.2.1 | Apache-2.0 | instrumented tests only |
 | AndroidX UI Automator | 2.3.0 | Apache-2.0 | instrumented tests only (drives Chrome in `SuperAppSignInTest`) |
 | OkHttp MockWebServer | 4.12.0 | Apache-2.0 | tests only (`oidc-client`, `superapp`) |
+| Robolectric | 4.13 | MIT | JVM tests only (`superapp`, `childapp`: the family binder service and client) |
+| AndroidX Test Core | 1.6.1 | Apache-2.0 | JVM tests only, with Robolectric |

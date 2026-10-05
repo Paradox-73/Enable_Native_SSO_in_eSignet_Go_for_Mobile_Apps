@@ -43,6 +43,8 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     testOptions {
+        // Robolectric reads the merged manifest (the service and its permission) from the resources.
+        unitTests.isIncludeAndroidResources = true
         unitTests.all {
             it.testLogging {
                 events("failed")
@@ -68,6 +70,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)

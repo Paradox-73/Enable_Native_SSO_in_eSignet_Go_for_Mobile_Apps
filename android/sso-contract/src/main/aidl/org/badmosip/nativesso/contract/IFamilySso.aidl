@@ -8,8 +8,9 @@ import org.badmosip.nativesso.contract.SsoBundle;
  * Single sign-on service of the Super App, bound by apps of the same family.
  *
  * The service is protected by FamilySsoContract.PERMISSION (protectionLevel="signature") and checks
- * the caller's signing certificate and package on every call. Failures are reported as
- * android.os.ServiceSpecificException with a code from FamilySsoContract.
+ * the caller's signing certificate and package on every call. Refusals arrive as the exceptions
+ * FamilySsoContract.exceptionFor makes (SecurityException for a caller that is not allowed,
+ * IllegalStateException otherwise); FamilySsoContract.errorCodeOf reads the code back.
  */
 interface IFamilySso {
     /** Contract version the Super App implements (FamilySsoContract.VERSION). */

@@ -162,6 +162,8 @@ class HubAuthenticator(
             dpopKeyThumbprint = JwkThumbprint.compute(dpopSigner.publicJwk),
             displayName = name,
             signedInAt = now,
+            tokenEndpoint = metadata?.tokenEndpoint,
+            userinfoEndpoint = metadata?.userinfoEndpoint,
         )
         store.write(SESSION, bundle.toJson())
         log("signed in (device secret: ${if (bundle.deviceSecret != null) "yes" else "no"}, name: ${if (name != null) "yes" else "no"})")
@@ -200,10 +202,11 @@ class HubAuthenticator(
         null
     }
 
-    /** Forgets the tokens, the device secret and any login in progress. */
+    /** Forgets the tokens, the device secret, any login in progress and the family access list. */
     fun signOut() {
         store.delete(SESSION)
         store.delete(PENDING)
+        store.delete(FAMILY_ACCESS)
         log("signed out")
     }
 
@@ -235,6 +238,9 @@ class HubAuthenticator(
 
         /** Blob name of the [PendingLogin]. */
         const val PENDING: String = "pending-login"
+
+        /** Blob name of the "Apps using this sign-in" list (`sso/FamilyAccessLog`). */
+        const val FAMILY_ACCESS: String = "family-access"
     }
 }
 

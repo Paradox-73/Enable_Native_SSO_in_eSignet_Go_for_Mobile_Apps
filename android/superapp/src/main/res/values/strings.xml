@@ -16,6 +16,9 @@
     <string name="sharing_on">Yes</string>
     <string name="sharing_off">No</string>
     <string name="sign_out">Sign out</string>
+    <string name="family_apps_label">Apps using this sign-in</string>
+    <string name="family_apps_none">None yet</string>
+    <string name="family_app_row">%1$s, last %2$s</string>
     <string name="error_network">Cannot reach the eSignet server. Check the connection and try again.</string>
     <string name="error_server">eSignet refused the sign-in (%1$s).</string>
     <string name="error_token">The sign-in answer failed a security check (%1$s). Nothing was saved.</string>

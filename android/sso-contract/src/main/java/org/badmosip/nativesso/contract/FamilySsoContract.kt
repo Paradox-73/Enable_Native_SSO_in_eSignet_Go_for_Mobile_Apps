@@ -29,7 +29,9 @@ object FamilySsoContract {
     /** Fully qualified class name of the bound service inside the Super App. */
     const val SERVICE_CLASS = "org.badmosip.nativesso.superapp.sso.FamilySsoService"
 
-    // Codes carried by android.os.ServiceSpecificException.errorCode.
+    // Error codes. They cross the binder inside the exception message (see [exceptionFor]), because
+    // android.os.ServiceSpecificException is not part of the public SDK (absent from android-34's
+    // android.jar); a binder call can only rethrow a fixed set of public exception types.
 
     /** Nobody is signed in to the Super App, so there is nothing to share or sign. */
     const val ERROR_NOT_SIGNED_IN = 1
@@ -42,4 +44,24 @@ object FamilySsoContract {
 
     /** Too many calls in a short time from the same caller. */
     const val ERROR_RATE_LIMITED = 4
+
+    private const val ERROR_PREFIX = "FAMILY_SSO_ERROR "
+
+    /**
+     * The exception the service throws for [code]: `SecurityException` for
+     * [ERROR_CALLER_NOT_ALLOWED], `IllegalStateException` otherwise. Both are rethrown in the
+     * caller's process by the binder with their message, which starts with the code.
+     */
+    fun exceptionFor(code: Int, message: String): RuntimeException {
+        val text = "$ERROR_PREFIX$code: $message"
+        return if (code == ERROR_CALLER_NOT_ALLOWED) SecurityException(text) else IllegalStateException(text)
+    }
+
+    /** The code inside an exception made by [exceptionFor], or null for any other exception. */
+    fun errorCodeOf(e: Throwable): Int? {
+        if (e !is SecurityException && e !is IllegalStateException) return null
+        val message = e.message ?: return null
+        if (!message.startsWith(ERROR_PREFIX)) return null
+        return message.substring(ERROR_PREFIX.length).substringBefore(':').toIntOrNull()
+    }
 }
