@@ -20,6 +20,8 @@ import (
 )
 
 // testDeviceSecret has the shape of a compact JWE (five segments); the provider mock decides its fate.
+//
+//nolint:gosec // Test value, not a credential
 const testDeviceSecret = "eyJhbGciOiJSU0EtT0FFUC0yNTYifQ.key.iv.ciphertext.tag"
 
 // DeviceSecretRevocationTestSuite covers rule R27: the app a device secret was issued to revokes it
