@@ -72,6 +72,8 @@ run_one() {
   [ -n "${PS03_TEST_NAME:-}" ] && args+=(-e expectedName "'$PS03_TEST_NAME'")
 
   adb_ logcat -c || true
+  # A busy emulator may show a system "isn't responding" dialog over the app; close it before the test.
+  adb_ shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
   adb_ shell rm -rf "/sdcard/Android/data/$package/files/ui-test" >/dev/null 2>&1 || true
   ps03_log "running $package.$class"
   result=$(adb_ shell am instrument -w "${args[@]}" "$package.test/androidx.test.runner.AndroidJUnitRunner" 2>&1 | tr -d '\r' || true)
