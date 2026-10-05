@@ -7,8 +7,8 @@ task on their own computer. How to set up a machine, build, test and commit: [..
 
 | Item | Value |
 |---|---|
-| Written | 2026-10-04; updated 2026-10-05 when all tasks were done |
-| `main` | all work is on `main`, on [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) |
+| Written | 2026-10-04; updated 2026-10-05 when all tasks were done, and again that evening after the full re-run |
+| `main` | all work is on `main`; [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) gets it at each push |
 | Unfinished work | none; the earlier `wip/2026-10-04-stop` branch was brought into `main` with WP-07 and deleted |
 | Deadline | 2026-10-26 23:59 IST (MOSIP Decode 2026, problem statement 03, team Badmosip) |
 | Target dates | feature-complete (WP-06 to WP-16 DONE) Fri 2026-10-16; code freeze Thu 2026-10-22, only doc and test-report fixes after it |
@@ -378,7 +378,7 @@ commit of that folder.
     and a Keystore `JwsSigner` (DER to raw `r||s`).
   - New module `android/secure-store`: AES-GCM Keystore key, ciphertext in `noBackupFilesDir`,
     `allowBackup=false`, data-extraction rules.
-  - Compose screens: welcome with "Sign in with eSignet" and the switch "Use this sign-in in my other apps" (decides
+  - Compose screens: welcome with "Sign in with eSignet" and the switch "Share this sign-in with my other apps" (decides
     whether `device_sso` is requested); home with profile and sign out. Custom Tab plus a `RedirectActivity`
     (custom scheme with a host, `state` check, survives process death); token request; id_token checks including
     `ds_hash`; cleartext HTTP allowed for `localhost` in debug builds only.
@@ -614,7 +614,7 @@ commit of that folder.
   - `bash scripts/go-lint.sh e2e -- --build-tags e2e`: 0 issues; `go vet -tags e2e ./...` clean;
     `bash scripts/repo-lint.sh`: `repo-lint: OK`.
   - CI: `.github/workflows/ci.yml` (jobs `repo-lint`, `go-lint`, `go-unit`, `android-unit`, `e2e`). **NOT RUN**:
-    nothing was pushed, so no hosted run exists.
+    nothing was pushed at that time, so no hosted run existed (see the notes below for the later state).
 - **Per-rule results (live, 2026-10-05)** (HTTP 400 unless noted)
 
   | Rule | Live test | Result |
@@ -676,7 +676,8 @@ commit of that folder.
 - **Owns**: `e2e/`, `.github/`.
 - **Acceptance**: `bash scripts/with-stack.sh bash e2e/run.sh` prints `e2e: N passed, 0 failed` with N at least 25.
 - **Notes**
-  - CI has never run: there was no workflow file on 2026-10-04. Report CI as `NOT RUN` until the first hosted run.
+  - CI had never run on 2026-10-04 (there was no workflow file). Since 2026-10-05 every job is replayed on Linux
+    containers (row CI-LINUX of the test report); the hosted run stays `NOT RUN` until someone records its result.
   - Thunder rejects a missing DPoP proof from a DPoP-bound client with `invalid_dpop_proof` before any grant
     handler runs (`oauth2/token/service.go:267-279`); assert that, not `invalid_request`, for such clients.
 
@@ -827,6 +828,22 @@ commit of that folder.
 
 ### WP-17 Test report with dated evidence (DONE)
 
+- **Result (2026-10-05, evening, at `551816f`)**
+  - `bash scripts/evidence.sh --run --with-lint` (started 23:33): repo-lint OK; Thunder 2379 tests (1 skipped by
+    upstream) and eSignet 1588 tests, 0 failed; changed lines covered 376/396 (94.9 %) and 318/339 (93.8 %);
+    golangci-lint Thunder, eSignet and e2e 0 issues; Android JVM tests `oidc-client` 67, `secure-store` 13, `superapp`
+    64, `childapp` 54, 0 failed; signing check OK.
+  - Not run in that pass: the e2e step timed out after 60 min waiting for the `docker-stack` lock, left at 23:17 by an
+    earlier job that had stopped; newman was not on `PATH` (source `toolchain/env-newman.sh` first). The record keeps
+    the earlier results of the same evening on the same server code: e2e 30 passed, 0 failed (23:04, `a401c91`);
+    newman 34 requests, 125 assertions, 0 failed.
+  - Emulator rows from the run of 22:52: `run-ui-test.sh all` OK (4 tests); `run-family-tests.sh` every step PASS;
+    `demo.sh --check` `demo ready`, `teardown ok`.
+  - `bash scripts/evidence.sh --check`: `check OK (69 PASS, 4 NOT RUN with a listed limit, 0 FAIL)`.
+  - Open: run `ChildAppHubMissingTest` and the "Not now" step of `ChildAppReconsentTest` (commit `551816f`) on the
+    emulator, copy `health-card-consent-declined.png` and `health-card-hub-missing.png` into `docs/screens/` and
+    add them to `docs/ux.md`; then `bash scripts/evidence.sh --run` once more with newman on `PATH`.
+
 - **Result (2026-10-05, 07:00 IST)**
   - `bash scripts/evidence.sh --run --with-lint` (JDK 21, newman on PATH, inside `with_lock docker-stack`): exit 0, 0
     failed steps. It ran repo-lint, both Go unit suites with changed-line coverage, the three golangci-lint runs,
@@ -859,9 +876,19 @@ commit of that folder.
   - `bash scripts/evidence.sh --check` exits 0: every row is PASS or a `NOT RUN` row whose reason is listed under
     "Known limits"; any FAIL row fails the check.
 - **Notes**: known limits to list: emulator Keystore is software-backed, OTP again on re-consent, in-memory runtime
-  store, server-side session record ends only by its TTL (no revoke call), CI `NOT RUN` until it has run.
+  store, issued access tokens outlive a revoked device secret (since R27 on 2026-10-05; before it there was no revoke
+  call), hosted CI `NOT RUN` until its result is recorded.
 
 ### WP-18 Documentation set and submission pack (DONE)
+
+- **Result (2026-10-05, evening)**
+  - Screenshots of every screen of both apps from the emulator UI tests are in `docs/screens/` and shown in
+    `docs/ux.md` and `README.md`; "consent declined" and "Hub not installed" are not captured yet (see WP-17).
+  - Every document that said the emulator never ran, that nothing was pushed, or that sign-out has no server call now
+    states the runs of 2026-10-05, device secret revocation (rule R27) and the new app wording and icons.
+  - CI: every job of `.github/workflows/ci.yml` replayed in Linux containers from a fresh clone
+    (`$PS03_RUN_DIR/ci-linux/`): go-unit, go-lint, e2e and android-unit passed (android-unit again at `551816f`,
+    43 min 51 s, BUILD SUCCESSFUL). No hosted run result is recorded (limit L05).
 
 - **Result (2026-10-05)**
   - Written: `README.md` (status, architecture, quick start, table of tasks P1, P2, T1-T10, B1 with links to code and
@@ -920,7 +947,7 @@ Open questions for the mentor call on Wed 2026-10-07, 16:00 IST. Each answer is 
 | Meaning of `auth_id` and `claims` in the device secret | authorization request id; names of released claims | WP-07, WP-08 |
 | Client key held in Android Keystore instead of a backend? | Keystore key, not exportable | WP-09; design.md section 18 |
 | Expired id_token accepted while the device secret lives; default device-secret lifetime? | accepted; 28800 s (8 h) | `id_token_max_age_seconds`, `device_secret_validity_seconds`; D8 |
-| Server-side sign-out cascade needed? | no: local sign-out deletes Hub's DPoP key; session record ends by TTL | optional stretch, after WP-16 |
+| Server-side sign-out cascade needed? | done on 2026-10-05: Hub's sign-out deletes its DPoP key, then revokes the device secret (RFC 7009), which ends the session record (rule R27); issued access tokens live until they expire | Thunder `revocation/`, eSignet `EndDeviceSecretSession`, `HubAuthenticator.signOut` |
 
 Record each answer and the date in the notes of the affected task card.
 
