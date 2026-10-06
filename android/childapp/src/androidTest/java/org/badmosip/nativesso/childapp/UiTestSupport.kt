@@ -120,6 +120,14 @@ internal class CardUi {
         while (System.currentTimeMillis() < deadline) {
             if (done()) return
             device.findObject(By.res("error_text"))?.let { throw AssertionError("Health Card shows an error: ${it.text}") }
+            // The Back press that closes the keyboard goes to Chrome when no keyboard is shown, and the
+            // login page then asks "Leave site?". Stay on the page.
+            if (device.hasObject(By.pkg(CHROME).text(LEAVE_SITE))) {
+                device.findObject(By.pkg(CHROME).text(STAY_ON_PAGE))?.click()
+                step("\"Leave site?\" answered with Cancel")
+                Thread.sleep(1_000)
+                continue
+            }
             val fields = device.findObjects(By.pkg(CHROME).clazz("android.widget.EditText"))
             when {
                 !otpTyped && fields.size >= 4 -> {
@@ -133,7 +141,7 @@ internal class CardUi {
                     typeText(uin)
                     uinTyped = true
                     step("UIN typed")
-                    device.pressBack() // close the keyboard so the buttons below are visible
+                    closeKeyboard()
                 }
                 else -> {
                     val captcha = if (captchaTicked) null else findWeb(CAPTCHA)
@@ -159,6 +167,13 @@ internal class CardUi {
         throw AssertionError("the browser login did not finish within 180 s; see ui-test/last-window.xml")
     }
 
+    /** Presses Back only while the keyboard is shown, so that Chrome does not navigate back. */
+    private fun closeKeyboard() {
+        Thread.sleep(500)
+        val ime = device.executeShellCommand("dumpsys input_method")
+        if (ime.contains("mInputShown=true") || ime.contains("isInputViewShown=true")) device.pressBack()
+    }
+
     private fun typeText(text: String) {
         device.executeShellCommand("input text $text")
         Thread.sleep(500)
@@ -179,6 +194,8 @@ internal class CardUi {
     companion object {
         const val TAG = "PS03CardTest"
         const val CHROME = "com.android.chrome"
+        val LEAVE_SITE: Pattern = Pattern.compile("(?i) *leave site.*")
+        val STAY_ON_PAGE: Pattern = Pattern.compile("(?i) *cancel *")
         val BROWSERS = setOf(CHROME, "com.android.browser", "org.chromium.webview_shell")
         val CAPTCHA: Pattern = Pattern.compile("(?i).*(i am human|i'm not a robot|hcaptcha checkbox).*")
         val GET_OTP_OR_ALLOW: Pattern = Pattern.compile("(?i)\\s*(get otp|send otp|allow|accept|i agree|proceed)\\s*")
