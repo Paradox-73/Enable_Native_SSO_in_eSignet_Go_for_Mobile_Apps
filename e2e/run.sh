@@ -58,7 +58,9 @@ else
 fi
 rm -f "$PS03_RUN_DIR/test-results/$state"
 if [ -d "$PS03_RUN_DIR/test-results/$evidence" ]; then
-  mv "$PS03_RUN_DIR/test-results/$evidence" "$PS03_RUN_DIR/evidence/e2e-$stamp"
+  # On Linux the folder belongs to the container's root user, so it cannot be moved; copy it then.
+  mv "$PS03_RUN_DIR/test-results/$evidence" "$PS03_RUN_DIR/evidence/e2e-$stamp" 2>/dev/null ||
+    cp -R "$PS03_RUN_DIR/test-results/$evidence" "$PS03_RUN_DIR/evidence/e2e-$stamp"
   ps03_log "evidence: $PS03_RUN_DIR/evidence/e2e-$stamp/evidence.jsonl"
 fi
 
