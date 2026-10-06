@@ -162,10 +162,12 @@ oauth:
     exchange_only: true                         # token exchange only with a device secret
 
 # Device secrets of OpenID Connect Native SSO, read by the device secret provider. Env overrides:
-# MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS, _ENCRYPTION_KEY_REF_ID and
-# _SIGNING_KEY_REF_ID with the same prefix. Both keys live under OIDC_SERVICE; the signing key
+# MOSIP_ESIGNET_NATIVE_SSO_ENABLED, MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS,
+# _ENCRYPTION_KEY_REF_ID and _SIGNING_KEY_REF_ID with the same prefix. Without `enabled: true`
+# Native SSO is off (opt-in). Both keys live under OIDC_SERVICE; the signing key
 # must differ from jwt.preferred_key_id (start-up fails otherwise).
 native_sso:
+  enabled: true                          # false or absent: device_sso refused, as upstream eSignet
   device_secret_validity_seconds: 28800  # device secret, session record and cached claims
   encryption_key_ref_id: DEVICE_SECRET    # RSA-OAEP-256 JWE key, created on first start
   signing_key_ref_id: EC_SECP256R1_SIGN   # ES256 key of the inner JWS

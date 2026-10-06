@@ -627,6 +627,7 @@ for every eSignet setting, architecture 2.8):
 |---|---|---|---|
 | `oauth.allowed_scopes` | (yaml) | adds `device_sso` | advertised in discovery |
 | `oauth.allowed_grant_types` | (yaml) | adds `urn:ietf:params:oauth:grant-type:token-exchange` | Thunder builds the handler only for listed grants |
+| `native_sso.enabled` | `MOSIP_ESIGNET_NATIVE_SSO_ENABLED` | false (opt-in); true in `deployment.yaml` | off: no device secret provider is passed to the engine, so `device_sso` is refused, and no userinfo filter |
 | `oauth.native_sso.id_token_max_age_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | 0 (no cap beyond the device secret and session) | optional age cap on the exchanged id_token |
 | `oauth.native_sso.scope_exceeded_error` | `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `interaction_required` | or `invalid_scope` |
 | `oauth.native_sso.exchange_only` | `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | true in eSignet | token exchange only for the device-secret profile |

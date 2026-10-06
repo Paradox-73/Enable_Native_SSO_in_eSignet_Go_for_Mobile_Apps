@@ -23,6 +23,7 @@ import (
 
 	"github.com/thunder-id/thunderid/pkg/thunderidengine"
 	engineconfig "github.com/thunder-id/thunderid/pkg/thunderidengine/config"
+	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 
 	"github.com/mosip/esignet/internal/clientmgmt"
 	"github.com/mosip/esignet/internal/config"
@@ -123,13 +124,18 @@ func main() {
 	if err := provisionKeyHierarchy(keyMgrSvc); err != nil {
 		logger.Fatal("failed to provision key hierarchy", applog.Error(err))
 	}
-	if err := provisionDeviceSecretKey(context.Background(), keyMgrSvc, appCfg.NativeSSO); err != nil {
-		logger.Fatal("failed to provision device secret key", applog.Error(err))
+	// A nil provider turns OpenID Connect Native SSO off in the engine (native_sso.enabled false).
+	var deviceSecretProvider providers.DeviceSecretProvider
+	if appCfg.NativeSSO.Enabled {
+		if err := provisionDeviceSecretKey(context.Background(), keyMgrSvc, appCfg.NativeSSO); err != nil {
+			logger.Fatal("failed to provision device secret key", applog.Error(err))
+		}
+		deviceSecretProvider, err = engine.NewDeviceSecretProvider(appCfg, sigSvc, cryptoSvc, runtimeStore, nil)
+		if err != nil {
+			logger.Fatal("native sso settings", applog.Error(err))
+		}
 	}
-	deviceSecretProvider, err := engine.NewDeviceSecretProvider(appCfg, sigSvc, cryptoSvc, runtimeStore, nil)
-	if err != nil {
-		logger.Fatal("native sso settings", applog.Error(err))
-	}
+	logger.Info(context.Background(), "native sso", applog.Bool("enabled", appCfg.NativeSSO.Enabled))
 
 	keyMgrHandler := keymanager.NewHandler(keyMgrSvc, logger)
 	keyMgrHandler.RegisterRoutes(mux, securityMiddleware)
@@ -187,14 +193,7 @@ func main() {
 	)
 
 	addr := fmt.Sprintf(":%d", appCfg.Port)
-	// Userinfo for a token-exchange access token carries only the claims of that token's scopes
-	// (OpenID Connect Native SSO for Mobile Apps 1.0, 4.4).
-	userinfoScope := httpmiddleware.UserinfoScope(httpmiddleware.UserinfoScopeConfig{
-		ScopeClaims:  appCfg.ScopeClaims,
-		SigningKeyID: appCfg.JWT.PreferredKeyID,
-		Signer:       runtimeCrypto,
-	})
-	handler := httpmiddleware.CorrelationID(httpmiddleware.AccessLog(userinfoScope(mux)))
+	handler := newHandler(mux, appCfg, runtimeCrypto)
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           handler,
@@ -380,6 +379,23 @@ func provisionKeyHierarchy(svc *keymanager.Service) error {
 		return fmt.Errorf("provision %s component master key: %w", config.OIDCPartnerAppID, err)
 	}
 	return nil
+}
+
+// newHandler wraps the engine's routes with the correlation id and access log middleware. With
+// native_sso.enabled it also adds the userinfo filter: userinfo for a token-exchange access token
+// carries only the claims of that token's scopes (OpenID Connect Native SSO for Mobile Apps 1.0,
+// 4.4). With Native SSO off no token-exchange token exists, so the filter is left out and userinfo
+// answers exactly as upstream does.
+func newHandler(mux http.Handler, appCfg *config.AppConfig, signer httpmiddleware.UserinfoSigner) http.Handler {
+	next := mux
+	if appCfg.NativeSSO.Enabled {
+		next = httpmiddleware.UserinfoScope(httpmiddleware.UserinfoScopeConfig{
+			ScopeClaims:  appCfg.ScopeClaims,
+			SigningKeyID: appCfg.JWT.PreferredKeyID,
+			Signer:       signer,
+		})(mux)
+	}
+	return httpmiddleware.CorrelationID(httpmiddleware.AccessLog(next))
 }
 
 // certificateProvisioner is the part of keymanager.Service that provisionDeviceSecretKey uses.

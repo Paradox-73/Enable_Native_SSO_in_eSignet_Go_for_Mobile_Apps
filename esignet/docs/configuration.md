@@ -159,6 +159,7 @@ them in its own registration (see [12. Per-client configuration](#12-per-client-
 
 | Variable | YAML key | Default | Meaning |
 |---|---|---|---|
+| `MOSIP_ESIGNET_NATIVE_SSO_ENABLED` | `native_sso.enabled` | `false`; `true` in `deployment.yaml` | Turns OpenID Connect Native SSO on: the device secret provider and the userinfo filter for token-exchange tokens. Off, `device_sso` and the device-secret token exchange are refused and the service behaves as upstream eSignet |
 | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | `oauth.native_sso.id_token_max_age_seconds` | `0` | Oldest id_token (seconds since its `iat`) accepted in the exchange; `0` means no cap beyond the device secret and its session |
 | `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `oauth.native_sso.scope_exceeded_error` | `interaction_required` | Error for an exchange asking for more scopes than the device secret carries: `interaction_required` or `invalid_scope` |
 | `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | `oauth.native_sso.exchange_only` | `true` in `deployment.yaml` | Allow the token-exchange grant only with a device secret as `actor_token` |

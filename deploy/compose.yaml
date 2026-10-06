@@ -82,6 +82,7 @@ services:
       # does not depend on that default): device_sso and the token-exchange grant are allowed there, and
       # the token exchange accepts only a device secret as actor_token. Discovery then shows
       # native_sso_supported: true. Each Native SSO client registers the token-exchange grant itself.
+      MOSIP_ESIGNET_NATIVE_SSO_ENABLED: "true"
       MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY: "true"
       MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR: interaction_required
       # Shortened only by e2e/run.sh phase 2 (deploy/stack.sh restart), which waits a device secret out.

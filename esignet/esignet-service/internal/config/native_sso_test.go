@@ -15,6 +15,7 @@ import (
 )
 
 var nativeSSOEnvVars = []string{
+	"MOSIP_ESIGNET_NATIVE_SSO_ENABLED",
 	"MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS",
 	"MOSIP_ESIGNET_NATIVE_SSO_ENCRYPTION_KEY_REF_ID",
 	"MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID",
@@ -57,14 +58,14 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_Defaults() {
 
 func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_YAMLValuesKept() {
 	cfg := &AppConfig{}
-	cfg.NativeSSO = NativeSSOConfig{DeviceSecretValiditySeconds: 600, EncryptionKeyRefID: "DS_ENC",
+	cfg.NativeSSO = NativeSSOConfig{Enabled: true, DeviceSecretValiditySeconds: 600, EncryptionKeyRefID: "DS_ENC",
 		SigningKeyRefID: "ED25519_SIGN"}
 	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = 3600
 	cfg.OAuth.NativeSSO.ScopeExceededError = "invalid_scope"
 	cfg.OAuth.NativeSSO.ExchangeOnly = true
 	applyNativeSSODefaults(cfg)
 
-	ts.Equal(NativeSSOConfig{DeviceSecretValiditySeconds: 600, EncryptionKeyRefID: "DS_ENC",
+	ts.Equal(NativeSSOConfig{Enabled: true, DeviceSecretValiditySeconds: 600, EncryptionKeyRefID: "DS_ENC",
 		SigningKeyRefID: "ED25519_SIGN"}, cfg.NativeSSO)
 	ts.EqualValues(3600, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
 	ts.Equal("invalid_scope", cfg.OAuth.NativeSSO.ScopeExceededError)
@@ -79,6 +80,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML(
 	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS", "120")
 	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR", "invalid_scope")
 	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY", "false")
+	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_ENABLED", "true")
 
 	cfg := &AppConfig{}
 	cfg.NativeSSO = NativeSSOConfig{DeviceSecretValiditySeconds: 600, EncryptionKeyRefID: "DS_ENC",
@@ -86,11 +88,21 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML(
 	cfg.OAuth.NativeSSO.ExchangeOnly = true
 	applyNativeSSODefaults(cfg)
 
-	ts.Equal(NativeSSOConfig{DeviceSecretValiditySeconds: 900, EncryptionKeyRefID: "ENV_ENC",
+	ts.Equal(NativeSSOConfig{Enabled: true, DeviceSecretValiditySeconds: 900, EncryptionKeyRefID: "ENV_ENC",
 		SigningKeyRefID: "ENV_SIGN"}, cfg.NativeSSO)
 	ts.EqualValues(120, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
 	ts.Equal("invalid_scope", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
+}
+
+// TestApplyNativeSSODefaults_EnvTurnsOff checks that the env var can turn off Native SSO that
+// deployment.yaml turned on.
+func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvTurnsOff() {
+	ts.T().Setenv("MOSIP_ESIGNET_NATIVE_SSO_ENABLED", "false")
+	cfg := &AppConfig{}
+	cfg.NativeSSO.Enabled = true
+	applyNativeSSODefaults(cfg)
+	ts.False(cfg.NativeSSO.Enabled)
 }
 
 func (ts *NativeSSOConfigTestSuite) TestNativeSSOConfig_Validate() {
@@ -138,6 +150,7 @@ func (ts *NativeSSOConfigTestSuite) TestShippedDeploymentYAML() {
 
 	ts.Contains(cfg.OAuth.AllowedScopes, "device_sso")
 	ts.Contains(cfg.OAuth.AllowedGrantTypes, "urn:ietf:params:oauth:grant-type:token-exchange")
+	ts.True(cfg.NativeSSO.Enabled)
 	ts.True(cfg.OAuth.NativeSSO.ExchangeOnly)
 	ts.NoError(cfg.OAuth.NativeSSO.Validate())
 	ts.NoError(cfg.NativeSSO.Validate(cfg.JWT.PreferredKeyID))

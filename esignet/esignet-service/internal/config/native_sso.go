@@ -35,6 +35,11 @@ const (
 // protocol settings live in the engine's oauth.native_sso group (engineconfig.NativeSSOConfig),
 // which AppConfig.OAuth hands to the engine unchanged.
 type NativeSSOConfig struct {
+	// Enabled turns OpenID Connect Native SSO on: the device secret provider is handed to the
+	// engine and the userinfo filter for token-exchange access tokens is installed. Off (the
+	// default when the key is absent) the engine refuses device_sso and the device-secret token
+	// exchange, and the service behaves as upstream eSignet.
+	Enabled bool `yaml:"enabled"`
 	// DeviceSecretValiditySeconds is the lifetime of a device secret and of its session record.
 	DeviceSecretValiditySeconds int64 `yaml:"device_secret_validity_seconds"`
 	// EncryptionKeyRefID names the Component Encryption Key the device secret is encrypted to.
@@ -70,6 +75,7 @@ func (c NativeSSOConfig) Validate(tokenSigningKeyRefID string) error {
 // applyNativeSSODefaults resolves the native_sso and oauth.native_sso settings in the documented
 // precedence order: MOSIP_ESIGNET_NATIVE_SSO_* env var, then deployment.yaml, then the default.
 func applyNativeSSODefaults(cfg *AppConfig) {
+	cfg.NativeSSO.Enabled = envBoolOrConfig("MOSIP_ESIGNET_NATIVE_SSO_ENABLED", cfg.NativeSSO.Enabled)
 	cfg.NativeSSO.DeviceSecretValiditySeconds = int64(envIntOrConfigOrDefault(
 		"MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS",
 		int(cfg.NativeSSO.DeviceSecretValiditySeconds), defaultDeviceSecretValiditySeconds))
