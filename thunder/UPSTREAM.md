@@ -168,6 +168,62 @@ Results measured on 2026-10-05 for R27:
 - `go-lint.sh thunder/backend -- --timeout=30m`: 0 issues.
 
 
+### Consent-only re-consent (rule R28, bonus B1)
+
+When the second app asks for scopes beyond the first app's grant that need no new user data, the user
+approves them on a page of this server without logging in again. Off unless
+`oauth.native_sso.consent_only_reconsent` is true (eSignet's `deployment.yaml` turns it on).
+
+| Change | File (under `backend/` unless noted) |
+|---|---|
+| Settings `consent_only_reconsent` and `consent_ticket_ttl_seconds` (0 means 300 s, at most 600 s; the feature needs `scope_exceeded_error: interaction_required`) | `pkg/thunderidengine/config/config.go`, `validate.go` |
+| `ConsentOnlyEligible`: every missing scope is allowed for the second app, is not `openid` or `device_sso`, and releases no claim outside the device secret's `claims` | `internal/oauth/oauth2/nativesso/nativesso.go` |
+| Consent store in the runtime store (namespace `nativesso:session`, keys `consent-ticket:` + SHA-256 of the ticket and `consent-grant:` + SHA-256 of sid and client id): 256-bit one-time tickets, approvals per login session, app and user | `internal/oauth/oauth2/nativesso/consent_store.go` |
+| Token exchange, after every binding check: scopes the user approved for this app in this session are issued; other missing scopes answer `interaction_required`, with `consent_uri` and `consent_expires_in` when eligible (ticket lifetime capped by the device secret's expiry) | `internal/oauth/oauth2/granthandlers/token_exchange_native_sso.go` |
+| `ErrorResponse.ConsentURI`, `ConsentExpiresIn`; the token endpoint writes them with `Cache-Control: no-store` | `internal/oauth/oauth2/model/error.go`, `internal/oauth/oauth2/token/handler.go` |
+| Consent page `GET` and `POST /oauth2/native-sso/consent`: names of both apps, the scopes and their claims; "Allow" or "Not now"; ticket used up before anything is recorded; `Origin`/`Sec-Fetch-Site` check; 4 KiB body limit; `no-store`, `DENY` framing, `no-referrer`, a CSP without scripts whose `form-action` allows only this server and the app's redirect URI; 303 to the app's single registered redirect URI with `native_sso_consent=granted` or `denied` | `internal/oauth/oauth2/nativesso/consent_page.go` |
+| Audit lines `native_sso_consent_requested`, `_granted`, `_denied` (client ids, scopes, a 16-hex-digit hash of the sid; no user data, sid or ticket) | `internal/oauth/oauth2/nativesso/consent_audit.go` |
+| Wiring: the store exists and the page is registered only with a provider, the setting and a runtime store | `internal/oauth/init.go`, `granthandlers/init.go`, `provider.go`, `token_exchange.go` |
+| API description of `consent_uri` and the page | `api/oauth2.yaml` |
+
+Design decisions:
+
+- Why not new user data: eSignet's identity system releases user data only in the KYC exchange that
+  follows an authentication, and the login's attribute token holds only what the first app's login
+  released. A scope such as `phone` after a login without it therefore still needs the app's own
+  login (the earlier re-consent path); the exchange gives no `consent_uri` for it.
+- Why the ticket is enough on the page: it is issued only to a client that authenticated with
+  `private_key_jwt`, presented the device secret, the matching `id_token` and a proof from the first
+  app's DPoP key, and it is bound to that client, user, session and scope list. It lives minutes, is
+  used up by the first answer, and is stored only as a hash. The approval it records is used only by
+  a later token exchange that passes every binding check again, so neither a leaked ticket nor a forged
+  redirect yields a token.
+- Why per login session: a new login (new `sid`) asks again, and revoking or expiring the device secret
+  ends the session, so the exchange fails with `invalid_grant` before the approval is read.
+- Why not eSignet's consent records: `ConsentProvider.RecordConsent` reads the authorization request of
+  a running flow and would replace the record of the app's own browser login. The audit lines carry the
+  decision instead.
+
+Tests: `nativesso/consent_store_test.go`, `nativesso/consent_page_test.go`,
+`granthandlers/token_exchange_native_sso_consent_test.go` (13 cases), `token/handler_native_sso_test.go`,
+`config/native_sso_test.go` (new cases); live: `e2e/nativesso_consent_test.go`.
+
+### Start-up code of the OAuth services
+
+`internal/oauth/init_test.go` runs `oauth.Initialize` with mocks and checks the routes for each setting:
+the default endpoints, revocation and the consent page only with a provider, CIBA only when allowed,
+logout only when enabled, discovery's `native_sso_supported` from the provider, and
+`newNativeSSOConsentStore`.
+
+Results measured on 2026-10-06 for R28 and the start-up tests:
+
+- `go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages, 2434 tests, 0 failed (1
+  skipped by upstream); 668 of 676 statements on changed lines covered (98.8 %); `internal/oauth/init.go` 24/24,
+  `token_exchange_native_sso.go` 194/196, `consent_page.go` 126/128, `consent_store.go` 68/71,
+  `consent_audit.go` 7/7.
+- `openapi-lint.sh thunder/api/oauth2.yaml`: 0 errors, 13 warnings (the same 13 as the import), `OK`.
+
+
 ## Tests and checks
 
 Run from the repository root (Go runs in a container; see [`../scripts/README.md`](../scripts/README.md)):
