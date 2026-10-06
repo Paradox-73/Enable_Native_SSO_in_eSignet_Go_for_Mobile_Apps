@@ -92,7 +92,8 @@ func assertPageHeaders(t *testing.T, rec *httptest.ResponseRecorder) {
 	h := rec.Header()
 	assert.Equal(t, "no-store", h.Get("Cache-Control"))
 	assert.Equal(t, "DENY", h.Get("X-Frame-Options"))
-	assert.Equal(t, "same-origin", h.Get("Referrer-Policy"), "no-referrer would make Chrome send Origin: null on the form")
+	// no-referrer would make Chrome send "Origin: null" on the page's own form.
+	assert.Equal(t, "same-origin", h.Get("Referrer-Policy"))
 	assert.Equal(t, "nosniff", h.Get("X-Content-Type-Options"))
 	csp := h.Get("Content-Security-Policy")
 	assert.Contains(t, csp, "default-src 'none'")
