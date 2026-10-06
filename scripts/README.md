@@ -105,7 +105,7 @@ Checks only what git would commit (ignored files are skipped):
 | `PS03_UPSTREAM_DIR` | `../upstream` if it exists, else `$PS03_RUN_DIR/upstream-cache` | upstream clones |
 | `PS03_LOCK_DIR` | `/e/Projects/MOSIP/toolchain/locks` if it exists, else `$PS03_RUN_DIR/locks` | lock folders; one older than 90 minutes is removed as stale |
 | `PS03_GO_IMAGE` | `golang:1.26-bookworm` | Go container image |
-| `PS03_GO_MEMORY`, `PS03_GO_LINT_MEMORY`, `PS03_GO_CPUS` | `2g`, `3g`, `6` | container limits |
+| `PS03_GO_MEMORY`, `PS03_GO_LINT_MEMORY`, `PS03_GO_CPUS` | `2g`, `3g`, `6` | container limits; the CPU count is lowered to what Docker has |
 | `PS03_GO_TEST_P` | `4` | packages tested in parallel |
 | `CGO_ENABLED` | `0` | passed into the container (eSignet's local builds are cgo-free) |
 

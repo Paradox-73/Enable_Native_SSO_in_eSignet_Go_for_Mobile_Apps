@@ -69,7 +69,7 @@ the variables only to move the folders.
 | `PS03_UPSTREAM_DIR` | `../upstream` if it exists, else `$PS03_RUN_DIR/upstream-cache` | upstream clones for import checks; when missing, the needed commit is fetched from GitHub |
 | `PS03_LOCK_DIR` | `$PS03_RUN_DIR/locks` | lock folders, so only one Go container of this project runs at a time |
 | `PS03_GO_IMAGE` | `golang:1.26-bookworm` | Go container image |
-| `PS03_GO_MEMORY`, `PS03_GO_LINT_MEMORY`, `PS03_GO_CPUS` | `2g`, `3g`, `6` | container limits |
+| `PS03_GO_MEMORY`, `PS03_GO_LINT_MEMORY`, `PS03_GO_CPUS` | `2g`, `3g`, `6` | container limits; the CPU count is lowered to what Docker has |
 | `PS03_GO_TEST_P` | `4` | packages tested in parallel |
 | `PS03_FAMILY_KEYSTORE`, `PS03_FAMILY_KEYSTORE_PASSWORD` | `$PS03_RUN_DIR/keys/ps03-family-test.jks` and a random password in the file next to it | the test certificate that signs both Android apps |
 

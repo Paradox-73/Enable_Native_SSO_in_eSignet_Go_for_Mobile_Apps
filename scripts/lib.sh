@@ -126,8 +126,11 @@ ps03_go_container() {
   [ -d "$PS03_ROOT/$dir" ] || ps03_die "no such directory in the repository: $dir"
   mkdir -p "$PS03_RUN_DIR/test-results"
 
-  local name="ps03-go-$$-${RANDOM}"
-  local -a args=(run --rm --init --name "$name" --memory "$memory" --cpus "$PS03_GO_CPUS"
+  local name="ps03-go-$$-${RANDOM}" cpus=$PS03_GO_CPUS ncpu
+  # Docker refuses --cpus above the CPUs it has (a hosted CI runner has 2), so cap the setting.
+  ncpu=$(docker info --format '{{.NCPU}}' 2>/dev/null || true)
+  if [[ $ncpu =~ ^[0-9]+$ ]] && [[ $cpus =~ ^[0-9]+$ ]] && [ "$cpus" -gt "$ncpu" ]; then cpus=$ncpu; fi
+  local -a args=(run --rm --init --name "$name" --memory "$memory" --cpus "$cpus"
     -v "$(ps03_host_path "$PS03_ROOT"):/repo"
     -v "$(ps03_host_path "$PS03_RUN_DIR/test-results"):/results"
     -v ps03-gomod:/go/pkg/mod -v ps03-gocache:/root/.cache/go-build -v ps03-gotools:/gotools
