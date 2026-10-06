@@ -1,8 +1,8 @@
 # UX: flows, screens and accessibility
 
 The user flows of the two apps, screenshots of every screen from the emulator, and what was done for accessibility.
-Written 2026-10-05 from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
-unit tests and the emulator runs of 2026-10-05.
+Written 2026-10-05, updated 2026-10-06, from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
+unit tests and the emulator runs of 2026-10-05 and 2026-10-06.
 
 ## Screenshots
 
@@ -18,17 +18,18 @@ save them to `$PS03_RUN_DIR/evidence/<date>/screens/`; the files below are copie
 |---|---|---|
 | ![Health Card silent sign-in](screens/health-card-silent-sign-in.png) | ![Consent screen](screens/health-card-consent-screen.png) | ![After consent](screens/health-card-after-consent.png) |
 
-| Health Card: signed out of Health Card only | Health Card: Hub signed out, or sharing off |
-|---|---|
-| ![Health Card signed out](screens/health-card-signed-out.png) | ![Sign in to Hub first](screens/health-card-needs-hub.png) |
+| Health Card: signed out of Health Card only | Health Card: Hub signed out, or sharing off | Health Card: Hub not installed |
+|---|---|---|
+| ![Health Card signed out](screens/health-card-signed-out.png) | ![Sign in to Hub first](screens/health-card-needs-hub.png) | ![Hub not installed](screens/health-card-hub-missing.png) |
+
+| Health Card: "Not now" on the consent screen |
+|---|
+| ![Consent declined](screens/health-card-consent-declined.png) |
 
 - Test that takes each screenshot: `SuperAppSignInTest` (the two Hub screens before sign-out),
-  `ChildAppSilentSignInTest`, `ChildAppReconsentTest` (consent screen, after the extra permission) and
-  `ChildAppSignOutTest` (the three sign-out screens), all from the UI test run of the evening of 2026-10-05.
-- Not captured yet: "consent declined" and "Hub not installed". The device tests that take them
-  (`ChildAppReconsentTest` now taps "Not now" first and saves `health-card-consent-declined.png`; the new
-  `ChildAppHubMissingTest` saves `health-card-hub-missing.png`) were added afterwards (commit `551816f`) and
-  have not run on the emulator yet. Their texts below come from the string files.
+  `ChildAppSilentSignInTest`, `ChildAppReconsentTest` (consent screen, "Not now", after the extra permission),
+  `ChildAppSignOutTest` (the three sign-out screens) and `ChildAppHubMissingTest` (Hub not installed), all from the
+  UI test run of 2026-10-06 that ended at 18:24 IST (`run-ui-test.sh all`: `OK (5 tests)`).
 - "Hub signed out" and "sharing switched off in Hub" are one screen for Health Card: in both cases Hub's service
   has no sign-in to share (`FamilySsoGate.bundle` returns nothing), so Health Card shows the text "Hub has no
   sign-in it shares. Open Hub, turn on "Share this sign-in with my other apps" and sign in."
