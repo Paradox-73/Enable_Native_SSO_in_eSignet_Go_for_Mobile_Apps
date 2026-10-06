@@ -124,7 +124,7 @@ fi
 # e2e suite
 step E2E e2e bash "$PS03_ROOT/scripts/with-stack.sh" bash "$PS03_ROOT/e2e/run.sh"
 e2e_line=$(last '^e2e: [0-9]+ passed' e2e)
-while IFS= read -r f; do E2E_LOGS+=("$(ps03_host_path "$f")"); done < <(grep -o '[^ ]*e2e-[0-9-]*-phase[12].log' "$OUT/e2e.log" | sort -u)
+while IFS= read -r f; do E2E_LOGS+=("$(ps03_host_path "$f")"); done < <(grep -ao '[^ ]*e2e-[0-9-]*-phase[12].log' "$OUT/e2e.log" | sort -u)
 if printf '%s' "$e2e_line" | grep -q ' 0 failed$'; then ev set E2E PASS "$e2e_line; $STEP_SECONDS s"
 else ev set E2E FAIL "${e2e_line:-no result line}; see $OUT/e2e.log"; fi
 
