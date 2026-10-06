@@ -50,6 +50,10 @@
   exported, so a copied device secret is useless on another device or in another app.
 - The Child App gets the id_token, the device secret and DPoP proofs from the Super App over an Android bound
   service that only apps signed with the same certificate may call.
+- When the Child App asks for more than the Super App's login granted (bonus), eSignet refuses the exchange with
+  `interaction_required`. If the extra scope needs no new user data (a permission), the answer carries a
+  `consent_uri`: the user approves on eSignet's own page with no login, and the same exchange then succeeds.
+  If it needs new user data (the phone number), the Child App runs its own login (section 6.3).
 
 ## 2. Context: eSignet Go and Thunder
 
@@ -322,8 +326,70 @@ sequenceDiagram
 - Native SSO 4.3 step 6 and 4.4: when the requested scope needs consent, the server returns
   `interaction_required` and the client starts a normal browser authorization.
 - eSignet Go keeps no browser login session (the embedded engine never starts Thunder's session package), so the
-  user enters the OTP again. The app says so before opening the browser. A consent-only step authenticated by the
-  device secret is future work.
+  user enters the OTP again. The app says so before opening the browser.
+- This path is used only when the extra scope needs user data the login did not fetch (`phone` above). eSignet's
+  identity system releases user data only in the KYC exchange that follows an authentication, so no consent
+  screen alone can produce it. Everything else takes the consent-only path below.
+
+#### Consent-only re-consent (rule R28)
+
+<!-- source: diagrams/seq-consent-only.mmd -->
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant C as Child App (Health Card)
+  participant H as Super App: FamilySsoService
+  participant T as eSignet Go: Thunder engine
+  participant B as Custom Tab: eSignet consent page
+
+  C->>H: getSsoBundle(), signDpopProof(POST, token endpoint)
+  C->>T: Token exchange, scope openid profile health_card_share
+  T->>T: every binding check passes, and health_card_share is outside the grant but releases no user data
+  T->>T: store one-time ticket (hash only): client, user, sid, scope, 300 s
+  T-->>C: 400 interaction_required + consent_uri
+  C->>U: "Health Card needs your permission. No ID or OTP is needed."
+  U->>C: Continue
+  C->>B: Open consent_uri (only if it is the issuer's consent page)
+  B->>T: GET /oauth2/native-sso/consent?ticket=...
+  T-->>B: Page: Health Card asks for more than you allowed in Hub. Allow / Not now
+  U->>B: Allow
+  B->>T: POST ticket, decision=allow (ticket used up, approval kept for this sid and app, audit line)
+  T-->>B: 303 to Health Card redirect URI ?native_sso_consent=granted
+  B-->>C: Redirect
+  C->>H: signDpopProof(POST, token endpoint)
+  C->>T: Same token exchange again
+  T->>T: every binding check again, then the approval for this sid and app
+  T-->>C: 200 access token bound to Hub's key, scope includes health_card_share
+```
+
+- When: every missing scope is allowed for the Child App, is not `openid` or `device_sso`, and releases no user
+  claim outside the device secret's `claims` (what the login already released). A permission scope such as
+  `health_card_share` qualifies; `phone` after a login without it does not. Setting:
+  `oauth.native_sso.consent_only_reconsent` (on in eSignet's `deployment.yaml`).
+- The answer stays `interaction_required` (Native SSO 4.4 "MUST return"); `consent_uri` and `consent_expires_in` are
+  extra members a client that does not know them ignores, so older apps fall back to the own login.
+- Who the user is on the page: the device holder, exactly as for the silent sign-in itself. The ticket in
+  `consent_uri` was issued only to a client that authenticated with `private_key_jwt` and presented the device
+  secret, the matching id_token and a proof from the Super App's DPoP key. It is 256 random bits, stored only as a
+  hash, bound to the client, user, `sid` and scope list, valid for at most 300 s (never past the device secret) and
+  used up by the first answer.
+- What "Allow" records: an approval for that Child App, that user and that login session (`sid`), until the device
+  secret expires. The approval is read only by a later token exchange that passes every binding check again, so a
+  leaked ticket or a forged redirect yields no token. A new login asks again; revoking the device secret (R27) ends
+  the session, so the exchange fails with `invalid_grant` before the approval is read; removing the scope from the
+  client stops it at the next exchange.
+- The page: client names from eSignet's client registry, the scopes and their claims, "Allow" and "Not now"; no
+  script; `X-Frame-Options: DENY` and `frame-ancestors 'none'` against clickjacking; `no-store`; `Referrer-Policy: same-origin` (the
+  URL holds the ticket); `form-action` only to the server and the app's registered redirect URI; a form from another
+  origin is refused. The answer is a 303 to the app's single registered redirect URI with
+  `native_sso_consent=granted` or `denied`; the app checks that `consent_uri` is the issuer's consent page before it
+  opens it.
+- Audit: one log line per ticket issued, granted and denied (client ids, scopes, a hash of the `sid`; no user data,
+  `sid` or ticket). eSignet's consent records are not written: `ConsentProvider.RecordConsent` reads the
+  authorization request of a running flow and would replace the record of the Child App's own browser login.
+- Tokens: the same as any exchange (D3): bound to the Super App's key, `sid` of the login, claims limited as in
+  section 12.
 
 ### 6.4 Sign-out
 
@@ -357,6 +423,7 @@ Thunder (`thunder/backend`, Apache-2.0 header on new files):
 | Mint `sid`, call `GenerateDeviceSecret`, compute `ds_hash`, return `device_secret` | `granthandlers/authorization_code.go`, `tokenservice/builder.go`, `model/token.go` | `at_hash`-style claims in `buildIDTokenClaims` |
 | Device-secret branch in token exchange: token type constant, provider validation, id_token checks, `audience`, scope rules | `granthandlers/token_exchange.go` (+ a new `token_exchange_native_sso.go`) | the ID-JAG branch (`token_exchange.go:145-150`) |
 | Discovery: `native_sso_supported`, `device_sso` in `scopes_supported` | `discovery/service.go` | existing metadata fields |
+| Consent-only re-consent: `consent_uri` on `interaction_required`, consent page, one-time tickets and per-session approvals in the runtime store, audit lines | `granthandlers/token_exchange_native_sso.go`, `nativesso/consent_*.go`, `model/error.go`, `token/handler.go`, `init.go` | PAR's runtime-store `request_uri`; the authorize endpoint's route registration |
 | Settings `oauth.native_sso.*` | `engineconfig.OAuthConfig` | other `oauth.*` groups |
 | Mocks rebuilt by mockery v3.5.5 from `.mockery.public.yml` and `.mockery.private.yml` | `tests/mocks/...` | upstream `make mockery` |
 
@@ -581,6 +648,7 @@ In the Native SSO branch of the token-exchange handler:
 |---|---|---|---|
 | `scope` equal to or narrower than the Super App's granted scope | 200, `scope` in the response is what was issued | task 10a ("the reverse ... is allowed") | R17 |
 | `scope` with any value outside the granted scope | `interaction_required` (default) or `invalid_scope` (setting) | task 10a "must fail"; Native SSO 4.3 step 6, 4.4; bonus | R15 |
+| the same, when every outside value needs consent only (no new user data) | `interaction_required` with `consent_uri`; after "Allow" on that page, 200 for that login session | bonus; section [6.3](#63-re-consent-when-the-child-app-asks-for-more-bonus) | R28 |
 | `scope` containing `device_sso` | `invalid_scope` | task 10b | R16 |
 | `scope` without `openid` | `invalid_scope` | Native SSO 4.1 | R16 |
 | no `scope` | the Super App's granted scope | RFC 8693 2.1 (scope optional) | R17 |
@@ -613,6 +681,7 @@ All errors use Thunder's `model.ErrorResponse` (HTTP 400 unless noted) and the c
 | Requesting client lacks `device_sso` or the token-exchange grant | `unauthorized_client` | task 9 iii.3, RFC 6749 5.2 | R13 |
 | `device_sso` in the exchange scope; scope without `openid` | `invalid_scope` | task 10b, Native SSO 4.1 | R16 |
 | Scope beyond the original grant | `interaction_required` (setting: `invalid_scope`) | Native SSO 4.3 step 6, task 10a, bonus | R15 |
+| Same, consent only needed | `interaction_required` with `consent_uri` and `consent_expires_in` | bonus | R28 |
 | Any other token exchange while eSignet allows only Native SSO | `invalid_request` | D9 | R26 |
 
 Where RFC 8693 and Native SSO disagree (RFC 8693: invalid tokens give `invalid_request`; Native SSO: a dead session
@@ -631,6 +700,8 @@ for every eSignet setting, architecture 2.8):
 | `oauth.native_sso.id_token_max_age_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | 0 (no cap beyond the device secret and session) | optional age cap on the exchanged id_token |
 | `oauth.native_sso.scope_exceeded_error` | `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `interaction_required` | or `invalid_scope` |
 | `oauth.native_sso.exchange_only` | `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | true in eSignet | token exchange only for the device-secret profile |
+| `oauth.native_sso.consent_only_reconsent` | `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT` | false; true in `deployment.yaml` | consent-only re-consent (section 6.3); needs `scope_exceeded_error: interaction_required` |
+| `oauth.native_sso.consent_ticket_ttl_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS` | 0 (= 300) | lifetime of a `consent_uri`, at most 600 |
 | `native_sso.device_secret_validity_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS` | 28800 | device secret, session record and cached claims lifetime |
 | `native_sso.encryption_key_ref_id` | `MOSIP_ESIGNET_NATIVE_SSO_ENCRYPTION_KEY_REF_ID` | `DEVICE_SECRET` | JWE key under `OIDC_SERVICE` |
 | `native_sso.signing_key_ref_id` | `MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID` | `EC_SECP256R1_SIGN` | inner JWS key; must differ from the engine's token key |
@@ -647,7 +718,7 @@ Per client, set through eSignet client management (architecture 2.5, `additional
 | `relyingPartyId` | `ps03-family` (`PS03_RELYING_PARTY`; the e2e suite uses `ps03-vendor-<random>`) | same value (same vendor) |
 | `grantTypes` | `authorization_code`, `urn:ietf:params:oauth:grant-type:token-exchange` (`android/scripts/register-client.sh` gives both apps both) | `authorization_code`, `urn:ietf:params:oauth:grant-type:token-exchange` (code grant for re-consent) |
 | `clientAuthMethods` | `private_key_jwt` | `private_key_jwt` |
-| `additional_config.allowed_authorization_scopes` | includes `device_sso` | includes `device_sso` |
+| `additional_config.allowed_authorization_scopes` | includes `device_sso` | includes `device_sso` and the permission `health_card_share` (resource server `health-card` in `deployment.yaml`) |
 | `additional_config.dpop_bound_access_tokens` | true | true |
 | `additional_config.require_pushed_authorization_requests` | true | true |
 | `additional_config.require_pkce` | true | true |
@@ -739,7 +810,7 @@ The live tests also register a client of another relying party (`ps03-other-vend
 | T9 iii | Validate the id_token: `ds_hash`, `sid`, `device_sso` allowed, `cnf.jkt` = DPoP key | Thunder | R11, R12, R13, R14, R20, R21 | WP-10 |
 | T10a | Requested scope must be a subset; narrower allowed | Thunder | R15, R17 | WP-12 |
 | T10b | Reject `device_sso` on token exchange | Thunder | R16 | WP-12 |
-| B1 | Re-consent in the second app when scopes differ | Thunder (`interaction_required`), Child App | R15, A10 | WP-12, WP-15 |
+| B1 | Re-consent in the second app when scopes differ | Thunder (`interaction_required`, consent page), Child App | R15, R28, A10, A13 | WP-12, WP-15 |
 
 ## 20. Rules and tests
 
@@ -775,6 +846,7 @@ the local stack and are named `TestE2E_*`. Dated results per rule: [test-report.
 | R25 | enablement | client registration accepts the token-exchange grant, rejects unknown grants | eSignet clientmgmt | `TestE2E_ClientRegistration_TokenExchangeGrant` |
 | R26 | D9 | other token exchanges blocked: `invalid_request` | granthandlers | `TestE2E_GenericExchangeRejected` |
 | R27 | sign-out, RFC 7009 | the issuing client revokes its device secret: `200`, then the exchange is `invalid_grant`; another client gets `invalid_grant` and nothing changes; other tokens get `unsupported_token_type` while the deny list is off; discovery lists `revocation_endpoint` | revocation, discovery, eSignet engine | `TestE2E_Revoke_DeviceSecret` |
+| R28 | B1 | consent only: `interaction_required` with `consent_uri` for a scope that needs no new user data; page without login; "Not now" changes nothing; cross-site form refused; "Allow" once, then the exchange returns the scope bound to the Super App's key; another DPoP key still `invalid_grant`; `phone` gets no `consent_uri`; a scope the app is not allowed gets none; a new login asks again; a revoked device secret is `invalid_grant` | granthandlers, nativesso, token | `TestE2E_Exchange_ConsentOnlyReconsent` |
 
 App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `android/*/src/androidTest` that need the emulator, or a recorded command). A rule with a JVM part and a device part has two rows in the test report (`a`, `b`):
 
@@ -792,6 +864,7 @@ App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `an
 | A10 | B1 | re-consent end to end | `CardControllerTest` (JVM); `ChildAppReconsentTest` (device) |
 | A11 | sign-out | "Sign out of all apps" drops Hub tokens, device secret and DPoP key, and revokes the device secret on the server; Child App shows the Hub-first state | `ReplaceableSignerTest`, `HubAuthenticatorTest`, `CardControllerTest` (JVM); `ChildAppSignOutTest` (device) |
 | A12 | interop | RFC 7638 example thumbprint equal in Go and Kotlin | `JwkThumbprintTest` (RFC 7638 example, Kotlin); the e2e suite checks `cnf.jkt` equals Hub's key (R06) |
+| A13 | B1 | consent only: "Allow card sharing", consent screen says no ID or OTP, eSignet's page opens in the browser with no login form, Allow, Health Card signed in again with Hub's sign-in and the new scope | `CardControllerTest`, `CardScreensTest`, `OidcClientTest` (JVM); `ChildAppConsentOnlyTest` (device) |
 
 ## 21. Future work
 
@@ -799,7 +872,10 @@ App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `an
   revocation (`oauth.token_revocation`, off today) and a token family shared by the exchange.
 - Audit events for "device secret issued", "exchange accepted", "exchange rejected" (reason code, client id, no
   personal data) through eSignet's audit plugin interface.
-- Consent-only re-consent authenticated by the device secret, so the user does not enter the OTP again.
+- Consent-only re-consent for new user data: needs an identity-system API that releases more claims for an
+  existing authentication (MOSIP IDA has none; its KYC exchange follows a fresh authentication).
+- Write the consent-only approvals into eSignet's consent records next to the audit lines, once
+  `ConsentProvider` can record a decision outside a running authorization flow.
 - Device attestation (Play Integrity, Keystore key attestation) at client registration.
 - Server-issued DPoP nonces (RFC 9449 8) against pre-generated proofs; Thunder v1.0.1 has none.
 - iOS apps (shared Keychain access group in place of the bound service).

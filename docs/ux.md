@@ -1,7 +1,7 @@
 # UX: flows, screens and accessibility
 
 The user flows of the two apps, screenshots of every screen from the emulator, and what was done for accessibility.
-Written 2026-10-05, updated 2026-10-06, from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
+Written 2026-10-05, updated 2026-10-06 (consent-only re-consent), from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
 unit tests and the emulator runs of 2026-10-05 and 2026-10-06.
 
 ## Screenshots
@@ -26,10 +26,15 @@ save them to `$PS03_RUN_DIR/evidence/<date>/screens/`; the files below are copie
 |---|
 | ![Consent declined](screens/health-card-consent-declined.png) |
 
+| Health Card: permission that needs no login | eSignet's consent page (no ID, no OTP) | Health Card: card sharing allowed |
+|---|---|---|
+| ![Consent-only screen](screens/health-card-consent-only-screen.png) | ![eSignet consent page](screens/esignet-consent-only-page.png) | ![After consent-only](screens/health-card-after-consent-only.png) |
+
 - Test that takes each screenshot: `SuperAppSignInTest` (the two Hub screens before sign-out),
-  `ChildAppSilentSignInTest`, `ChildAppReconsentTest` (consent screen, "Not now", after the extra permission),
-  `ChildAppSignOutTest` (the three sign-out screens) and `ChildAppHubMissingTest` (Hub not installed), all from the
-  UI test run of 2026-10-06 that ended at 18:24 IST (`run-ui-test.sh all`: `OK (5 tests)`).
+  `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest` (the three consent-only screens), `ChildAppReconsentTest`
+  (consent screen, "Not now", after the extra permission), `ChildAppSignOutTest` (the three sign-out screens) and
+  `ChildAppHubMissingTest` (Hub not installed), all from the UI test run of 2026-10-06 that ended at 19:34 IST at
+  `ef69358` (`run-ui-test.sh all`: `OK (6 tests)`).
 - "Hub signed out" and "sharing switched off in Hub" are one screen for Health Card: in both cases Hub's service
   has no sign-in to share (`FamilySsoGate.bundle` returns nothing), so Health Card shows the text "Hub has no
   sign-in it shares. Open Hub, turn on "Share this sign-in with my other apps" and sign in."
@@ -48,7 +53,9 @@ save them to `$PS03_RUN_DIR/evidence/<date>/screens/`; the files below are copie
 | First sign-in in Hub | Hub (signed out) -> switch "Share this sign-in with my other apps" -> "Sign in with eSignet" -> browser: UIN, OTP, consent -> back in Hub, signed in | [seq-super-app-login](diagrams/seq-super-app-login.png) |
 | Health Card, silent | open Health Card -> "Signing you in with Hub..." -> home with name and email; no browser | [seq-child-app-sso](diagrams/seq-child-app-sso.png) |
 | Health Card, Hub not signed in | "Sign in to Hub first" with "Open Hub"; after Hub signs in, Health Card signs in on resume | same |
-| Re-consent | "Add my phone number" -> explainer (OTP asked again) -> "Continue to eSignet" -> browser login -> phone number shown | [seq-reconsent](diagrams/seq-reconsent.png) |
+| Re-consent, no login (permission) | "Allow card sharing" -> explainer ("no ID or OTP is needed") -> "Continue to eSignet" -> eSignet's page "Allow more access?" -> "Allow" -> back in Health Card, still signed in with Hub, "Card sharing with clinics: Allowed" | [seq-consent-only](diagrams/seq-consent-only.png) |
+| Re-consent, no login, declined | same, then "Not now" on eSignet's page -> home again with "You did not give the extra permission. Nothing changed." | same |
+| Re-consent with login (new user data) | "Add my phone number" -> explainer (OTP asked again) -> "Continue to eSignet" -> browser login -> phone number shown | [seq-reconsent](diagrams/seq-reconsent.png) |
 | Re-consent declined | "Add my phone number" -> explainer -> "Not now" -> home again, still signed in with Hub, with "You did not give the extra permission. Nothing changed." | [seq-reconsent](diagrams/seq-reconsent.png) |
 | Sign out of Health Card | "Sign out of Health Card" -> "You signed out of Health Card. Hub is still signed in." -> "Continue with Hub" | - |
 | Sign out of all apps | Hub "Sign out of all apps" -> "You are signed out of Hub and of every app that used this sign-in."; Hub also asks eSignet to end the device secret's session; Health Card clears itself on its next resume | [seq-child-app-sso](diagrams/seq-child-app-sso.png) |
@@ -111,8 +118,14 @@ Signed out of Health Card: "You signed out of Health Card. Hub is still signed i
 
 - Both apps share one layout and one colour palette: the app mark and name at the top, then what is happening,
   then what the user can do, then the folded technical details. Only the mark's colour tells them apart.
-- The re-consent screen tells the user before the browser opens that a new OTP will be asked: eSignet Go keeps no browser
-  session (limit L02), so a surprise is avoided.
+- The re-consent screen tells the user before the browser opens whether a new OTP will be asked. A permission that
+  needs no new user data is approved on eSignet's own page with one tap and no login; only new user data (the phone
+  number) needs the ID and a new OTP, because eSignet's identity system releases user data only after an
+  authentication (limit L02).
+- eSignet's consent page is the server's own page, not Health Card's: the app cannot claim the user said yes. It
+  names both apps, uses the same 48 dp buttons and a readable font size, and needs no script.
+- Gap: the consent page shows the permission by its scope value (`health_card_share`); a friendly text from the
+  resource server's description is not wired yet.
 - The switch "Share this sign-in with my other apps" is off by default in Hub (the user opts in) and decides whether the `device_sso` scope is
   requested at all; with it off Hub behaves as an ordinary sign-in app and Health Card shows the Hub-first state.
 - Hub lists the apps that used its sign-in by the name the launcher shows, with the time of last use, never a token

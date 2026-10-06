@@ -75,7 +75,11 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
      and email and the line "With Hub's sign-in. No password or OTP was needed." No browser opens.
    - Back in Hub, "Apps using this sign-in" now lists Health Card with a time.
 3. **Re-consent.**
-   - In Health Card tap "Add my phone number". The consent screen says "Health Card needs your permission" and that
+   - First without a login: in Health Card tap "Allow card sharing". The consent screen says no ID or OTP is
+     needed. Tap "Continue to eSignet": eSignet's page "Allow more access?" names Health Card, Hub and the
+     permission `health_card_share`. Tap "Allow". Back in Health Card: "Card sharing with clinics: Allowed", still
+     "With Hub's sign-in".
+   - Then with a login, for new user data: in Health Card tap "Add my phone number". The consent screen says "Health Card needs your permission" and that
      eSignet will ask for the ID and a new OTP (eSignet Go keeps no browser session; say this on camera).
    - Tap "Continue to eSignet", enter UIN and OTP again. Expect the phone number on the home screen and "With your
      own eSignet sign-in, after you gave the extra permission."
@@ -98,9 +102,9 @@ Narration is written to be read at a calm pace. Times are planned, not measured.
 | 0:20-0:50 | Diagram `docs/diagrams/user-flow.png` | One sign-in in Hub; Hub holds a device secret; Health Card trades it for its own tokens at the token endpoint. | The user-flow diagram |
 | 0:50-1:30 | Hub: tap Sign in, Chrome login | Hub asks for the extra scope `device_sso`. eSignet answers with a device secret next to the tokens. The tokens are bound to Hub's key with DPoP. | Hub home, Chrome login with UIN and OTP, "Signed in as" |
 | 1:30-2:20 | Health Card opens | Health Card binds to Hub's service, which only answers apps signed with the same certificate. It sends the id_token and device secret to eSignet with its own client key. No browser, no OTP. | Health Card home, "With Hub's sign-in" line; Hub's "Apps using this sign-in" |
-| 2:20-3:10 | Re-consent | The Health Card asks for `phone`, which Hub's login did not include. eSignet answers `interaction_required` instead of widening silently. The user consents once. | Consent screen, Chrome login, phone number on screen |
+| 2:20-3:10 | Re-consent | Health Card asks for a permission Hub's login did not include. eSignet answers `interaction_required` with a consent page: one tap, no login. For the phone number, which needs new user data, the user logs in once more. | Consent-only page, "Allowed"; consent screen, Chrome login, phone number on screen |
 | 3:10-3:40 | Sign out of all apps | Hub deletes its key and asks eSignet to end the device secret's session. No family app can sign in with it any more. | Hub sign out, Health Card "Sign in to Hub first" |
-| 3:40-4:10 | Terminal | The same rules are tested live: 30 of 30 end-to-end tests, 34 Postman requests with 125 assertions. | `e2e: 30 passed, 0 failed`; newman summary |
+| 3:40-4:10 | Terminal | The same rules are tested live: 31 of 31 end-to-end tests, 34 Postman requests with 125 assertions. | `e2e: 31 passed, 0 failed`; newman summary |
 | 4:10-4:30 | Closing slide | Thunder and eSignet changes, API docs, Postman collection, design doc, both apps. | Repository link, README |
 
 ## Timings

@@ -7,7 +7,7 @@ task on their own computer. How to set up a machine, build, test and commit: [..
 
 | Item | Value |
 |---|---|
-| Written | 2026-10-04; updated 2026-10-05 when all tasks were done, that evening after the full re-run, and 2026-10-06 after the hosted CI fix and the 5-test emulator run |
+| Written | 2026-10-04; updated 2026-10-05 when all tasks were done, that evening after the full re-run, and 2026-10-06 after the hosted CI fix and the 5-test emulator run, and that evening after WP-19 (consent-only re-consent) and the 6-test re-run |
 | `main` | all work is on `main`; [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) gets it at each push |
 | Unfinished work | none; the earlier `wip/2026-10-04-stop` branch was brought into `main` with WP-07 and deleted |
 | Deadline | 2026-10-26 23:59 IST (MOSIP Decode 2026, problem statement 03, team Badmosip) |
@@ -63,6 +63,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-16 | platform | End-to-end demo script (one command, repeatable) and video storyboard | WP-13, WP-15 | DONE | see card |
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | DONE | see card |
 | WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | DONE | see card |
+| WP-19 | thunder, android | Consent-only re-consent (B1 in full) and tests of the OAuth start-up code | WP-12, WP-15 | DONE | `28f42ee`, `e450de8`, `7464f37`, `0a03abc`, `ef69358` |
 
 Results recorded for the DONE tasks (all on 2026-10-04, commands in [../CONTRIBUTING.md](../CONTRIBUTING.md)):
 
@@ -198,7 +199,7 @@ commit of that folder.
       55 `PASS` lines, 0 `FAIL`, including client-not-allowed (PAR, authorize, code grant), missing-DPoP and
       provider-failure cases.
     - `bash scripts/go-lint.sh thunder/backend -- --timeout=30m`: `0 issues`, `OK`.
-  - Not done here: `internal/oauth/init.go` has no unit test of its own (covered only by the engine test
+  - Not done here (done later in WP-19, `e450de8`): `internal/oauth/init.go` has no unit test of its own (covered only by the engine test
     `TestNew_HappyPath`); no live test has run (WP-13); discovery metadata stays with WP-12.
   - For WP-10: the token exchange can reuse `nativesso.DeviceSecretHash` and `ValidateDeviceSSOScope`, and the
     handler field `deviceSecretProvider` pattern in `granthandlers/authorization_code.go`.
@@ -956,6 +957,45 @@ commit of that folder.
   - `scripts/README.md` (import workflow) and `android/README.md` (build commands) name helper scripts that exist
     only on the first team laptop; replace them with the commands in `CONTRIBUTING.md`.
 
+### WP-19 Consent-only re-consent (B1 in full) and tests of the OAuth start-up code (DONE)
+
+- **Done 2026-10-06, 19:59 IST** (`28f42ee`, `e450de8`, `7464f37`, `0a03abc`, `ef69358`, and the docs commit after them)
+  - Why: the audit of 2026-10-05 (finding F7) rated B1 partial, because re-consent always needed a fresh login with
+    the OTP, and `internal/oauth/init.go` had no unit test.
+  - Server (Thunder): a token exchange refused for scopes that need no new user data now carries `consent_uri`, a
+    one-time page `/oauth2/native-sso/consent` where the user allows or declines with no login; after "Allow" the
+    same exchange succeeds for that login session, after every binding check. Tickets 256 bits, stored hashed,
+    300 s, single use; approvals per session, app and user; audit log lines; page without script or framing.
+    Design: [design.md section 6.3](design.md#63-re-consent-when-the-child-app-asks-for-more-bonus), rule R28,
+    threat T12.
+  - eSignet: `oauth.native_sso.consent_only_reconsent` (env `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT`) on in
+    `deployment.yaml` and `deploy/compose.yaml`; resource server `health-card` with the permission `health_card_share`.
+  - Health Card: "Allow card sharing" asks for `health_card_share`; the consent screen says no ID or OTP is needed;
+    eSignet's page opens in a Custom Tab (only the issuer's consent page); "Allow" makes Health Card repeat the
+    exchange with Hub's proofs. "Add my phone number" keeps the own login, because new user data needs an
+    authentication at the identity system.
+  - Found on the emulator and fixed: with `Referrer-Policy: no-referrer` Chrome sends `Origin: null` on the page's
+    own form, so the same-origin check refused it (`0a03abc` uses `same-origin`); Hub's rate limit (30 calls in 60 s)
+    refused the next UI test right after the consent-only test (`ef69358` waits 61 s after it).
+- **Results (2026-10-06, `bash run/rerun-1006/all.sh` at `ef69358`, no lock directory, `PS03_HELD_LOCKS` set)**
+  - `go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover`: 32 packages, 2434 tests, 0 failed
+    (1 skipped by upstream); changed lines 668/676 (98.8 %); `internal/oauth/init.go` 24/24 (was 0/24).
+  - `go-test.sh esignet/esignet-service ./... --changed-cover`: 29 packages, 1593 tests, 0 failed; 325/352 (92.3 %).
+  - `go-lint.sh` Thunder (rerun after a line-length fix), eSignet and e2e: 0 issues. `openapi-lint.sh
+    thunder/api/oauth2.yaml`: 0 errors, the import's 13 warnings.
+  - `e2e/run.sh`: 31 passed, 0 failed (new `TestE2E_Exchange_ConsentOnlyReconsent` with 9 sub-tests).
+  - newman: 34 requests, 125 assertions, 0 failed. Android JVM: 207 tests, 0 failed (oidc-client 68, secure-store
+    13, Hub 64, Health Card 62).
+  - `run-ui-test.sh all`: `OK (6 tests)` (new `ChildAppConsentOnlyTest` 76.5 s); `run-family-tests.sh`: all steps
+    PASS; `demo.sh --check`: demo ready, teardown ok, 321 s.
+  - `evidence.sh --check`: 73 PASS, 3 NOT RUN with a listed limit, 0 FAIL.
+- **Still open**
+  - New user data (the phone number) still needs the own login with OTP (limit L02): MOSIP's identity system has no
+    call that releases more claims for an existing authentication.
+  - The consent page shows a permission by its scope value, not by the resource server's description.
+  - Approvals are audit log lines, not eSignet consent records (design section 21).
+  - Hosted CI has not run on these commits yet (GitHub Actions run of the next push).
+
 ## Decisions that may change
 
 Open questions for the mentor call on Wed 2026-10-07, 16:00 IST. Each answer is behind one constant or setting:
@@ -964,7 +1004,7 @@ Open questions for the mentor call on Wed 2026-10-07, 16:00 IST. Each answer is 
 |---|---|---|
 | Is `ds_hash` plus `sid` in the id_token the intended reading of "device secret embedded into the id_token" (T4a ix)? | `ds_hash` and `sid` in the id_token, device secret as its own response field | Thunder token builder (WP-07); D2 |
 | Child App tokens bound to Hub's DPoP key (T8), or to the Child App's own key? | Hub's key | WP-10, WP-15; D3 |
-| `interaction_required` or `invalid_scope` for a wider scope; OTP again on re-consent acceptable? | `interaction_required` | `oauth.native_sso.scope_exceeded_error`; D6 |
+| `interaction_required` or `invalid_scope` for a wider scope; OTP again on re-consent for new user data acceptable (permissions need no login since WP-19)? | `interaction_required`, plus `consent_uri` when consent alone is enough | `oauth.native_sso.scope_exceeded_error`; D6 |
 | "Same vendor" = same eSignet relying party, both clients allow `device_sso`? | yes | WP-10; D7 |
 | Meaning of `auth_id` and `claims` in the device secret | authorization request id; names of released claims | WP-07, WP-08 |
 | Client key held in Android Keystore instead of a backend? | Keystore key, not exportable | WP-09; design.md section 18 |

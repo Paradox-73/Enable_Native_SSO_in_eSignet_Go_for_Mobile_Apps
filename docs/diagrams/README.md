@@ -8,7 +8,8 @@ Mermaid sources (`.mmd`) and their PNG renderings. GitHub renders the Mermaid co
 | [components.mmd](components.mmd) | Apps, eSignet Go with the Thunder engine and its providers, stores | design section 5 |
 | [seq-super-app-login.mmd](seq-super-app-login.mmd) | Super App sign-in (PAR, PKCE, DPoP, `private_key_jwt`, OTP, consent) and device secret issuance | design section 6.1 |
 | [seq-child-app-sso.mmd](seq-child-app-sso.mmd) | Child App silent sign-in by token exchange, proof signed by the Super App | design section 6.2 |
-| [seq-reconsent.mmd](seq-reconsent.mmd) | Re-consent when the Child App asks for more than the Super App's grant | design section 6.3 |
+| [seq-reconsent.mmd](seq-reconsent.mmd) | Re-consent when the Child App asks for more than the Super App's grant and needs new user data (own login) | design section 6.3 |
+| [seq-consent-only.mmd](seq-consent-only.mmd) | Consent-only re-consent: eSignet's consent page with no login, then the same token exchange | design section 6.3 |
 | [exchange-validation.mmd](exchange-validation.mmd) | Order of checks at the token exchange and the error each one returns | design section 11 |
 | [user-flow.mmd](user-flow.mmd) | The statement's user journey, steps 1-11, with the failure branches | design section 6.4 |
 

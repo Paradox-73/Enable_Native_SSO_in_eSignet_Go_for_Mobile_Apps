@@ -3,7 +3,7 @@
 For each task of problem statement 03: the commits that implement it, the files they touch, and the tests that check it.
 Upstream code was imported unchanged first (`c4c5443` Thunder v1.0.1, `4eac1cc` eSignet v2.0.0), so
 `git diff c4c5443 -- thunder/` and `git diff 4eac1cc -- esignet/` show exactly what the team changed.
-Written 2026-10-05; commit ids are the ones in `git log` on that date. Rule ids (R01-R26, A01-A12):
+Written 2026-10-05; commit ids are the ones in `git log` on that date. Rule ids (R01-R28, A01-A13):
 [design.md section 20](design.md#20-rules-and-tests); results: [test-report.md](test-report.md).
 
 ## By task
@@ -23,6 +23,8 @@ Written 2026-10-05; commit ids are the ones in `git log` on that date. Rule ids 
 | T9 token exchange and validation | `13d17ac` | `thunder/.../granthandlers/token_exchange_native_sso.go`, `token_exchange.go`, `tokenservice/validator_native_sso.go`, `constants/constants.go` | R09-R14, R18-R22, R26: the `TestE2E_Exchange_*` tests, `TestTokenExchangeNativeSSOSuite` |
 | T10 scope rules | `6bc7644` | `token_exchange_native_sso.go` (scope subset, `device_sso` refused), `esignet/esignet-service/internal/httpmiddleware/userinfo_scope.go` (`91cf6fe`) | R15-R17: `TestE2E_Exchange_NarrowerScope`, `_ScopeSuperset`, `_DeviceSSOInScope` |
 | B1 re-consent | `6bc7644`, `fe17bf6` | `token_exchange_native_sso.go` (`interaction_required`), `android/childapp/.../CardController.kt`, `CardServices.kt` | R15, A10: `TestE2E_Exchange_ScopeSuperset`, `CardControllerTest`; `ChildAppReconsentTest` (emulator) |
+| B1 consent-only re-consent (no login) | `28f42ee`, `0a03abc`, `7464f37`, `ef69358` | `thunder/.../nativesso/consent_page.go`, `consent_store.go`, `consent_audit.go`, `token_exchange_native_sso.go` (`consent_uri`), `token/handler.go`, `esignet/.../config/native_sso.go`, `data/deployment.yaml`, `android/childapp/.../CardController.kt`, `auth/CardAuthenticator.kt`, `android/oidc-client/.../OidcException.kt` | R28, A13: `TestE2E_Exchange_ConsentOnlyReconsent`, `TestTokenExchangeNativeSSOSuite/TestNativeSSO_Consent_*`, `TestConsentPage_*`, `CardControllerTest`; `ChildAppConsentOnlyTest` (emulator) |
+| Start-up code tests | `e450de8` | `thunder/backend/internal/oauth/init_test.go` | `TestInitialize_*`: `init.go` 24/24 changed statements covered |
 | Discovery (T1 support) | `6bc7644` | `thunder/.../discovery/service.go` | R24: `TestE2E_Discovery_NativeSSO` |
 | Sign-out on the server (beyond the statement) | `554ff29`, `edbb9c5`, `bfae0fe`, `8c5eea9` | `thunder/.../revocation/` (device secret branch of `POST /oauth2/revoke`), `providers/interface.go` (`EndDeviceSecretSession`), `esignet/.../engine/device_secret_provider.go`, `android/oidc-client/.../OidcClient.kt` (`revokeToken`), `android/superapp/.../auth/HubAuthenticator.kt` | R27, A11: `TestE2E_Revoke_DeviceSecret`, `TestDeviceSecretRevocationTestSuite`, `HubAuthenticatorTest`; `ChildAppSignOutTest` (emulator) |
 | App names, icons and wording (UX) | `db54d66` | both apps' `MainActivity.kt`, `strings.xml`, `res/drawable`, `res/mipmap-anydpi` | `HubScreensTest`, `CardScreensTest` |

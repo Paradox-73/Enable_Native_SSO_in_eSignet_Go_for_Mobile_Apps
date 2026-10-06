@@ -165,7 +165,7 @@ Native SSO works on the server side and is tested live; the apps are tested on t
 1. `bash scripts/repo-lint.sh` -> `repo-lint: OK`.
 2. `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover` -> 2379 tests, 0 failed.
 3. `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover` -> 1592 tests, 0 failed.
-4. `bash scripts/with-stack.sh bash e2e/run.sh` -> `e2e: 30 passed, 0 failed` (includes R27, device secret revocation).
+4. `bash scripts/with-stack.sh bash e2e/run.sh` -> `e2e: 31 passed, 0 failed` (includes R27, device secret revocation, and R28, consent-only re-consent).
 5. `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` -> 34 requests, 125 assertions, 0 failed.
 6. Android JVM tests (`oidc-client` 67, `secure-store` 13, `superapp` 64, `childapp` 54, 0 failed) and
    `verify-family-signing.sh` -> `family-signing: OK`.

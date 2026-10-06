@@ -1,0 +1,26 @@
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant C as Child App (Health Card)
+  participant H as Super App: FamilySsoService
+  participant T as eSignet Go: Thunder engine
+  participant B as Custom Tab: eSignet consent page
+
+  C->>H: getSsoBundle(), signDpopProof(POST, token endpoint)
+  C->>T: Token exchange, scope openid profile health_card_share
+  T->>T: every binding check passes, and health_card_share is outside the grant but releases no user data
+  T->>T: store one-time ticket (hash only): client, user, sid, scope, 300 s
+  T-->>C: 400 interaction_required + consent_uri
+  C->>U: "Health Card needs your permission. No ID or OTP is needed."
+  U->>C: Continue
+  C->>B: Open consent_uri (only if it is the issuer's consent page)
+  B->>T: GET /oauth2/native-sso/consent?ticket=...
+  T-->>B: Page: Health Card asks for more than you allowed in Hub. Allow / Not now
+  U->>B: Allow
+  B->>T: POST ticket, decision=allow (ticket used up, approval kept for this sid and app, audit line)
+  T-->>B: 303 to Health Card redirect URI ?native_sso_consent=granted
+  B-->>C: Redirect
+  C->>H: signDpopProof(POST, token endpoint)
+  C->>T: Same token exchange again
+  T->>T: every binding check again, then the approval for this sid and app
+  T-->>C: 200 access token bound to Hub's key, scope includes health_card_share

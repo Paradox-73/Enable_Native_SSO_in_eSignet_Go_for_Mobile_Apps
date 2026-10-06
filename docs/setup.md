@@ -63,7 +63,7 @@ bash scripts/with-stack.sh bash e2e/run.sh
 
 - It builds the eSignet image from this repository, starts the stack (about 30 to 40 s once the image is cached, 78 s the
   first time), checks it (`stack smoke: PASS`), runs the 29 live tests, and removes the stack with its volumes.
-- Expected last lines: `e2e: 30 passed, 0 failed`. The suite waits out a real 120 s id_token lifetime, in parallel with the other tests (see the timing in the e2e log).
+- Expected last lines: `e2e: 31 passed, 0 failed`. The suite waits out a real 120 s id_token lifetime, in parallel with the other tests (see the timing in the e2e log).
 - Leave the stack up for manual work: `PS03_KEEP_STACK=1 bash scripts/with-stack.sh true`, then
   `bash deploy/stack.sh down` when done. Other commands: `bash deploy/stack.sh status | logs [service]`.
 - The Postman folder: `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` (needs newman);

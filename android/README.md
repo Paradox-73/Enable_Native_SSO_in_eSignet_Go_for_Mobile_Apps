@@ -7,14 +7,14 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 - **Health Card** (Child App, `org.badmosip.nativesso.childapp`): signs the same user in without a
   password or OTP, by sending Hub's id_token and device secret to eSignet in a token exchange.
 
-> **State on 2026-10-05.** Built and tested: the Gradle project, shared signing, the binder contract,
-> the `oidc-client` library (67 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
+> **State on 2026-10-06.** Built and tested: the Gradle project, shared signing, the binder contract,
+> the `oidc-client` library (68 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
 > with eSignet, the family single sign-on service, "Sign out of all apps" that deletes the DPoP key and
 > revokes the device secret on eSignet: 64 JVM and Robolectric tests) and Health Card (silent sign-in by
-> token exchange, re-consent, sign-out, accessibility: 54 Robolectric and JVM tests). On the emulator
-> `bash android/scripts/run-ui-test.sh all` passed (`SuperAppSignInTest`, `ChildAppSilentSignInTest`,
-> `ChildAppReconsentTest` with its "Not now" step, `ChildAppSignOutTest`, `ChildAppHubMissingTest`:
-> `OK (5 tests)` on 2026-10-06, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
+> token exchange, re-consent with and without a new login, sign-out, accessibility: 62 Robolectric and
+> JVM tests). On the emulator `bash android/scripts/run-ui-test.sh all` passed (`SuperAppSignInTest`,
+> `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest`, `ChildAppReconsentTest` with its "Not now"
+> step, `ChildAppSignOutTest`, `ChildAppHubMissingTest`: `OK (6 tests)` on 2026-10-06, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
 > [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)). Dated results:
 > [../docs/test-report.md](../docs/test-report.md); screenshots: [../docs/ux.md](../docs/ux.md#screenshots).
 
@@ -149,9 +149,9 @@ bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/sc
 | Script | What it does |
 |---|---|
 | `scripts/with-emulator.sh <cmd...>` | takes the `emulator` lock; boots AVD `ps03_api34` headless on port 5584 (`-gpu host`), waits for boot and network, `adb reverse` 38088 and 38300, turns Chrome's first-run screens off, runs the command, then cleans up and kills the emulator it started |
-| `scripts/register-client.sh [superapp\|childapp]` | reads `files/client-registration.json` with `adb shell run-as` (starts the app once if needed) and registers the client through `POST /client-mgmt/client` (private_key_jwt, PAR, PKCE, DPoP, relying party `ps03-family`, grants `authorization_code` and token exchange, `allowed_authorization_scopes` `device_sso`). A client_id registered before 2026-10-05 lacks the last two: reinstall the app (new key, new client_id) or start the stack from clean volumes |
+| `scripts/register-client.sh [superapp\|childapp]` | reads `files/client-registration.json` with `adb shell run-as` (starts the app once if needed) and registers the client through `POST /client-mgmt/client` (private_key_jwt, PAR, PKCE, DPoP, relying party `ps03-family`, client name "Hub" or "Health Card", grants `authorization_code` and token exchange, `allowed_authorization_scopes` `device_sso`, plus `health_card_share` for Health Card). A client_id registered before 2026-10-05 lacks the last two: reinstall the app (new key, new client_id) or start the stack from clean volumes |
 | `scripts/run-ui-test.sh <app> <Class>` | builds the app and test APKs, installs them, registers the client, runs the class with `am instrument`, saves logcat, the last screenshot and window dump to `$PS03_RUN_DIR/evidence/ui-<app>-<time>/` and the screenshots a test takes on purpose to `$PS03_RUN_DIR/evidence/<date>/screens/` |
-| `scripts/run-ui-test.sh all` | `SuperAppSignInTest`, then `ChildAppSilentSignInTest`, `ChildAppReconsentTest`, `ChildAppSignOutTest` and `ChildAppHubMissingTest` (they use Hub's sign-in from the first); prints `OK (5 tests)` or `FAILED: <classes>` |
+| `scripts/run-ui-test.sh all` | `SuperAppSignInTest`, then `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest`, `ChildAppReconsentTest`, `ChildAppSignOutTest` and `ChildAppHubMissingTest` (they use Hub's sign-in from the first); prints `OK (6 tests)` or `FAILED: <classes>` |
 
 `SuperAppSignInTest` (UI Automator): signs out, starts Hub, turns "Share this sign-in with my other apps" on, taps "Sign in with
 eSignet", then in Chrome types UIN `1774231323`, taps the captcha box when there is one, "Get OTP",
@@ -285,7 +285,25 @@ the screen logic, also without Android types):
 5. `CardSession` (tokens, scope, `sid`, Hub's `sid`, which key the token is bound to) in Health Card's
    own encrypted store. No browser, no password, no OTP.
 
-Re-consent (bonus B1): "Add my phone number" asks the exchange for `openid profile phone`. Hub's
+Re-consent without a new login (bonus B1, consent only): "Allow card sharing" asks the exchange for
+`openid profile health_card_share`. Hub's login never had that permission, and it releases no user
+data, so eSignet answers HTTP 400 `interaction_required` with a `consent_uri`. Health Card shows "Health
+Card needs your permission" with "You stay signed in: eSignet shows the request on its page, and no ID or
+OTP is needed.":
+
+- "Continue to eSignet": Health Card checks that `consent_uri` is the issuer's consent page
+  (`/oauth2/native-sso/consent` on the issuer's scheme, host and port), keeps a small encrypted
+  record of the pending scope, and opens the page in a Custom Tab. The page names Health Card, Hub
+  and the permission, with "Allow" and "Not now"; there is no UIN or OTP field.
+- "Allow": eSignet redirects to `org.badmosip.nativesso.childapp://oauth/callback?native_sso_consent=granted`;
+  Health Card repeats the token exchange with Hub's id_token, device secret and a new proof from Hub.
+  The session stays bound to Hub's key (`binding=HUB`) and now holds `health_card_share`; the home
+  screen says "Card sharing with clinics: Allowed". The redirect itself grants nothing: eSignet checks
+  the approval in the exchange.
+- "Not now" on eSignet's page (`native_sso_consent=denied`), "Not now" on Health Card's screen, or
+  "Cancel": the earlier sign-in stays and the screen says nothing changed.
+
+Re-consent with a new login (bonus B1, new user data): "Add my phone number" asks the exchange for `openid profile phone`. Hub's
 login never had `phone`, so eSignet answers HTTP 400 `interaction_required` with "user consent is
 needed for: phone". Health Card shows "Health Card needs your permission" (which permission, and that
 eSignet will ask for the ID and a new OTP because it keeps no browser session):
@@ -335,13 +353,16 @@ What the Robolectric and JVM tests cover (`childapp`, 50 with `HubConnectionTest
   installed; Hub signed in to another server; `interaction_required` to the consent login (`prompt`,
   scope, Health Card's own key) and its result; refusal on eSignet's page; `state` mismatch; sign-out
   and its mark; records.
-- `CardControllerTest` (13): silent sign-in on start; sharing off and Hub missing; seven server
+- `CardControllerTest` (21): consent-only re-consent (eSignet's page opened, no own login, granted
+  repeats the exchange with Hub, denied and cancel keep the sign-in, a `consent_uri` on another host or
+  path is never opened, a granted redirect with nothing pending or without an approval changes nothing);
+  silent sign-in on start; sharing off and Hub missing; seven server
   answers, a security check and no network to their screens; Hub busy keeps the sign-in; re-consent
   accepted (consent screen, browser URL, resume ignored during the login, own session with phone);
   re-consent declined on the screen, on eSignet's page, by cancelling, and with no earlier sign-in;
   Hub signing out clears both kinds of session; Hub's new login signs in again; user sign-out sticks
   across restarts.
-- `CardScreensTest` (10, Compose on Robolectric, 200 % font on a 360 x 640 dp screen): every screen's
+- `CardScreensTest` (14, Compose on Robolectric, 200 % font on a 360 x 640 dp screen): every screen's
   texts, headings, merged label-value items, live regions, the progress description, reading order,
   and that every button is reachable, at least 48 dp high and runs its action, in light and dark.
 - `CardThemeTest` (2): the contrast formula and every text and background pair of both schemes.
@@ -352,6 +373,11 @@ UI Automator tests (need the stack and the emulator; `run-ui-test.sh all` runs t
   name while a watcher checks every 200 ms that no browser comes to the front; the session is bound
   to Hub's key with Hub's `sid`, no `device_sso`, encrypted on disk. Screenshot
   `health-card-silent-sign-in.png`.
+- `ChildAppConsentOnlyTest`: "Allow card sharing", the consent screen says no ID or OTP is needed
+  (screenshot `health-card-consent-only-screen.png`), "Continue to eSignet", eSignet's consent page in
+  Chrome with no input field (screenshot `esignet-consent-only-page.png`), "Allow", then Health Card's
+  session still bound to Hub with `health_card_share` in its scope and "Allowed" on the home screen
+  (screenshot `health-card-after-consent-only.png`).
 - `ChildAppReconsentTest`: "Add my phone number", the consent screen (screenshot
   `health-card-consent-screen.png`), "Continue to eSignet", UIN, a new OTP and "Allow" in Chrome,
   then Health Card's own session with `phone` in its scope (screenshot `health-card-after-consent.png`).

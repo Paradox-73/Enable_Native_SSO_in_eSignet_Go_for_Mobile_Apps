@@ -3,7 +3,7 @@
 
 //go:build e2e
 
-// Live OpenID Connect Native SSO suite: one test per server rule of design.md section 20 (R01-R27)
+// Live OpenID Connect Native SSO suite: one test per server rule of design.md section 20 (R01-R28)
 // that can be reached from outside. Run it with
 //
 //	bash scripts/with-stack.sh bash e2e/run.sh

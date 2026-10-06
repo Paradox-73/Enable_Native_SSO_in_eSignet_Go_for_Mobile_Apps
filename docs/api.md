@@ -108,9 +108,24 @@ All errors are JSON `{"error": ..., "error_description": ...}`, HTTP 400 unless 
 | Scope beyond the first app's grant (setting `scope_exceeded_error`, default) | `interaction_required` | R15 |
 | Any other token exchange while eSignet allows only Native SSO | `invalid_request` | R26 |
 | Exchange after the first app revoked its device secret | `invalid_grant` | R27 |
+| Scope beyond the grant that needs consent only (no new user data) | `interaction_required` with `consent_uri` and `consent_expires_in` | R28 |
 
-On `interaction_required` the second app runs its own authorization-code login with `prompt=consent` for the missing scope
-(bonus B1). eSignet Go keeps no browser session, so the user enters the UIN and a new OTP there.
+When the answer carries `consent_uri` (bonus B1, consent only), the second app opens it in a Custom Tab. It is
+eSignet's page `GET /oauth2/native-sso/consent?ticket=...` with "Allow" and "Not now" and no login. The form
+(`POST /oauth2/native-sso/consent`, `ticket`, `decision=allow|deny`) answers with a 303 to the app's registered
+redirect URI with `native_sso_consent=granted` or `denied`; after `granted` the app sends the same token exchange
+again and gets the extra scope. Example answer:
+
+```json
+{"error":"interaction_required",
+ "error_description":"The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share",
+ "consent_uri":"http://localhost:38088/oauth2/native-sso/consent?ticket=4n3h0yW2qGvJ8lq9oP0bq1yQx7m0f6Zc1tVdQe8uFh0",
+ "consent_expires_in":300}
+```
+
+Without `consent_uri` (the missing scope needs new user data, such as `phone`) the second app runs its own
+authorization-code login with `prompt=consent` for the missing scope. eSignet Go keeps no browser session, so the
+user enters the UIN and a new OTP there. Full description: [oauth2.yaml](../thunder/api/oauth2.yaml).
 
 ## Try it
 
@@ -118,7 +133,7 @@ On `interaction_required` the second app runs its own authorization-code login w
 |---|---|---|
 | Newman (Postman CLI) | `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` | Docker, newman 6; 34 requests (results: [test-report.md](test-report.md)) |
 | Postman app | import the collection and the environment "Go-eSignet Native SSO (local stack)", start the stack with `bash deploy/stack.sh up`, run the folder "Native SSO" top to bottom | Postman desktop; not run by the team (limit L07) for the upstream folders |
-| Go client | `bash scripts/with-stack.sh bash e2e/run.sh` | Docker; 30 live tests, `e2e/client` shows each request |
+| Go client | `bash scripts/with-stack.sh bash e2e/run.sh` | Docker; 31 live tests, `e2e/client` shows each request |
 
 The folder signs its own client assertions and DPoP proofs in pre-request scripts, so no key is pasted by hand. Seeded
 user and OTP: [test-data.md](test-data.md).

@@ -5,10 +5,10 @@
   A03, ...) are defined in [design.md section 20](design.md#20-rules-and-tests); dated results per test are in
   [test-report.md](test-report.md). Emulator tests ran on 2026-10-05 (one emulator image, limit L06).
 - Method: assets and trust boundaries first, then STRIDE (spoofing, tampering, repudiation, information
-  disclosure, denial of service, elevation of privilege) per component, then the threats T1-T11 with mitigations,
+  disclosure, denial of service, elevation of privilege) per component, then the threats T1-T12 with mitigations,
   what is left, and the tests that cover them.
 - Sources: Native SSO draft 07 section 6, RFC 9449 section 11, RFC 8725, FAPI 2.0 Security Profile section 6, the
-  Android guidance on custom permissions, and an emulator test run on 2026-10-04 (section [4](#4-threats-t1-t11)).
+  Android guidance on custom permissions, and an emulator test run on 2026-10-04 (section [4](#4-threats-t1-t12)).
 
 ## 1. Assets
 
@@ -53,7 +53,7 @@ Assumptions:
 | Runtime store | - | session records written only by the provider | - | user id kept server side, not in the token | TTL on every record | T9 (stale record) |
 | The person holding the phone | T10 | - | - | T10 | - | T10 |
 
-## 4. Threats T1-T11
+## 4. Threats T1-T12
 
 | Threat | How it happens | Mitigations | Residual risk | Tests |
 |---|---|---|---|---|
@@ -68,6 +68,7 @@ Assumptions:
 | T9 Stale session | The user signs out of the Super App or the session ends, but a family app still exchanges | Sign-out deletes the DPoP key, so no valid proof can be made; Hub then revokes the device secret at the RFC 7009 revocation endpoint, which deletes its session record, so a later exchange gives `invalid_grant` (Native SSO 4.3 step 4); only the client the device secret was issued to may revoke it; the session record lives no longer than the device secret | Sign-out without network leaves the record until its TTL (the DPoP key is gone anyway); access tokens already issued to the Child App stay valid until their own `exp` | R12, R27, A11 |
 | T10 Wrong person | Someone else picks up the unlocked phone and opens the Child App | Out of scope of the specification (Native SSO 6.4 says it does not ensure the same human); the device secret's lifetime is a setting; the Super App can end all family sign-ins at once; an option to require device unlock for the DPoP key is noted as future work | Accepted for the demo; relies on the phone's screen lock | A11 |
 | T11 Interception of the Super App's login response | Another app registers the same redirect scheme, or an attacker injects a stolen code, or the login moves to another browser | PAR with client authentication; PKCE S256; authorization code bound to the DPoP key (RFC 9449 10.1); `state`, `nonce` and `iss` checked (RFC 9207); system browser via Custom Tab, never a WebView (RFC 8252, FAPI 2.0 6.5); a unique scheme per app, App Links as a production option | A custom scheme can be claimed by another app; the stolen code is still useless without the verifier and the DPoP key | A02, R07 |
+| T12 Consent without the user | Another app or a web page gets a Health Card `consent_uri` and answers "Allow", frames the page to trick a tap, forges the `native_sso_consent=granted` redirect, or reuses an old approval | The ticket is issued only after every binding check of the exchange, is 256 random bits stored as a hash, lives at most 300 s and is used up by the first answer; the page refuses framing (`X-Frame-Options: DENY`, `frame-ancestors 'none'`), runs no script, sends no referrer to other sites and refuses a form from another origin; the approval counts only for that app, user and login session and only inside a token exchange that passes every binding check again; the redirect carries no authority; Health Card opens only the issuer's consent page | An app on the same phone that reads the `consent_uri` (it is not exposed outside Health Card and the browser) could answer for the user, as the device holder can; the approval grants nothing without the device secret and the Super App's key | R28, A13 |
 
 ## 5. Why accepting an expired id_token is safe
 

@@ -19,7 +19,7 @@
 #   Postman folder with newman when newman is on PATH; Android JVM tests of the four modules; the signing check of
 #   both APKs; the server part of the demo (scripts/demo/demo.sh --no-emulator). `--with-lint` adds golangci-lint
 #   for Thunder, eSignet and e2e (several minutes). It never runs emulator tests: those rows stay as recorded.
-# - Rule rows (R01-R26, A01-A12) are set from the test names that passed in the run: Go unit tests from the
+# - Rule rows (R01-R28, A01-A13) are set from the test names that passed in the run: Go unit tests from the
 #   `go test -json` streams, e2e tests from the e2e logs, Android classes from the JUnit XML files.
 # - Run it from a shell that holds the docker-stack lock when other jobs share the machine, with
 #   PS03_HELD_LOCKS=:docker-stack (scripts/with-stack.sh then does not wait for itself). Needs JAVA_HOME (17+) and
