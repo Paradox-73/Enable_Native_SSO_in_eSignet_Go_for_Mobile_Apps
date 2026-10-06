@@ -16,12 +16,16 @@ public sealed class OidcException(message: String, cause: Throwable? = null) : E
  * @property code the error code exactly as the server sent it
  * @property description the server's error_description, if any
  * @property httpStatus HTTP status of the response; 0 for errors delivered on the redirect URI
+ * @property consentUri the server's `consent_uri`, if any: on an `interaction_required` answer of a
+ *   Native SSO token exchange, a one-time page of the server where the user approves the extra
+ *   scopes without logging in again (eSignet's consent-only re-consent). Never logged.
  */
 public class OAuthErrorException(
     public val error: OAuthError,
     public val code: String,
     public val description: String?,
     public val httpStatus: Int,
+    public val consentUri: String? = null,
 ) : OidcException("$code${description?.let { ": $it" } ?: ""} (HTTP $httpStatus)") {
 
     /**
@@ -36,8 +40,8 @@ public class OAuthErrorException(
 
     public companion object {
         /** Builds the exception from a raw error code. */
-        public fun of(code: String, description: String?, httpStatus: Int): OAuthErrorException =
-            OAuthErrorException(OAuthError.fromCode(code), code, description, httpStatus)
+        public fun of(code: String, description: String?, httpStatus: Int, consentUri: String? = null): OAuthErrorException =
+            OAuthErrorException(OAuthError.fromCode(code), code, description, httpStatus, consentUri)
     }
 }
 

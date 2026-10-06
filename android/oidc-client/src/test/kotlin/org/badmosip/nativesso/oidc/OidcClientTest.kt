@@ -263,6 +263,24 @@ class OidcClientTest {
         }
         assertTrue(e.requiresInteraction)
         assertEquals(OAuthError.INTERACTION_REQUIRED, e.error)
+        assertEquals(null, e.consentUri)
+    }
+
+    @Test
+    fun `interaction_required with a consent page carries consent_uri`() {
+        server.enqueue(
+            json(
+                400,
+                """{"error":"interaction_required","error_description":"user consent is needed for: health_card_share",""" +
+                    """"consent_uri":"https://esignet.example/oauth2/native-sso/consent?ticket=t","consent_expires_in":300}""",
+            ),
+        )
+        val e = assertThrows(OAuthErrorException::class.java) {
+            client.exchangeDeviceSecret(DeviceSecretExchange("id", "ds", setOf("openid", "health_card_share")), dpop)
+        }
+        assertTrue(e.requiresInteraction)
+        assertEquals("https://esignet.example/oauth2/native-sso/consent?ticket=t", e.consentUri)
+        assertFalse(e.message!!.contains("ticket"))
     }
 
     @Test

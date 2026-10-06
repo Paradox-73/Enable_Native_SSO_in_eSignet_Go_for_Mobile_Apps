@@ -15,6 +15,9 @@ import java.time.Instant
  * @property extraScope the permission behind "Add my phone number". Hub's login never asks for it, so
  *   asking for it in the token exchange is answered `interaction_required` (bonus B1) and Health Card
  *   runs its own login with `prompt=consent`. eSignet maps it to `phone_number`.
+ * @property shareScope the permission behind "Allow card sharing". It releases no user data, so eSignet
+ *   answers its `interaction_required` with a `consent_uri` and the user approves it on eSignet's
+ *   consent page without a new login (consent-only re-consent).
  */
 data class CardConfig(
     val issuer: String,
@@ -22,12 +25,15 @@ data class CardConfig(
     val redirectUri: String,
     val scopes: Set<String> = setOf(Scopes.OPENID, "profile"),
     val extraScope: String = "phone",
+    val shareScope: String = SHARE_SCOPE,
     val acrValues: String? = OTP_ACR,
     val claims: String? = DEFAULT_CLAIMS,
 ) {
     init {
         require(Scopes.OPENID in scopes) { "scopes must include openid" }
-        require(Scopes.DEVICE_SSO !in scopes && extraScope != Scopes.DEVICE_SSO) { "Health Card never asks for device_sso" }
+        require(Scopes.DEVICE_SSO !in scopes && extraScope != Scopes.DEVICE_SSO && shareScope != Scopes.DEVICE_SSO) {
+            "Health Card never asks for device_sso"
+        }
         val uri = URI(redirectUri)
         require(!uri.scheme.isNullOrEmpty() && !uri.host.isNullOrEmpty()) { "redirect URI needs a scheme and a host" }
     }
@@ -45,7 +51,31 @@ data class CardConfig(
         false
     }
 
+    /**
+     * True when [uri] is eSignet's consent page on [issuer] (same scheme, host and port, the consent
+     * path): Health Card opens a `consent_uri` only when it is, never another address an answer names.
+     */
+    fun isConsentPage(uri: String): Boolean = try {
+        val expected = URI(issuer)
+        val actual = URI(uri)
+        actual.scheme.equals(expected.scheme, ignoreCase = true) &&
+            actual.host.equals(expected.host, ignoreCase = true) &&
+            actual.port == expected.port &&
+            actual.rawPath == (expected.rawPath ?: "").trimEnd('/') + CONSENT_PAGE_PATH &&
+            actual.rawFragment == null && actual.rawUserInfo == null
+    } catch (e: IllegalArgumentException) {
+        false
+    } catch (e: java.net.URISyntaxException) {
+        false
+    }
+
     companion object {
+        /** The permission "Allow card sharing" asks for. */
+        const val SHARE_SCOPE: String = "health_card_share"
+
+        /** Path of eSignet's consent-only re-consent page. */
+        const val CONSENT_PAGE_PATH: String = "/oauth2/native-sso/consent"
+
         /** eSignet's OTP authentication context class. */
         const val OTP_ACR: String = "mosip:idp:acr:generated-code"
 
@@ -171,6 +201,24 @@ data class PendingConsent(
                 scope = m.str("scope"),
                 createdAt = Instant.ofEpochSecond(m.long("created_at")),
             )
+        }
+    }
+}
+
+/**
+ * A consent-only re-consent in flight: eSignet's consent page is open for [scope]. Kept encrypted so the
+ * redirect back works after a process death too. It holds no secret: the approval itself is kept by
+ * eSignet, and Health Card only repeats the token exchange.
+ */
+data class PendingConsentOnly(val scope: String, val createdAt: Instant) {
+    fun toJson(): ByteArray = JSONObjectUtils.toJSONString(
+        linkedMapOf<String, Any?>("v" to 1L, "scope" to scope, "created_at" to createdAt.epochSecond),
+    ).toByteArray(Charsets.UTF_8)
+
+    companion object {
+        fun fromJson(bytes: ByteArray): PendingConsentOnly {
+            val m = parse(bytes)
+            return PendingConsentOnly(scope = m.str("scope"), createdAt = Instant.ofEpochSecond(m.long("created_at")))
         }
     }
 }

@@ -148,6 +148,45 @@ class CardAuthenticator(
         return client.authorizationUrl(par)
     }
 
+    /**
+     * Starts a consent-only re-consent: eSignet answered the exchange for [scope] with a
+     * [consentUri], its own page where the user approves the extra scopes without a new login.
+     * Returns the URL for the browser. Refuses any address that is not eSignet's consent page.
+     */
+    fun startConsentOnly(scope: Set<String>, consentUri: String): String {
+        if (!config.isConsentPage(consentUri)) {
+            throw InvalidResponseException("consent_uri is not eSignet's consent page")
+        }
+        store.delete(PENDING)
+        store.write(PENDING_CONSENT_ONLY, PendingConsentOnly(ScopeStrings.format(scope), clock.instant()).toJson())
+        log("consent-only re-consent started (scope=${ScopeStrings.format(scope)})")
+        return consentUri
+    }
+
+    /** True when [uri] is the redirect of eSignet's consent page (it carries `native_sso_consent`). */
+    fun isConsentOnlyRedirect(uri: String): Boolean = config.isRedirect(uri) && queryValues(uri, CONSENT_RESULT).isNotEmpty()
+
+    /**
+     * Finishes a consent-only re-consent from the redirect: `granted` repeats the token exchange for the
+     * pending scope with Hub's sign-in (eSignet checks the approval and every binding again);
+     * `denied` is an `access_denied` [OAuthErrorException] with HTTP status 0, and nothing changes.
+     * The redirect carries no authority: a forged `granted` only makes Health Card ask eSignet again.
+     */
+    fun completeConsentOnly(redirect: String): CardSession {
+        if (!config.isRedirect(redirect)) throw CardException(CardException.Reason.NOT_OUR_REDIRECT, "not this app's redirect URI")
+        val pending = readPendingConsentOnly() ?: throw CardException(CardException.Reason.NO_PENDING_LOGIN, "no consent in progress")
+        store.delete(PENDING_CONSENT_ONLY)
+        if (Duration.between(pending.createdAt, clock.instant()) > pendingLifetime) {
+            throw CardException(CardException.Reason.PENDING_LOGIN_EXPIRED, "the consent took too long; start again")
+        }
+        val result = queryValues(redirect, CONSENT_RESULT)
+        if (result.size != 1) throw CardException(CardException.Reason.NOT_OUR_REDIRECT, "no single consent result")
+        if (result[0] != CONSENT_GRANTED) {
+            throw OAuthErrorException.of("access_denied", "the user declined on eSignet's consent page", 0)
+        }
+        return silentSignIn(ScopeStrings.parse(pending.scope))
+    }
+
     /** True when [uri] is this app's redirect URI. */
     fun isRedirect(uri: String): Boolean = config.isRedirect(uri)
 
@@ -157,6 +196,7 @@ class CardAuthenticator(
     /** The user declined or left the consent login: forget it. */
     fun cancelConsent() {
         store.delete(PENDING)
+        store.delete(PENDING_CONSENT_ONLY)
     }
 
     /**
@@ -205,6 +245,7 @@ class CardAuthenticator(
     fun signOut(byUser: Boolean) {
         store.delete(SESSION)
         store.delete(PENDING)
+        store.delete(PENDING_CONSENT_ONLY)
         if (byUser) store.write(SIGNED_OUT_BY_USER, byteArrayOf(1))
         log(if (byUser) "signed out by the user" else "signed out")
     }
@@ -273,15 +314,30 @@ class CardAuthenticator(
     private fun Map<String, Any?>.text(name: String): String? = (this[name] as? String)?.trim()?.takeIf { it.isNotEmpty() }
 
     private fun sameState(redirect: String, expected: String): Boolean {
-        val query = try {
-            URI(redirect).rawQuery
-        } catch (e: URISyntaxException) {
-            null
-        } ?: return false
-        val states = query.split('&').filter { it.substringBefore('=') == "state" }
-            .map { URLDecoder.decode(it.substringAfter('=', ""), "UTF-8") }
+        val states = queryValues(redirect, "state")
         return states.size == 1 &&
             MessageDigest.isEqual(states[0].toByteArray(Charsets.UTF_8), expected.toByteArray(Charsets.UTF_8))
+    }
+
+    /** Every value of the query parameter [name] in [uri], decoded. */
+    private fun queryValues(uri: String, name: String): List<String> {
+        val query = try {
+            URI(uri).rawQuery
+        } catch (e: URISyntaxException) {
+            null
+        } ?: return emptyList()
+        return query.split('&').filter { it.substringBefore('=') == name }
+            .map { URLDecoder.decode(it.substringAfter('=', ""), "UTF-8") }
+    }
+
+    private fun readPendingConsentOnly(): PendingConsentOnly? = try {
+        store.read(PENDING_CONSENT_ONLY)?.let(PendingConsentOnly::fromJson)
+    } catch (e: SecureStoreException) {
+        store.delete(PENDING_CONSENT_ONLY)
+        null
+    } catch (e: ParseException) {
+        store.delete(PENDING_CONSENT_ONLY)
+        null
     }
 
     private fun readPending(): PendingConsent? = try {
@@ -300,6 +356,13 @@ class CardAuthenticator(
 
         /** Blob name of the [PendingConsent]. */
         const val PENDING: String = "card-pending-consent"
+
+        /** Blob name of the [PendingConsentOnly]. */
+        const val PENDING_CONSENT_ONLY: String = "card-pending-consent-only"
+
+        /** Query parameter of the consent page's redirect, and its value when the user allowed. */
+        const val CONSENT_RESULT: String = "native_sso_consent"
+        const val CONSENT_GRANTED: String = "granted"
 
         /** Blob name of the "signed out by the user" mark. */
         const val SIGNED_OUT_BY_USER: String = "card-signed-out"

@@ -53,6 +53,7 @@ class CardScreensTest {
         override fun openHub() { clicks += "openHub" }
         override fun signInWithHub() { clicks += "signInWithHub" }
         override fun addPhone() { clicks += "addPhone" }
+        override fun allowSharing() { clicks += "allowSharing" }
         override fun signOut() { clicks += "signOut" }
         override fun acceptConsent() { clicks += "acceptConsent" }
         override fun declineConsent() { clicks += "declineConsent" }
@@ -98,7 +99,34 @@ class CardScreensTest {
         rule.onAllNodes(isHeading()).assertCountEquals(1) // the app name
         rule.onAllNodesWithTag("details_issuer").assertCountEquals(0) // folded away until asked for
         button("add_phone_button", "addPhone")
+        rule.onNodeWithTag("card_sharing").assertTextContains("Card sharing with clinics").assertTextContains("Not allowed")
+        button("allow_sharing_button", "allowSharing")
         button("sign_out_button", "signOut")
+    }
+
+    @Test
+    fun `home with card sharing allowed says so and has no allow button`() {
+        show(CardScreen.Home(session.copy(scope = "openid profile health_card_share")))
+        rule.onNodeWithTag("card_sharing").assertTextContains("Allowed")
+        rule.onAllNodesWithTag("allow_sharing_button").assertCountEquals(0)
+    }
+
+    @Test
+    fun `consent-only screen says no ID or OTP is needed`() {
+        show(
+            CardScreen.Consent(
+                setOf("health_card_share"),
+                setOf("openid", "profile", "health_card_share"),
+                consentUri = "http://localhost:38088/oauth2/native-sso/consent?ticket=t",
+            ),
+        )
+        rule.onNodeWithTag("consent_text").assertTextContains(
+            "Health Card asks to see: permission to show your health card to a clinic.", substring = true,
+        )
+        rule.onNodeWithTag("consent_how").assertTextContains(
+            "You stay signed in: eSignet shows the request on its page, and no ID or OTP is needed.",
+        )
+        button("consent_continue_button", "acceptConsent")
     }
 
     @Test
@@ -124,6 +152,7 @@ class CardScreensTest {
         assertTrue(top("consent_title") < top("consent_text"))
         assertTrue(top("consent_text") < top("consent_continue_button"))
         assertTrue(top("consent_continue_button") < top("consent_decline_button"))
+        rule.onNodeWithTag("consent_how").assertTextContains("new OTP", substring = true)
         button("consent_continue_button", "acceptConsent")
         button("consent_decline_button", "declineConsent")
     }

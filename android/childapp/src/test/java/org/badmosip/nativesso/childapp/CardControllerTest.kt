@@ -67,6 +67,122 @@ class CardControllerTest {
         )
     }
 
+    private val consentPage get() = f.esignet.issuer + "/oauth2/native-sso/consent?ticket=t1"
+
+    /** eSignet's answer when the extra scope needs consent only: interaction_required with consent_uri. */
+    private fun consentOnlyRequired(uri: String = consentPage) {
+        f.esignet.exchangeError = json(
+            """{"error":"interaction_required","error_description":"The requested scope exceeds the scope granted """ +
+                """to the first app and can be approved at consent_uri without a new login; user consent is needed for: """ +
+                """health_card_share","consent_uri":"$uri","consent_expires_in":300}""",
+            400,
+        )
+    }
+
+    @Test
+    fun `consent-only re-consent opens eSignet's consent page and signs in again with Hub, no login`() {
+        f.shareHubSignIn()
+        controller.start(null)
+        val before = home().session
+
+        consentOnlyRequired()
+        controller.allowSharing()
+        val consent = screen as CardScreen.Consent
+        assertTrue(consent.consentOnly)
+        assertEquals(setOf("health_card_share"), consent.missing)
+        assertEquals("openid profile health_card_share", f.esignet.exchangeForm["scope"])
+
+        controller.acceptConsent()
+        assertEquals(CardScreen.Working(inBrowser = true), screen)
+        assertEquals(consentPage, controller.browserUrl)
+        assertEquals("no own login", 0, f.esignet.calls["/oauth2/par"] ?: 0)
+        controller.browserOpened()
+        controller.refresh()
+        assertEquals("a resume does not disturb the consent in progress", CardScreen.Working(inBrowser = true), screen)
+
+        // The user allowed on eSignet's page: Health Card repeats the exchange with Hub's sign-in.
+        f.esignet.exchangeError = null
+        val proofsBefore = f.esignet.exchangeProofs.size
+        controller.onRedirect(f.redirectUri + "?native_sso_consent=granted")
+        val home = home()
+        assertEquals(Binding.HUB, home.session.binding)
+        assertTrue("health_card_share" in home.session.scopes)
+        assertEquals(before.hubSessionId, home.session.hubSessionId)
+        assertEquals("openid profile health_card_share", f.esignet.exchangeForm["scope"])
+        assertEquals(proofsBefore + 1, f.esignet.exchangeProofs.size)
+        assertEquals(0, f.esignet.calls["/oauth2/par"] ?: 0)
+    }
+
+    @Test
+    fun `declining on eSignet's consent page keeps the earlier sign-in`() {
+        f.shareHubSignIn()
+        controller.start(null)
+        val before = home().session
+        consentOnlyRequired()
+        controller.allowSharing()
+        controller.acceptConsent()
+        val exchanges = f.esignet.exchangeProofs.size
+
+        controller.onRedirect(f.redirectUri + "?native_sso_consent=denied")
+
+        assertEquals(CardScreen.Home(before, CardError(Problem.CONSENT_DECLINED)), screen)
+        assertEquals("no exchange after a decline", exchanges, f.esignet.exchangeProofs.size)
+        assertEquals(before, auth.currentSession())
+    }
+
+    @Test
+    fun `a consent_uri that is not eSignet's consent page is never opened`() {
+        f.shareHubSignIn()
+        controller.start(null)
+        val before = home().session
+        for (uri in listOf("https://evil.example/oauth2/native-sso/consent?ticket=t", f.esignet.issuer + "/other?ticket=t")) {
+            consentOnlyRequired(uri)
+            controller.allowSharing()
+            controller.acceptConsent()
+            assertNull(controller.browserUrl)
+            assertEquals(CardScreen.Home(before, CardError(Problem.BAD_RESPONSE)), screen)
+        }
+    }
+
+    @Test
+    fun `a granted redirect with no consent in progress changes nothing`() {
+        f.shareHubSignIn()
+        controller.start(null)
+        val before = home().session
+        val exchanges = f.esignet.exchangeProofs.size
+        controller.onRedirect(f.redirectUri + "?native_sso_consent=granted")
+        assertEquals(CardScreen.Home(before, CardError(Problem.LOGIN_MISMATCH)), screen)
+        assertEquals(exchanges, f.esignet.exchangeProofs.size)
+    }
+
+    @Test
+    fun `a forged granted redirect only makes eSignet ask again`() {
+        f.shareHubSignIn()
+        controller.start(null)
+        consentOnlyRequired()
+        controller.allowSharing()
+        controller.acceptConsent()
+        // eSignet has no approval: it answers interaction_required again, and the consent screen returns.
+        controller.onRedirect(f.redirectUri + "?native_sso_consent=granted")
+        assertTrue((screen as CardScreen.Consent).consentOnly)
+        assertNull(auth.currentSession()?.scopes?.firstOrNull { it == "health_card_share" })
+    }
+
+    @Test
+    fun `cancelling while eSignet's consent page is open keeps the earlier sign-in`() {
+        f.shareHubSignIn()
+        controller.start(null)
+        val before = home().session
+        consentOnlyRequired()
+        controller.allowSharing()
+        controller.acceptConsent()
+        controller.cancelBrowser()
+        assertEquals(CardScreen.Home(before, CardError(Problem.CONSENT_DECLINED)), screen)
+        // The redirect that arrives later finds nothing in progress.
+        controller.onRedirect(f.redirectUri + "?native_sso_consent=granted")
+        assertEquals(CardScreen.Home(before, CardError(Problem.LOGIN_MISMATCH)), screen)
+    }
+
     @Test
     fun `opening Health Card with Hub's shared sign-in signs in silently`() {
         f.shareHubSignIn()

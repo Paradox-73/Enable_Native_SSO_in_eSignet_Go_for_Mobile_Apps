@@ -66,8 +66,16 @@ sealed interface CardScreen {
 
     data class Home(val session: CardSession, val notice: CardError? = null) : CardScreen
 
-    /** eSignet needs consent for [missing]; continuing runs Health Card's own login for [scope]. */
-    data class Consent(val missing: Set<String>, val scope: Set<String>) : CardScreen
+    /**
+     * eSignet needs consent for [missing]. With a [consentUri] (consent-only re-consent) continuing opens
+     * eSignet's consent page, with no new login; without one it runs Health Card's own login for [scope].
+     */
+    data class Consent(val missing: Set<String>, val scope: Set<String>, val consentUri: String? = null) : CardScreen {
+        /** True when the user approves on eSignet's page without entering an ID or OTP. */
+        val consentOnly: Boolean get() = consentUri != null
+
+        override fun toString(): String = "Consent(missing=$missing, scope=$scope, consentOnly=$consentOnly)"
+    }
 
     data class Failed(val error: CardError) : CardScreen
 }
@@ -136,24 +144,38 @@ class CardController(
     }
 
     /** "Add my phone number": asks for [CardConfig.extraScope] through Hub first. */
-    fun addPhone() {
+    fun addPhone() = askMore { config.extraScope }
+
+    /**
+     * "Allow card sharing": asks for [CardConfig.shareScope] through Hub first. It needs no new user
+     * data, so eSignet offers its consent page and the user approves without a new login.
+     */
+    fun allowSharing() = askMore { config.shareScope }
+
+    /** Asks for the scope Health Card holds plus [extra]; a refusal leads to the consent screen. */
+    private fun askMore(extra: () -> String) {
         val held = (screen as? CardScreen.Home)?.session?.scopes.orEmpty()
         var scope: Set<String>? = null
         show(CardScreen.Working(inBrowser = false))
         run(requested = { scope ?: config.scopes }) {
-            val wanted = config.scopes + held + config.extraScope
+            val wanted = config.scopes + held + extra()
             scope = wanted
             CardScreen.Home(auth.silentSignIn(wanted))
         }
     }
 
-    /** The user agreed on the consent screen: Health Card's own login with `prompt=consent`. */
+    /**
+     * The user agreed on the consent screen: eSignet's consent page when eSignet offered one
+     * ([CardScreen.Consent.consentUri]), else Health Card's own login with `prompt=consent`.
+     */
     fun acceptConsent() {
         val consent = screen as? CardScreen.Consent ?: return
         show(CardScreen.Working(inBrowser = false))
         background.invoke(
             Runnable {
-                val result = runCatching { auth.startConsentLogin(consent.scope) }
+                val result = runCatching {
+                    consent.consentUri?.let { auth.startConsentOnly(consent.scope, it) } ?: auth.startConsentLogin(consent.scope)
+                }
                 main.invoke(
                     Runnable {
                         result.fold(
@@ -180,10 +202,17 @@ class CardController(
         onChange()
     }
 
-    /** The browser came back with [uri]. */
+    /**
+     * The browser came back with [uri]: from eSignet's consent page (`native_sso_consent`), Health Card
+     * repeats the token exchange; from its own login, it redeems the code.
+     */
     fun onRedirect(uri: String) {
         show(CardScreen.Working(inBrowser = false))
-        run { CardScreen.Home(auth.completeConsentLogin(uri)) }
+        if (auth.isConsentOnlyRedirect(uri)) {
+            run { CardScreen.Home(auth.completeConsentOnly(uri)) }
+        } else {
+            run { CardScreen.Home(auth.completeConsentLogin(uri)) }
+        }
     }
 
     /** "Cancel" while eSignet's pages are open. */
@@ -274,7 +303,7 @@ class CardController(
         log("failed: ${e.javaClass.simpleName}: ${e.message}")
         if (e is OAuthErrorException && e.requiresInteraction) {
             val held = auth.currentSession()?.scopes.orEmpty()
-            return CardScreen.Consent(CardAuthenticator.missingScopes(e, requested, held), requested)
+            return CardScreen.Consent(CardAuthenticator.missingScopes(e, requested, held), requested, e.consentUri)
         }
         if (e is HubException && (e.reason == HubException.Reason.NOT_SIGNED_IN || e.reason == HubException.Reason.HUB_MISSING)) {
             return CardScreen.NeedsHub(e.reason)

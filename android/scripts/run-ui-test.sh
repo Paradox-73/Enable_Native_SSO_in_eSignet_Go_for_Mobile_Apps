@@ -9,10 +9,10 @@
 #   bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all
 #
 # - `all` runs, in this order: superapp SuperAppSignInTest (Hub signs in with sharing on, so it holds
-#   a device secret), childapp ChildAppSilentSignInTest, childapp ChildAppReconsentTest, childapp
-#   ChildAppSignOutTest (it signs Hub out), childapp ChildAppHubMissingTest (last: it uninstalls Hub;
-#   the script installs Hub again afterwards). The Health Card tests need the Hub sign-in of the
-#   first one. Prints `OK (5 tests)` when all pass.
+#   a device secret), childapp ChildAppSilentSignInTest, childapp ChildAppConsentOnlyTest, childapp
+#   ChildAppReconsentTest, childapp ChildAppSignOutTest (it signs Hub out), childapp
+#   ChildAppHubMissingTest (last: it uninstalls Hub; the script installs Hub again afterwards). The
+#   Health Card tests need the Hub sign-in of the first one. Prints `OK (6 tests)` when all pass.
 # - Builds `:<app>:assembleDebug :<app>:assembleDebugAndroidTest` (skip with PS03_SKIP_BUILD=1; needs
 #   JAVA_HOME 17+), installs both APKs (uninstalls first when the signature differs), registers the
 #   app with eSignet (register-client.sh), then runs the class with `am instrument -w`.
@@ -98,7 +98,7 @@ if [ "$1" = all ]; then
   build superapp childapp
   passed=0
   failed=()
-  pairs=(superapp:SuperAppSignInTest childapp:ChildAppSilentSignInTest childapp:ChildAppReconsentTest childapp:ChildAppSignOutTest childapp:ChildAppHubMissingTest)
+  pairs=(superapp:SuperAppSignInTest childapp:ChildAppSilentSignInTest childapp:ChildAppConsentOnlyTest childapp:ChildAppReconsentTest childapp:ChildAppSignOutTest childapp:ChildAppHubMissingTest)
   for pair in "${pairs[@]}"; do
     if run_one "${pair%%:*}" "${pair#*:}"; then
       passed=$((passed + 1))

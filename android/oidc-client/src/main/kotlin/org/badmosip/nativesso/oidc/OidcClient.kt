@@ -258,7 +258,7 @@ public class OidcClient(
             null
         }
         (json?.get("error") as? String)?.let {
-            return OAuthErrorException.of(it, json["error_description"] as? String, response.code)
+            return OAuthErrorException.of(it, json["error_description"] as? String, response.code, json["consent_uri"] as? String)
         }
         val challenge = response.headers("WWW-Authenticate").firstOrNull { it.startsWith(DpopHttp.SCHEME, ignoreCase = true) }
             ?: response.header("WWW-Authenticate")

@@ -14,8 +14,11 @@
 #   private_key_jwt, PAR and PKCE required, DPoP-bound tokens, relying party `$PS03_RELYING_PARTY`
 #   (default ps03-family). Both apps get the authorization-code and token-exchange grants and may ask
 #   for `device_sso` (additionalConfig.allowed_authorization_scopes): Hub to receive a device secret,
-#   Health Card because eSignet lets only a client allowed `device_sso` use one (Native SSO, rule R13). A client_id that already exists counts as registered (the client_id is
-#   derived from the key, so the same id means the same key).
+#   Health Card because eSignet lets only a client allowed `device_sso` use one (Native SSO, rule R13).
+#   Health Card may also ask for the permission `health_card_share`, which the user approves on
+#   eSignet's consent page without a new login (consent-only re-consent, rule R28). The client name
+#   ("Hub" or "Health Card") is what eSignet's pages show. A client_id that already exists counts as
+#   registered (the client_id is derived from the key, so the same id means the same key).
 # - Prints `register-client: <client_id> ACTIVE` (or `already registered`). Uses ANDROID_SERIAL when set.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib.sh"
@@ -27,6 +30,10 @@ case $APP in superapp|childapp) ;; *) ps03_die "unknown app $APP (superapp or ch
 PACKAGE=org.badmosip.nativesso.$APP
 ISSUER=${PS03_ISSUER:-http://localhost:38088}
 RP=${PS03_RELYING_PARTY:-ps03-family}
+case $APP in
+  superapp) APP_NAME=Hub APP_SCOPES=device_sso ;;
+  childapp) APP_NAME="Health Card" APP_SCOPES="device_sso health_card_share" ;;
+esac
 SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 ADB=${SDK:+$SDK/platform-tools/}adb
 adb_() { MSYS_NO_PATHCONV=1 "$ADB" ${ANDROID_SERIAL:+-s "$ANDROID_SERIAL"} "$@"; }
@@ -47,15 +54,15 @@ if ! printf '%s' "$info" | grep -q '"client_id"'; then
 fi
 printf '%s' "$info" | grep -q '"client_id"' || ps03_die "no files/client-registration.json in $PACKAGE (a debug build is needed)"
 
-body=$(printf '%s' "$info" | RP=$RP "$PY" -c '
+body=$(printf '%s' "$info" | RP=$RP APP_NAME=$APP_NAME APP_SCOPES=$APP_SCOPES "$PY" -c '
 import json, os, sys, datetime
 info = json.load(sys.stdin)
 jwk = {k: v for k, v in info["public_jwk"].items() if k in ("kty", "crv", "x", "y", "kid", "use", "alg")}
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 print(json.dumps({"requestTime": now, "request": {
     "clientId": info["client_id"],
-    "clientName": info["client_id"],
-    "clientNameLangMap": {"eng": info["client_id"]},
+    "clientName": os.environ["APP_NAME"],
+    "clientNameLangMap": {"eng": os.environ["APP_NAME"]},
     "relyingPartyId": os.environ["RP"],
     "logoUri": "https://example.com/logo.png",
     "redirectUris": [info["redirect_uri"]],
@@ -68,7 +75,7 @@ print(json.dumps({"requestTime": now, "request": {
         "require_pushed_authorization_requests": True,
         "dpop_bound_access_tokens": True,
         "require_pkce": True,
-        "allowed_authorization_scopes": ["device_sso"],
+        "allowed_authorization_scopes": os.environ["APP_SCOPES"].split(),
     },
 }}))')
 client_id=$(printf '%s' "$info" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["client_id"])')

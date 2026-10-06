@@ -56,6 +56,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import org.badmosip.nativesso.childapp.auth.Binding
+import org.badmosip.nativesso.childapp.auth.CardConfig
 import org.badmosip.nativesso.childapp.auth.CardSession
 import org.badmosip.nativesso.contract.FamilySsoContract
 import org.badmosip.nativesso.contract.SigningCertificates
@@ -72,6 +73,7 @@ internal interface CardActions {
     fun openHub()
     fun signInWithHub()
     fun addPhone()
+    fun allowSharing()
     fun signOut()
     fun acceptConsent()
     fun declineConsent()
@@ -103,6 +105,7 @@ class MainActivity : ComponentActivity() {
             override fun openHub() = this@MainActivity.openHub()
             override fun signInWithHub() = controller.signInWithHub()
             override fun addPhone() = controller.addPhone()
+            override fun allowSharing() = controller.allowSharing()
             override fun signOut() = controller.signOut()
             override fun acceptConsent() = controller.acceptConsent()
             override fun declineConsent() = controller.declineConsent()
@@ -173,7 +176,7 @@ internal fun CardContent(screen: CardScreen, about: AboutInfo, actions: CardActi
             is CardScreen.NeedsHub -> NeedsHub(screen.reason, about.superApp, actions)
             is CardScreen.SignedOut -> SignedOut(screen.error, actions)
             is CardScreen.Home -> Home(screen.session, screen.notice, actions)
-            is CardScreen.Consent -> Consent(screen.missing, actions)
+            is CardScreen.Consent -> Consent(screen.missing, screen.consentOnly, actions)
             is CardScreen.Failed -> Failed(screen.error, actions)
         }
         TechnicalDetails(about)
@@ -251,9 +254,20 @@ private fun Home(session: CardSession, notice: CardError?, actions: CardActions)
         stringResource(if (session.binding == Binding.HUB) R.string.how_hub else R.string.how_own),
         "sign_in_method",
     )
+    val sharing = CardConfig.SHARE_SCOPE in session.scopes
+    LabelledValue(
+        stringResource(R.string.sharing_label),
+        stringResource(if (sharing) R.string.sharing_allowed else R.string.sharing_not_allowed),
+        "card_sharing",
+    )
     if (session.phone == null) {
         Button(onClick = actions::addPhone, modifier = Modifier.fillMaxWidth().testTag("add_phone_button")) {
             Text(stringResource(R.string.add_phone))
+        }
+    }
+    if (!sharing) {
+        Button(onClick = actions::allowSharing, modifier = Modifier.fillMaxWidth().testTag("allow_sharing_button")) {
+            Text(stringResource(R.string.allow_sharing))
         }
     }
     OutlinedButton(onClick = actions::signOut, modifier = Modifier.fillMaxWidth().testTag("sign_out_button")) {
@@ -262,11 +276,15 @@ private fun Home(session: CardSession, notice: CardError?, actions: CardActions)
 }
 
 @Composable
-private fun Consent(missing: Set<String>, actions: CardActions) {
+private fun Consent(missing: Set<String>, consentOnly: Boolean, actions: CardActions) {
     Title(stringResource(R.string.consent_title), "consent_title")
     val names = missing.map { scopeName(it) }.joinToString(", ")
     Text(stringResource(R.string.consent_body, names), modifier = Modifier.testTag("consent_text"))
-    Text(stringResource(R.string.consent_otp), style = MaterialTheme.typography.bodyMedium)
+    Text(
+        stringResource(if (consentOnly) R.string.consent_no_login else R.string.consent_otp),
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.testTag("consent_how"),
+    )
     Button(onClick = actions::acceptConsent, modifier = Modifier.fillMaxWidth().testTag("consent_continue_button")) {
         Text(stringResource(R.string.consent_continue))
     }
@@ -356,6 +374,7 @@ private fun scopeName(scope: String): String = when (scope) {
     "phone" -> stringResource(R.string.scope_phone)
     "email" -> stringResource(R.string.scope_email)
     "profile" -> stringResource(R.string.scope_profile)
+    CardConfig.SHARE_SCOPE -> stringResource(R.string.scope_share)
     else -> scope
 }
 
