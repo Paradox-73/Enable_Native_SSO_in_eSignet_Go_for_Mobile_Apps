@@ -8,19 +8,21 @@ A second Android app from the same publisher (Health Card) then signs the user i
 a second OTP: it trades Hub's device secret for its own tokens at the token endpoint (OAuth 2.0 Token Exchange,
 RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 
-## Status on 2026-10-05
+## Status on 2026-10-06
 
 - **Built and tested**: every statement task (T1-T10, P1, P2) and the bonus B1, on the server and in both Android
-  apps. Dated results of every check: [docs/test-report.md](docs/test-report.md) (69 PASS, 4 NOT RUN with a listed reason, 0 FAIL).
-  - Server: 2379 Thunder and 1588 eSignet unit tests, 0 failed, golangci-lint 0 findings; the live end-to-end
-    suite (30 of 30 passed, including device secret revocation, rule R27); the Postman folder under newman (34
-    requests, 125 assertions, 0 failed).
-  - Apps: 198 Android JVM tests, 0 failed; on the Android emulator the UI tests (4 of 4 passed), the family sign-in
-    tests and the full demo check (`bash scripts/demo/demo.sh --check`) passed. Two device steps added afterwards
-    ("Not now" on the consent screen, Health Card without Hub) have not run yet.
-- **Hosted**: `main` on GitHub, updated by the team at each push. The workflow `.github/workflows/ci.yml` runs on
-  every push; its jobs were replayed on Linux containers here ([docs/test-report.md](docs/test-report.md), row
-  CI-LINUX), but no hosted run result is recorded (limit L05).
+  apps. Dated results of every check: [docs/test-report.md](docs/test-report.md) (70 PASS, 3 NOT RUN with a listed reason, 0 FAIL).
+  - Server: 2379 Thunder (1 skipped by upstream) and 1592 eSignet unit tests, 0 failed, golangci-lint 0 findings;
+    the live end-to-end suite (30 of 30 passed, including device secret revocation, rule R27); the Postman folder
+    under newman (34 requests, 125 assertions, 0 failed).
+  - Apps: 198 Android JVM tests, 0 failed; on the Android emulator the UI tests (5 of 5 passed, including "Not now"
+    on the consent screen and Health Card without Hub), the family sign-in tests and the full demo check
+    (`bash scripts/demo/demo.sh --check`) passed.
+- **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job on the push of 2026-10-06
+  ([run 37464932756](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/37464932756): repo-lint, Go unit tests, golangci-lint, Android JVM tests and the live e2e suite, 30 of
+  30). The repository is private until submission; judges get access then.
+- **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
+  behaves as upstream.
 - **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
   L07-L09). Task-level state: [docs/STATUS.md](docs/STATUS.md).
 
@@ -137,7 +139,7 @@ Listed with ids in [docs/test-report.md](docs/test-report.md#known-limits):
 - The server's runtime store is in memory (L03), so an eSignet restart ends every Hub session.
 - Sign-out ends the device secret's session on the server (rule R27); access tokens already issued to Health Card
   stay valid until they expire (L04).
-- Software-backed Keystore on the emulator (L01); one emulator image (L06); no hosted CI run seen (L05).
+- Software-backed Keystore on the emulator (L01); one emulator image (L06).
 
 ## Licence
 

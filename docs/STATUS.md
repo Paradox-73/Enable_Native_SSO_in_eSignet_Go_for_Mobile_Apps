@@ -7,7 +7,7 @@ task on their own computer. How to set up a machine, build, test and commit: [..
 
 | Item | Value |
 |---|---|
-| Written | 2026-10-04; updated 2026-10-05 when all tasks were done, and again that evening after the full re-run |
+| Written | 2026-10-04; updated 2026-10-05 when all tasks were done, that evening after the full re-run, and 2026-10-06 after the hosted CI fix and the 5-test emulator run |
 | `main` | all work is on `main`; [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) gets it at each push |
 | Unfinished work | none; the earlier `wip/2026-10-04-stop` branch was brought into `main` with WP-07 and deleted |
 | Deadline | 2026-10-26 23:59 IST (MOSIP Decode 2026, problem statement 03, team Badmosip) |
@@ -828,6 +828,29 @@ commit of that folder.
 
 ### WP-17 Test report with dated evidence (DONE)
 
+- **Result (2026-10-06)**
+  - Every run of the day used no lock directory: `PS03_HELD_LOCKS=:docker-stack:go-PS03:emulator` makes the
+    repository scripts run their command straight away (script `$PS03_RUN_DIR/rerun-1006/all.sh`).
+  - `bash scripts/evidence.sh --run --with-lint` at `5724790` (newman on `PATH`): 0 failed steps; repo-lint OK;
+    Thunder 2379 tests (1 skipped by upstream), eSignet 1592 tests, 0 failed; changed lines covered 376/396
+    (94.9 %) and 323/350 (92.3 %); golangci-lint Thunder, eSignet, e2e 0 issues; e2e 30 passed, 0 failed; newman 34
+    requests, 125 assertions, 0 failed; Android JVM `oidc-client` 67, `secure-store` 13, `superapp` 64, `childapp`
+    54, 0 failed; signing check OK; server demo `demo ready`, `teardown ok`.
+  - Emulator: `run-family-tests.sh` every step PASS; `demo.sh --check` `demo ready`, `teardown ok` (201 s). The first
+    `run-ui-test.sh all` failed: after the UIN the test pressed Back to close a keyboard that was not shown, Chrome
+    asked "Leave site?" and the login timed out. Fixed in `48c0357` (Back only while the keyboard is shown; the
+    dialog is answered with Cancel). The rerun printed `OK (5 tests)`, including the "Not now" step and
+    `ChildAppHubMissingTest`; `health-card-consent-declined.png` and `health-card-hub-missing.png` are in
+    `docs/screens/` and `docs/ux.md`, and the other eight screenshots were refreshed from the same run.
+  - Hosted CI: every earlier GitHub Actions run had failed at once with `docker: range of CPUs is from 0.01 to 2.00`
+    (`--cpus 6` on a 2-CPU runner); fixed in `5724790`. The next run passed all tests but failed the e2e job when it
+    moved the root-owned evidence folder; fixed in `b52a93f`. Run 37464932756 at `48c0357` passed every job
+    (e2e 30 passed, 0 failed). Row CI is PASS; limit L05 now only says the repository is private.
+  - `bash scripts/evidence.sh --check`: `check OK (70 PASS, 3 NOT RUN with a listed limit, 0 FAIL)`; NOT RUN: M01-M03
+    (TalkBack, physical phone, Postman desktop).
+  - New setting (`d147504`): `native_sso.enabled` / `MOSIP_ESIGNET_NATIVE_SSO_ENABLED`, off when absent; on in
+    `deployment.yaml` and the local stack. Off, eSignet passes no device secret provider and no userinfo filter.
+
 - **Result (2026-10-05, evening, at `551816f`)**
   - `bash scripts/evidence.sh --run --with-lint` (started 23:33): repo-lint OK; Thunder 2379 tests (1 skipped by
     upstream) and eSignet 1588 tests, 0 failed; changed lines covered 376/396 (94.9 %) and 318/339 (93.8 %);
@@ -840,9 +863,8 @@ commit of that folder.
   - Emulator rows from the run of 22:52: `run-ui-test.sh all` OK (4 tests); `run-family-tests.sh` every step PASS;
     `demo.sh --check` `demo ready`, `teardown ok`.
   - `bash scripts/evidence.sh --check`: `check OK (69 PASS, 4 NOT RUN with a listed limit, 0 FAIL)`.
-  - Open: run `ChildAppHubMissingTest` and the "Not now" step of `ChildAppReconsentTest` (commit `551816f`) on the
-    emulator, copy `health-card-consent-declined.png` and `health-card-hub-missing.png` into `docs/screens/` and
-    add them to `docs/ux.md`; then `bash scripts/evidence.sh --run` once more with newman on `PATH`.
+  - Open then, done on 2026-10-06 (see above): the "Not now" step, `ChildAppHubMissingTest`, their screenshots and
+    an `evidence.sh --run` with newman on `PATH`.
 
 - **Result (2026-10-05, 07:00 IST)**
   - `bash scripts/evidence.sh --run --with-lint` (JDK 21, newman on PATH, inside `with_lock docker-stack`): exit 0, 0
@@ -883,7 +905,7 @@ commit of that folder.
 
 - **Result (2026-10-05, evening)**
   - Screenshots of every screen of both apps from the emulator UI tests are in `docs/screens/` and shown in
-    `docs/ux.md` and `README.md`; "consent declined" and "Hub not installed" are not captured yet (see WP-17).
+    `docs/ux.md` and `README.md`; "consent declined" and "Hub not installed" were added on 2026-10-06 (see WP-17).
   - Every document that said the emulator never ran, that nothing was pushed, or that sign-out has no server call now
     states the runs of 2026-10-05, device secret revocation (rule R27) and the new app wording and icons.
   - CI: every job of `.github/workflows/ci.yml` replayed in Linux containers from a fresh clone

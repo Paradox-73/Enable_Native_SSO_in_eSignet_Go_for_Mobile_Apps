@@ -6,11 +6,11 @@ something fails. Written 2026-10-05.
 
 ## Status of this runbook
 
-- **Run on 2026-10-05 with the emulator**: `bash scripts/demo/demo.sh --check` printed `demo ready` and
+- **Run on 2026-10-05 and again on 2026-10-06 with the emulator**: `bash scripts/demo/demo.sh --check` printed `demo ready` and
   `teardown ok` (row DEMO-FULL of [test-report.md](test-report.md), with its duration), and `docker ps` listed no
   container afterwards. The server part alone (`--no-emulator`) is row DEMO-SERVER.
-- Every screen named below was seen on the emulator by the UI tests of the same day, except the "Not now"
-  fallback (its device step was added later and has not run yet); screenshots are in [screens/](screens/) and
+- Every screen named below, including the "Not now" fallback, was seen on the emulator by the UI tests of
+  2026-10-06 (`OK (5 tests)`); screenshots are in [screens/](screens/) and
   [ux.md](ux.md#screenshots). Screen texts in this file are the apps' strings.
 - Not measured yet: the live runbook by a person at presenting speed. Rehearse once and fill the last column of
   [Timings](#timings).

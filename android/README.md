@@ -13,8 +13,8 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 > revokes the device secret on eSignet: 64 JVM and Robolectric tests) and Health Card (silent sign-in by
 > token exchange, re-consent, sign-out, accessibility: 54 Robolectric and JVM tests). On the emulator
 > `bash android/scripts/run-ui-test.sh all` passed (`SuperAppSignInTest`, `ChildAppSilentSignInTest`,
-> `ChildAppReconsentTest`, `ChildAppSignOutTest`; the later `ChildAppHubMissingTest` and the
-> "Not now" step have not run yet, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
+> `ChildAppReconsentTest` with its "Not now" step, `ChildAppSignOutTest`, `ChildAppHubMissingTest`:
+> `OK (5 tests)` on 2026-10-06, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
 > [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)). Dated results:
 > [../docs/test-report.md](../docs/test-report.md); screenshots: [../docs/ux.md](../docs/ux.md#screenshots).
 
@@ -356,8 +356,7 @@ UI Automator tests (need the stack and the emulator; `run-ui-test.sh all` runs t
   `health-card-consent-screen.png`), "Continue to eSignet", UIN, a new OTP and "Allow" in Chrome,
   then Health Card's own session with `phone` in its scope (screenshot `health-card-after-consent.png`).
   Before continuing it taps "Not now" once: Health Card stays signed in with Hub and says that nothing
-  changed (screenshot `health-card-consent-declined.png`). This step was added after the last emulator run
-  and has not run yet.
+  changed (screenshot `health-card-consent-declined.png`). Passed on the emulator on 2026-10-06.
 - `ChildAppSignOutTest`: "Sign out of Health Card" (Hub stays signed in), then Hub's "Sign out of all
   apps", then Health Card shows "Sign in to Hub first" with no tokens kept (screenshots
   `health-card-signed-out.png`, `hub-signed-out.png`, `health-card-needs-hub.png`).

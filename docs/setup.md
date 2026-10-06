@@ -8,7 +8,7 @@ How to install the tools, start the stack, run the tests and run both apps. Ever
 | System | State |
 |---|---|
 | Windows 11, Git Bash, Docker Desktop (Linux containers) | the path that was run: every command in this repository's results was run here |
-| Linux (Ubuntu) | every job of `.github/workflows/ci.yml` was replayed in Linux containers on 2026-10-05 (ubuntu 24.04 for repo-lint, the Docker daemon for the Go jobs and e2e, eclipse-temurin 17 with Android SDK 34 for the Android job): all passed; a hosted GitHub run was not seen by the authors (limit L05) |
+| Linux (Ubuntu) | every job of `.github/workflows/ci.yml` was replayed in Linux containers on 2026-10-05 (ubuntu 24.04 for repo-lint, the Docker daemon for the Go jobs and e2e, eclipse-temurin 17 with Android SDK 34 for the Android job): all passed; the hosted GitHub Actions run of 2026-10-06 (ubuntu-24.04 runners, 2 CPUs) passed every job |
 | macOS | untested. On Apple silicon use the `arm64-v8a` emulator image |
 
 ## Prerequisites

@@ -41,7 +41,7 @@ Written 2026-10-05; commit ids are the ones in `git log` on that date. Rule ids 
 ## What is not changed
 
 - Thunder keeps every upstream endpoint and behaviour for requests without `device_sso`
-  (`TestNoDeviceSSO_ResponseIsUnchanged`; the upstream tests still pass: 2379 Thunder and 1588 eSignet tests, 0 failed on 2026-10-05).
+  (`TestNoDeviceSSO_ResponseIsUnchanged`; the upstream tests still pass: 2379 Thunder and 1592 eSignet tests, 0 failed on 2026-10-06).
 - No change to eSignet's other services or to the web frontends.
 - Changes meant for the upstream projects are described in [upstream-prs/thunder.md](upstream-prs/thunder.md) and
   [upstream-prs/esignet.md](upstream-prs/esignet.md); none has been sent.

@@ -1,20 +1,20 @@
 # Submission checklist
 
 Every item of the MOSIP Decode 2026 submission guidelines and of problem statement 03, where it is, and its state on
-2026-10-05. States: **READY** (exists and checked), **PARTIAL** (exists, something open), **TODO** (not made), **PERSON**
+2026-10-06. States: **READY** (exists and checked), **PARTIAL** (exists, something open), **TODO** (not made), **PERSON**
 (only a team member can do it). Deadline: 2026-10-26 23:59 IST.
 
 ## Mandatory items of the submission guidelines
 
 | Item | Where | State | Open |
 |---|---|---|---|
-| Source code, complete, hosted | this repository, GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` | READY | every change is committed on `main`; the team pushes `main` at each stop point (PERSON: push the latest local commits) |
-| Working prototype or demo | stack and both apps: [setup.md](setup.md); `bash scripts/demo/demo.sh` | READY | `bash scripts/demo/demo.sh --check` passed with the emulator on 2026-10-05 (row DEMO-FULL of [test-report.md](test-report.md)) |
+| Source code, complete, hosted | this repository, GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` | READY | every change is committed on `main` and pushed (2026-10-06); GitHub Actions passed every job on that push (run 37464932756). PERSON: the repository is private; make it public or add the judges as collaborators at submission, then open the link from a logged-out browser |
+| Working prototype or demo | stack and both apps: [setup.md](setup.md); `bash scripts/demo/demo.sh` | READY | `bash scripts/demo/demo.sh --check` passed with the emulator on 2026-10-05 and 2026-10-06 (row DEMO-FULL of [test-report.md](test-report.md)) |
 | Pitch deck | outline: [ppt-outline.md](ppt-outline.md) | TODO (PERSON) | build the slide file from the outline; export PPT and PDF |
 | Video demo, 2 to 5 minutes | storyboard (4 min 30 s): [demo-script.md](demo-script.md) | TODO (PERSON) | record with the storyboard after a fresh `demo.sh --check`; upload to the cloud storage |
 | Usage and installation instructions | [../README.md](../README.md), [setup.md](setup.md) | READY | follow them once on a clean clone: `bash scripts/fresh-clone-check.sh` |
 | API documentation | [api.md](api.md), [../esignet/docs/esignet-openapi.yaml](../esignet/docs/esignet-openapi.yaml), [../thunder/api/oauth2.yaml](../thunder/api/oauth2.yaml) | READY | OpenAPI lint 0 errors |
-| Git repository with history | same repository; history never rewritten | PARTIAL | push the latest local commits; each member commits their own remaining work (deck, video notes) from their own account (PERSON) |
+| Git repository with history | same repository; history never rewritten | PARTIAL | all commits pushed; each member commits their own remaining work (deck, video notes) from their own account (PERSON) |
 | College or university credentials | not in the repository (personal documents) | PERSON | every member uploads a valid ID to the cloud storage |
 
 ## Other items of the guidelines
@@ -24,7 +24,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 | Design mockups, wireframes, user flow | [ux.md](ux.md), [diagrams/user-flow.png](diagrams/user-flow.png) | READY: emulator screenshots of every screen ([screens/](screens/)), screens in words and the flow diagram |
 | Architecture diagram | [diagrams/components.png](diagrams/components.png) and four sequence diagrams ([diagrams/README.md](diagrams/README.md)) | READY |
 | Test data | [test-data.md](test-data.md) | READY |
-| Test cases and results | [test-report.md](test-report.md), `scripts/evidence.sh` | READY: every automated check PASS; NOT RUN only for the hosted CI view and the manual runs (TalkBack, physical phone, Postman desktop), each with its reason |
+| Test cases and results | [test-report.md](test-report.md), `scripts/evidence.sh` | READY: every automated check PASS; hosted CI green on 2026-10-06; NOT RUN only for the manual runs (TalkBack, physical phone, Postman desktop), each with its reason |
 
 ## Deliverables of problem statement 03
 
