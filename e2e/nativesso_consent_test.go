@@ -111,7 +111,7 @@ func TestE2E_Exchange_ConsentOnlyReconsent(t *testing.T) {
 			t.Fatalf("consent page: HTTP %d %.300s", r.Status, body)
 		}
 		for header, want := range map[string]string{
-			"Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
+			"Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin",
 		} {
 			if got := r.Header.Get(header); got != want {
 				t.Errorf("%s %q, want %q", header, got, want)

@@ -228,7 +228,7 @@ func (h *ConsentPageHandler) clientName(ctx context.Context, app *providers.OAut
 	return clientID
 }
 
-// writeHeaders sets the headers of every answer: never cached or framed, no referrer (the link holds
+// writeHeaders sets the headers of every answer: never cached or framed, no referrer to other sites (the link holds
 // the ticket), and a content security policy that allows no script and lets the form go only to this
 // server and, through the redirect that answers it, to the app's registered redirect URI.
 func (h *ConsentPageHandler) writeHeaders(w http.ResponseWriter, redirectURI string) {
@@ -242,7 +242,7 @@ func (h *ConsentPageHandler) writeHeaders(w http.ResponseWriter, redirectURI str
 	header.Set("Pragma", "no-cache")
 	header.Set("X-Frame-Options", "DENY")
 	header.Set("X-Content-Type-Options", "nosniff")
-	header.Set("Referrer-Policy", "no-referrer")
+	header.Set("Referrer-Policy", "same-origin")
 	header.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; "+
 		"frame-ancestors 'none'; base-uri 'none'; form-action "+formAction)
 }

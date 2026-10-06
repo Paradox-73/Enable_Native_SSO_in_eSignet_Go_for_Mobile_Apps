@@ -533,7 +533,7 @@ paths:
         DPoP key of the device secret). Showing the page does not use the ticket up. Registered only
         when the engine has a Device Secret Provider and `oauth.native_sso.consent_only_reconsent` is
         on. Answers carry `Cache-Control: no-store`, `X-Frame-Options: DENY`,
-        `Referrer-Policy: no-referrer` and a Content-Security-Policy without scripts.
+        `Referrer-Policy: same-origin` and a Content-Security-Policy without scripts.
       tags:
         - Token
       parameters:
