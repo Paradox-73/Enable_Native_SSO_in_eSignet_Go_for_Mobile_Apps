@@ -15,6 +15,7 @@ import (
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/dpop"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/resourceindicators"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/tokenservice"
@@ -36,7 +37,10 @@ type tokenExchangeGrantHandler struct {
 	// deviceSecretProvider validates the device secret of an OpenID Connect Native SSO token exchange;
 	// nil when Native SSO is off.
 	deviceSecretProvider providers.DeviceSecretProvider
-	cfg                  oauthconfig.Config
+	// consentStore keeps the consent tickets and approvals of consent-only re-consent; nil turns the
+	// consent page off, and a wider scope then answers interaction_required without consent_uri.
+	consentStore nativesso.ConsentStoreInterface
+	cfg          oauthconfig.Config
 	// now returns the current time; nil means time.Now. Tests set it to check the id_token age cap.
 	now func() time.Time
 }
@@ -49,9 +53,11 @@ func newTokenExchangeGrantHandler(
 	actorProvider providers.ActorProvider,
 	attributeCache attributecache.AttributeCacheServiceInterface,
 	deviceSecretProvider providers.DeviceSecretProvider,
+	consentStore nativesso.ConsentStoreInterface,
 	cfg oauthconfig.Config,
 ) GrantHandlerInterface {
 	return &tokenExchangeGrantHandler{
+		consentStore:         consentStore,
 		tokenBuilder:         tokenBuilder,
 		tokenValidator:       tokenValidator,
 		resourceService:      resourceService,

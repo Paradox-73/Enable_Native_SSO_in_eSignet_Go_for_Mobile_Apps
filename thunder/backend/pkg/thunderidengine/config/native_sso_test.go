@@ -36,6 +36,17 @@ func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_Validate() {
 			config: NativeSSOConfig{ScopeExceededError: "access_denied"}, wantErr: "scope_exceeded_error"},
 		{name: "negative id_token age fails",
 			config: NativeSSOConfig{IDTokenMaxAgeSeconds: -1}, wantErr: "id_token_max_age_seconds"},
+		{name: "consent-only re-consent with the default signal passes",
+			config: NativeSSOConfig{ConsentOnlyReconsent: true, ConsentTicketTTLSeconds: 600}},
+		{name: "consent-only re-consent with interaction_required passes",
+			config: NativeSSOConfig{ConsentOnlyReconsent: true, ScopeExceededError: "interaction_required"}},
+		{name: "consent-only re-consent with invalid_scope fails",
+			config:  NativeSSOConfig{ConsentOnlyReconsent: true, ScopeExceededError: "invalid_scope"},
+			wantErr: "consent_only_reconsent"},
+		{name: "negative consent ticket lifetime fails",
+			config: NativeSSOConfig{ConsentTicketTTLSeconds: -1}, wantErr: "consent_ticket_ttl_seconds"},
+		{name: "consent ticket lifetime over ten minutes fails",
+			config: NativeSSOConfig{ConsentTicketTTLSeconds: 601}, wantErr: "consent_ticket_ttl_seconds"},
 	}
 	for _, tc := range cases {
 		suite.Run(tc.name, func() {
@@ -47,6 +58,11 @@ func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_Validate() {
 			assert.ErrorContains(suite.T(), err, tc.wantErr)
 		})
 	}
+}
+
+func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_ConsentTicketTTL() {
+	assert.Equal(suite.T(), DefaultNativeSSOConsentTicketTTLSeconds, NativeSSOConfig{}.ConsentTicketTTL())
+	assert.Equal(suite.T(), int64(120), NativeSSOConfig{ConsentTicketTTLSeconds: 120}.ConsentTicketTTL())
 }
 
 func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_ScopeExceededErrorCode() {
@@ -91,4 +107,19 @@ func (suite *NativeSSOConfigTestSuite) TestOAuthConfig_NativeSSOJSONKeys() {
 	raw, err := json.Marshal(OAuthConfig{NativeSSO: NativeSSOConfig{IDTokenMaxAgeSeconds: 60}})
 	suite.Require().NoError(err)
 	assert.Contains(suite.T(), string(raw), `"native_sso":{"id_token_max_age_seconds":60,`)
+}
+
+func (suite *NativeSSOConfigTestSuite) TestOAuthConfig_DecodesConsentOnlyKeys() {
+	const doc = `
+native_sso:
+  consent_only_reconsent: true
+  consent_ticket_ttl_seconds: 120
+`
+	var cfg OAuthConfig
+	dec := yaml.NewDecoder(strings.NewReader(doc))
+	dec.KnownFields(true)
+	suite.Require().NoError(dec.Decode(&cfg))
+	assert.True(suite.T(), cfg.NativeSSO.ConsentOnlyReconsent)
+	assert.Equal(suite.T(), int64(120), cfg.NativeSSO.ConsentTicketTTLSeconds)
+	assert.NoError(suite.T(), cfg.NativeSSO.Validate())
 }

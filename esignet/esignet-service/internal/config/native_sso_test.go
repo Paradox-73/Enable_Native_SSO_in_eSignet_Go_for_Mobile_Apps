@@ -22,6 +22,8 @@ var nativeSSOEnvVars = []string{
 	"MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS",
 	"MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR",
 	"MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY",
+	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT",
+	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS",
 }
 
 // NativeSSOConfigTestSuite covers the native_sso and oauth.native_sso settings of OpenID Connect
@@ -52,6 +54,8 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_Defaults() {
 	ts.EqualValues(0, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
 	ts.Equal("interaction_required", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
+	ts.False(cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
+	ts.EqualValues(0, cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds)
 	ts.NoError(cfg.NativeSSO.Validate("RSA_2048"))
 	ts.NoError(cfg.OAuth.NativeSSO.Validate())
 }
@@ -93,6 +97,23 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML(
 	ts.EqualValues(120, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
 	ts.Equal("invalid_scope", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
+}
+
+// Consent-only re-consent: yaml values are kept, and the env vars override them.
+func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_ConsentOnly() {
+	cfg := &AppConfig{}
+	cfg.OAuth.NativeSSO.ConsentOnlyReconsent = true
+	cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds = 120
+	applyNativeSSODefaults(cfg)
+	ts.True(cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
+	ts.EqualValues(120, cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds)
+	ts.NoError(cfg.OAuth.NativeSSO.Validate())
+
+	ts.T().Setenv("MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT", "false")
+	ts.T().Setenv("MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS", "60")
+	applyNativeSSODefaults(cfg)
+	ts.False(cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
+	ts.EqualValues(60, cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds)
 }
 
 // TestApplyNativeSSODefaults_EnvTurnsOff checks that the env var can turn off Native SSO that

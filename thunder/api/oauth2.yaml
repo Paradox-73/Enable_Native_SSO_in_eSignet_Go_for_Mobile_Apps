@@ -242,7 +242,13 @@ paths:
         requesting app with the same `sub` and `sid`. A scope wider than the granted one answers
         `interaction_required` (or `invalid_scope` when `oauth.native_sso.scope_exceeded_error` is
         `invalid_scope`), naming the missing scope values; the app then runs its own authorization
-        request so the user can consent. The OpenID Provider metadata then carries
+        request so the user can consent. With `oauth.native_sso.consent_only_reconsent` on, when every
+        missing value is allowed for the requesting app and releases no user claim beyond those the
+        login already released (for example a permission scope), the answer also carries
+        `consent_uri` and `consent_expires_in`: a one-time page where the user approves the extra
+        scopes without logging in again (`/oauth2/native-sso/consent`). After the user allowed them,
+        the same exchange succeeds for that login session; every binding check still applies. The
+        OpenID Provider metadata then carries
         `native_sso_supported: true` and lists `device_sso` in `scopes_supported`.
       tags:
         - Token
@@ -280,14 +286,23 @@ paths:
             Bad Request — invalid grant, missing parameters, or unsupported grant type. A Native SSO
             token exchange also answers `invalid_target` (audience is not the issuer),
             `unauthorized_client` (client without `device_sso`), `invalid_scope` and
-            `interaction_required` (scope wider than the first app's grant).
+            `interaction_required` (scope wider than the first app's grant), the last one with
+            `consent_uri` when the user can approve the scope without a new login.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OAuthError'
-              example:
-                error: "invalid_grant"
-                error_description: "The provided authorization grant is invalid"
+              examples:
+                invalidGrant:
+                  value:
+                    error: "invalid_grant"
+                    error_description: "The provided authorization grant is invalid"
+                consentOnly:
+                  value:
+                    error: "interaction_required"
+                    error_description: "The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share"
+                    consent_uri: "https://esignet.example.com/oauth2/native-sso/consent?ticket=4n3h0yW2qGvJ8lq9oP0bq1yQx7m0f6Zc1tVdQe8uFh0"
+                    consent_expires_in: 300
         "401":
           description: Unauthorized — client authentication failed.
           content:
@@ -505,6 +520,109 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OAuthError'
+
+  /oauth2/native-sso/consent:
+    get:
+      summary: Native SSO consent page (consent-only re-consent)
+      operationId: getNativeSSOConsentPage
+      description: |
+        The page named by `consent_uri` in the `interaction_required` answer of an OpenID Connect
+        Native SSO token exchange. It shows the requesting app, the app the user signed in to, and the
+        extra scopes, with "Allow" and "Not now". No login: the ticket was issued only after the
+        exchange passed every binding check (device secret, `id_token`, `ds_hash`, `sid`, same vendor,
+        DPoP key of the device secret). Showing the page does not use the ticket up. Registered only
+        when the engine has a Device Secret Provider and `oauth.native_sso.consent_only_reconsent` is
+        on. Answers carry `Cache-Control: no-store`, `X-Frame-Options: DENY`,
+        `Referrer-Policy: no-referrer` and a Content-Security-Policy without scripts.
+      tags:
+        - Token
+      parameters:
+        - name: ticket
+          in: query
+          required: true
+          description: The one-time ticket from `consent_uri` (256 random bits, base64url).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The consent page.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: The ticket is unknown, malformed, expired or already answered.
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: The ticket store could not be read.
+          content:
+            text/html:
+              schema:
+                type: string
+    post:
+      summary: Native SSO consent decision
+      operationId: postNativeSSOConsentDecision
+      description: |
+        The form of the consent page. Uses the ticket up first, so it can be answered once. `allow`
+        records the approval for this app and this login session until the device secret expires;
+        `deny` records nothing. Both write an audit line (`native_sso_consent_granted` or
+        `native_sso_consent_denied`, with the client ids, the scopes and a hash of the session, no
+        user data) and redirect to the app's registered redirect URI with
+        `native_sso_consent=granted` or `native_sso_consent=denied`. The redirect carries no
+        authority: the app repeats the token exchange, which checks the approval. A form from another
+        origin (`Origin`, `Sec-Fetch-Site`) is refused.
+      tags:
+        - Token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - ticket
+                - decision
+              properties:
+                ticket:
+                  type: string
+                decision:
+                  type: string
+                  enum: [allow, deny]
+      responses:
+        "303":
+          description: Back to the app's single registered redirect URI with `native_sso_consent`.
+          headers:
+            Location:
+              schema:
+                type: string
+              example: "org.badmosip.nativesso.childapp://oauth/callback?native_sso_consent=granted"
+        "200":
+          description: Done; the app has more than one redirect URI, so the page asks the user to go back to it.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Unknown, expired or already answered ticket, an unknown decision, or a body over 4 KiB.
+          content:
+            text/html:
+              schema:
+                type: string
+        "403":
+          description: The form was posted from another origin.
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: The approval could not be stored.
+          content:
+            text/html:
+              schema:
+                type: string
 
   /oauth2/jwks:
     get:
@@ -1247,3 +1365,12 @@ components:
         error_description:
           type: string
           description: Human-readable error description.
+        consent_uri:
+          type: string
+          format: uri
+          description: >-
+            Native SSO token exchange only, with `interaction_required`: a one-time page where the user
+            approves the extra scopes without a new login.
+        consent_expires_in:
+          type: integer
+          description: Lifetime of `consent_uri` in seconds.

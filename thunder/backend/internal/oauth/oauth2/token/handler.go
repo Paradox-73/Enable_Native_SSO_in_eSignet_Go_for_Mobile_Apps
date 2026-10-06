@@ -117,6 +117,19 @@ func (th *tokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 				logger.Debug(ctx, "DPoP proof rejected", log.String("error", description))
 				description = "Invalid DPoP proof"
 			}
+			if tokenError.ConsentURI != "" {
+				// Native SSO consent-only re-consent: the answer carries a one-time link, so it is
+				// never cached.
+				w.Header().Set(sysconst.CacheControlHeaderName, sysconst.CacheControlNoStore)
+				w.Header().Set(sysconst.PragmaHeaderName, sysconst.PragmaNoCache)
+				utils.WriteSuccessResponse(r.Context(), w, statusCode, model.ErrorResponse{
+					Error:            tokenError.Error,
+					ErrorDescription: description,
+					ConsentURI:       tokenError.ConsentURI,
+					ConsentExpiresIn: tokenError.ConsentExpiresIn,
+				})
+				return
+			}
 			utils.WriteJSONError(r.Context(), w, tokenError.Error, description, statusCode, nil)
 		} else {
 			utils.WriteJSONError(r.Context(), w, constants.ErrorServerError, "Something went wrong",

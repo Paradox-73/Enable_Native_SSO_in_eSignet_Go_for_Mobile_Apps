@@ -179,11 +179,21 @@ func (c *NativeSSOConfig) Validate() error {
 	}
 	switch c.ScopeExceededError {
 	case "", NativeSSOScopeExceededInteractionRequired, NativeSSOScopeExceededInvalidScope:
-		return nil
 	default:
 		return fmt.Errorf("native_sso: scope_exceeded_error must be empty, %q or %q, got %q",
 			NativeSSOScopeExceededInteractionRequired, NativeSSOScopeExceededInvalidScope, c.ScopeExceededError)
 	}
+	if c.ConsentTicketTTLSeconds < 0 || c.ConsentTicketTTLSeconds > MaxNativeSSOConsentTicketTTLSeconds {
+		return fmt.Errorf("native_sso: consent_ticket_ttl_seconds must be between 0 and %d, got %d",
+			MaxNativeSSOConsentTicketTTLSeconds, c.ConsentTicketTTLSeconds)
+	}
+	// The consent page answers the interaction_required signal; with invalid_scope the app has no
+	// reason to open it, so the combination is a configuration mistake.
+	if c.ConsentOnlyReconsent && c.ScopeExceededErrorCode() != NativeSSOScopeExceededInteractionRequired {
+		return fmt.Errorf("native_sso: consent_only_reconsent needs scope_exceeded_error %q",
+			NativeSSOScopeExceededInteractionRequired)
+	}
+	return nil
 }
 
 // GetServerURL constructs the server URL from the server configuration.

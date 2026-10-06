@@ -56,6 +56,8 @@ const (
 	errDescNSSOScopeWithoutOIDC  = "Native SSO requires the openid scope"
 	errDescNSSOScopeExceeded     = "The requested scope exceeds the scope granted to the first app; " +
 		"user consent is needed for: "
+	errDescNSSOConsentNeeded = "The requested scope exceeds the scope granted to the first app and can be " +
+		"approved at consent_uri without a new login; user consent is needed for: "
 	errDescNSSOAttributesGone = "The user attributes of the login session are no longer available"
 	errDescNSSOFailed         = "Failed to generate token"
 )
@@ -162,7 +164,7 @@ func (h *tokenExchangeGrantHandler) handleNativeSSOGrant(ctx context.Context, to
 	}
 
 	// Step 13: scope rules (statement task 10a, bonus B1).
-	scopes, errResp := h.resolveNativeSSOScopes(tokenRequest.Scope, dsClaims.Scopes)
+	scopes, errResp := h.resolveNativeSSOScopes(ctx, tokenRequest.Scope, oauthApp, dsClaims)
 	if errResp != nil {
 		return nil, errResp
 	}
@@ -281,40 +283,124 @@ func (h *tokenExchangeGrantHandler) checkSameVendor(ctx context.Context, oauthAp
 // exchange, given the scope granted with the device secret:
 //   - no scope: the granted scope without device_sso (RFC 8693 2.1 makes scope optional; rule R17);
 //   - equal or narrower: allowed, the response carries what was issued (statement task 10a; rule R17);
-//   - any value outside the granted scope: the exchange fails with interaction_required, or invalid_scope
-//     when oauth.native_sso.scope_exceeded_error says so (statement task 10a, Native SSO 4.3 step 6 and
-//     4.4; rule R15). interaction_required is the re-consent signal of bonus B1: the second app then runs
-//     its own authorization request with prompt=consent. The description names the missing scope values
-//     only, so the app can tell the user which permission it needs.
+//   - a value outside the granted scope that the user already approved for this app in this login
+//     session on the consent page (consent-only re-consent, bonus B1; rule R28): allowed;
+//   - any other value outside the granted scope: the exchange fails with interaction_required, or
+//     invalid_scope when oauth.native_sso.scope_exceeded_error says so (statement task 10a, Native SSO
+//     4.3 step 6 and 4.4; rule R15). interaction_required is the re-consent signal of bonus B1. The
+//     description names the missing scope values only, so the app can tell the user which permission
+//     it needs. When the missing values need consent only, the answer also carries consent_uri.
 //
 // The generic token exchange silently drops scopes the subject token lacks; this branch fails instead.
-func (h *tokenExchangeGrantHandler) resolveNativeSSOScopes(
-	requestedScope string, deviceSecretScopes []string,
+func (h *tokenExchangeGrantHandler) resolveNativeSSOScopes(ctx context.Context, requestedScope string,
+	oauthApp *providers.OAuthClient, dsClaims *providers.DeviceSecretClaims,
 ) ([]string, *model.ErrorResponse) {
-	granted := grantedNativeSSOScopes(deviceSecretScopes)
+	granted := grantedNativeSSOScopes(dsClaims.Scopes)
 	requested := tokenservice.ParseScopes(requestedScope)
 	if len(requested) == 0 {
 		return granted, nil
 	}
 
+	var approved []string
+	approvedRead := false
 	scopes := make([]string, 0, len(requested))
 	var missing []string
 	for _, scope := range requested {
 		switch {
 		case slices.Contains(scopes, scope) || slices.Contains(missing, scope):
+			continue
 		case slices.Contains(granted, scope):
 			scopes = append(scopes, scope)
-		default:
+			continue
+		}
+		if !approvedRead {
+			var errResp *model.ErrorResponse
+			approved, errResp = h.approvedExtraScopes(ctx, oauthApp, dsClaims)
+			if errResp != nil {
+				return nil, errResp
+			}
+			approvedRead = true
+		}
+		if slices.Contains(approved, scope) {
+			scopes = append(scopes, scope)
+		} else {
 			missing = append(missing, scope)
 		}
 	}
 	if len(missing) > 0 {
-		return nil, &model.ErrorResponse{
-			Error:            h.cfg.OAuth.NativeSSO.ScopeExceededErrorCode(),
-			ErrorDescription: errDescNSSOScopeExceeded + tokenservice.JoinScopes(missing),
-		}
+		return nil, h.scopeExceeded(ctx, oauthApp, dsClaims, missing)
 	}
 	return scopes, nil
+}
+
+// approvedExtraScopes returns the scopes beyond the first app's grant that the user approved for the
+// requesting app in this login session, limited to those still allowed for it and still needing no
+// new user data. Without a consent store, or with consent-only re-consent off, there are none.
+func (h *tokenExchangeGrantHandler) approvedExtraScopes(ctx context.Context, oauthApp *providers.OAuthClient,
+	dsClaims *providers.DeviceSecretClaims) ([]string, *model.ErrorResponse) {
+	if h.consentStore == nil || !h.cfg.OAuth.NativeSSO.ConsentOnlyReconsent {
+		return nil, nil
+	}
+	stored, err := h.consentStore.GrantedScopes(ctx, dsClaims.SessionID, oauthApp.ClientID, dsClaims.Subject)
+	if err != nil {
+		log.GetLogger().Error(ctx, "Failed to read the Native SSO consent approvals", log.Error(err))
+		return nil, nativeSSOServerError()
+	}
+	approved := make([]string, 0, len(stored))
+	for _, scope := range stored {
+		// The client's settings are read again at every exchange: removing a scope from the app
+		// stops it at once, as for device_sso.
+		if nativesso.ConsentOnlyEligible([]string{scope}, oauthApp, dsClaims.Claims) {
+			approved = append(approved, scope)
+		}
+	}
+	return approved, nil
+}
+
+// scopeExceeded builds the answer for a requested scope beyond what the user approved. When every
+// missing value can be approved without a new login (nativesso.ConsentOnlyEligible), a one-time
+// consent ticket is stored and its page is named in consent_uri. A failure to store the ticket only
+// leaves consent_uri out: the app then falls back to its own login, as without the feature.
+func (h *tokenExchangeGrantHandler) scopeExceeded(ctx context.Context, oauthApp *providers.OAuthClient,
+	dsClaims *providers.DeviceSecretClaims, missing []string) *model.ErrorResponse {
+	errResp := &model.ErrorResponse{
+		Error:            h.cfg.OAuth.NativeSSO.ScopeExceededErrorCode(),
+		ErrorDescription: errDescNSSOScopeExceeded + tokenservice.JoinScopes(missing),
+	}
+	nssoCfg := h.cfg.OAuth.NativeSSO
+	if h.consentStore == nil || !nssoCfg.ConsentOnlyReconsent ||
+		errResp.Error != constants.ErrorInteractionRequired || dsClaims.ExpiresAt == 0 ||
+		!nativesso.ConsentOnlyEligible(missing, oauthApp, dsClaims.Claims) {
+		return errResp
+	}
+	ttl := nssoCfg.ConsentTicketTTL()
+	if remaining := dsClaims.ExpiresAt - h.currentTime().Unix(); remaining < ttl {
+		ttl = remaining
+	}
+	if ttl <= 0 {
+		return errResp
+	}
+	ticket := nativesso.ConsentTicket{
+		ClientID:       oauthApp.ClientID,
+		FirstClientID:  dsClaims.ClientID,
+		Subject:        dsClaims.Subject,
+		SessionID:      dsClaims.SessionID,
+		Scopes:         missing,
+		GrantExpiresAt: dsClaims.ExpiresAt,
+	}
+	if len(oauthApp.RedirectURIs) == 1 {
+		ticket.RedirectURI = oauthApp.RedirectURIs[0]
+	}
+	value, err := h.consentStore.IssueTicket(ctx, ticket, ttl)
+	if err != nil {
+		log.GetLogger().Error(ctx, "Failed to store a Native SSO consent ticket", log.Error(err))
+		return errResp
+	}
+	nativesso.AuditConsent(ctx, nativesso.AuditConsentTicketIssued, &ticket)
+	errResp.ErrorDescription = errDescNSSOConsentNeeded + tokenservice.JoinScopes(missing)
+	errResp.ConsentURI = h.cfg.BaseURL + constants.OAuth2NativeSSOConsentEndpoint + "?ticket=" + value
+	errResp.ConsentExpiresIn = ttl
+	return errResp
 }
 
 // issueNativeSSOTokens issues the second app's tokens for the login of the device secret (Native SSO

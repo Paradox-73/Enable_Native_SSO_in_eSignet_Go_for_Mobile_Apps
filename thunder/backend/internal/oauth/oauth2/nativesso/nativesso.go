@@ -129,3 +129,36 @@ func ReleasedClaimNames(
 	sort.Strings(result)
 	return result
 }
+
+// ConsentOnlyEligible reports whether the user may approve the extra scopes of a second app without
+// logging in again (consent-only re-consent). Every scope must be allowed for the second app, must
+// not be openid or device_sso, and must release no user claim beyond releasedClaims, the claims the
+// login already released (the device secret's claims). A scope that needs new user data, such as
+// phone after a login without it, needs a new login: eSignet's identity system releases user data
+// only after the user authenticates.
+func ConsentOnlyEligible(scopes []string, oauthApp *providers.OAuthClient, releasedClaims []string) bool {
+	if len(scopes) == 0 || oauthApp == nil {
+		return false
+	}
+	for _, scope := range scopes {
+		if scope == constants.ScopeOpenID || scope == constants.ScopeDeviceSSO ||
+			!slices.Contains(oauthApp.Scopes, scope) {
+			return false
+		}
+		for _, claim := range oauth2utils.ResolveScopeClaims(scope, oauthApp.ScopeClaims) {
+			if !slices.Contains(releasedClaims, claim) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// ScopeClaimNames returns the user claims scope releases for oauthApp, for display on the consent
+// page; nil for a permission scope that releases none.
+func ScopeClaimNames(scope string, oauthApp *providers.OAuthClient) []string {
+	if oauthApp == nil {
+		return oauth2utils.ResolveScopeClaims(scope, nil)
+	}
+	return oauth2utils.ResolveScopeClaims(scope, oauthApp.ScopeClaims)
+}

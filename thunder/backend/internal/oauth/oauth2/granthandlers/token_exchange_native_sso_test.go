@@ -70,7 +70,7 @@ func (s *TokenExchangeNativeSSOTestSuite) SetupTest() {
 	cfg := testhelpers.OAuthConfig()
 	s.handler = newTokenExchangeGrantHandler(s.tokenBuilder, s.tokenValidator,
 		resourcemock.NewResourceServiceInterfaceMock(s.T()), s.actorProvider, s.attrCache, s.dsProvider,
-		cfg).(*tokenExchangeGrantHandler)
+		nil, cfg).(*tokenExchangeGrantHandler)
 	s.now = time.Now()
 	s.handler.now = func() time.Time { return s.now }
 	s.builtAccess = nil

@@ -377,6 +377,31 @@ type NativeSSOConfig struct {
 	// ExchangeOnly limits the token-exchange grant to the Native SSO profile (a device secret as
 	// actor_token); other token exchanges are rejected with invalid_request.
 	ExchangeOnly bool `yaml:"exchange_only" json:"exchange_only"`
+	// ConsentOnlyReconsent lets the user approve extra scopes for the second app without logging in
+	// again, when the scopes need no user data beyond what the login already released. A refused
+	// exchange then carries consent_uri, a one-time page of this server where the user allows or
+	// declines; the app repeats the exchange afterwards. Needs ScopeExceededError
+	// interaction_required.
+	ConsentOnlyReconsent bool `yaml:"consent_only_reconsent" json:"consent_only_reconsent"`
+	// ConsentTicketTTLSeconds is how long a consent_uri can be used: 0 means
+	// DefaultNativeSSOConsentTicketTTLSeconds; at most MaxNativeSSOConsentTicketTTLSeconds.
+	ConsentTicketTTLSeconds int64 `yaml:"consent_ticket_ttl_seconds" json:"consent_ticket_ttl_seconds"`
+}
+
+// Limits of NativeSSOConfig.ConsentTicketTTLSeconds.
+const (
+	// DefaultNativeSSOConsentTicketTTLSeconds gives the user five minutes to answer the consent page.
+	DefaultNativeSSOConsentTicketTTLSeconds int64 = 300
+	// MaxNativeSSOConsentTicketTTLSeconds keeps a consent_uri short-lived: ten minutes at most.
+	MaxNativeSSOConsentTicketTTLSeconds int64 = 600
+)
+
+// ConsentTicketTTL returns ConsentTicketTTLSeconds, or the default when it is not set.
+func (c NativeSSOConfig) ConsentTicketTTL() int64 {
+	if c.ConsentTicketTTLSeconds <= 0 {
+		return DefaultNativeSSOConsentTicketTTLSeconds
+	}
+	return c.ConsentTicketTTLSeconds
 }
 
 // ScopeExceededErrorCode returns the configured ScopeExceededError, or interaction_required when

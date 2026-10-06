@@ -125,6 +125,9 @@ const (
 	OAuth2PAREndpoint                     string = "/oauth2/par"
 	OAuth2BackchannelAuthEndpoint         string = "/oauth2/bc-authorize"
 	OAuth2BackchannelAuthCallbackEndpoint string = "/oauth2/bc-authorize/callback"
+	// OAuth2NativeSSOConsentEndpoint is the page where the user approves extra scopes for a second
+	// app of an OpenID Connect Native SSO login without logging in again (consent-only re-consent).
+	OAuth2NativeSSOConsentEndpoint string = "/oauth2/native-sso/consent"
 )
 
 // OAuth2 token types.

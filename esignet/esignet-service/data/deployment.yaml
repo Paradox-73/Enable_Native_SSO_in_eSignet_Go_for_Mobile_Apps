@@ -155,11 +155,16 @@ oauth:
     enabled: false  
   # OpenID Connect Native SSO for Mobile Apps 1.0, read by the engine. Env overrides:
   # MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS, MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR,
-  # MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY (see internal/config/native_sso.go).
+  # MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY, MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT,
+  # MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS (see internal/config/native_sso.go).
   native_sso:
     id_token_max_age_seconds: 0                 # 0: no cap beyond the device secret and its session
     scope_exceeded_error: interaction_required  # or invalid_scope
     exchange_only: true                         # token exchange only with a device secret
+    # Extra scopes for the second app that need no new user data (permission scopes, or claims the
+    # login already released) are approved on /oauth2/native-sso/consent without a new login.
+    consent_only_reconsent: true
+    consent_ticket_ttl_seconds: 300             # lifetime of a consent_uri, at most 600
 
 # Device secrets of OpenID Connect Native SSO, read by the device secret provider. Env overrides:
 # MOSIP_ESIGNET_NATIVE_SSO_ENABLED, MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS,
@@ -245,3 +250,9 @@ resource_servers:
     default: true
     scopes:
       mosip_identity_vc_ldp: "Issue a Verifiable Credential"
+  # Permission of the Health Card demo app (Native SSO consent-only re-consent): it releases no
+  # user claim, so the user approves it without logging in again.
+  - id: health-card
+    identifier: "${MOSIP_ESIGNET_HOST}/health-card"
+    scopes:
+      health_card_share: "Show your health card to a clinic"

@@ -85,6 +85,9 @@ services:
       MOSIP_ESIGNET_NATIVE_SSO_ENABLED: "true"
       MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY: "true"
       MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR: interaction_required
+      # Consent-only re-consent: extra scopes that need no new user data are approved on
+      # /oauth2/native-sso/consent without a new login.
+      MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT: "true"
       # Shortened only by e2e/run.sh phase 2 (deploy/stack.sh restart), which waits a device secret out.
       MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS: ${PS03_DEVICE_SECRET_VALIDITY_SECONDS:-28800}
     volumes:

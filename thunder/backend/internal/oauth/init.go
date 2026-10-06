@@ -22,6 +22,7 @@ import (
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/jti"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/jwksresolver"
 	oauth2logout "github.com/thunder-id/thunderid/internal/oauth/oauth2/logout"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/par"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/token"
@@ -101,10 +102,17 @@ func Initialize(
 			discoveryService, resourceService, runtimeStore, jtiStore, cfg)
 	}
 
+	// Consent-only re-consent of Native SSO: the token exchange issues consent tickets and the consent
+	// page answers them. Both need the provider, the setting and the runtime store.
+	consentStore := newNativeSSOConsentStore(deviceSecretProvider, runtimeStore, cfg)
+	if consentStore != nil {
+		nativesso.RegisterConsentRoutes(mux, nativesso.NewConsentPageHandler(consentStore, actorProvider, cfg.BaseURL))
+	}
+
 	grantHandlerProvider := granthandlers.Initialize(
 		jwtService, oauth2AuthzService, tokenBuilder, tokenValidator,
 		attributeCacheSvc, ouService, authzService, actorProvider, resourceService,
-		cibaService, revocationSvc, revocationSvc, deviceSecretProvider, cfg)
+		cibaService, revocationSvc, revocationSvc, deviceSecretProvider, consentStore, cfg)
 
 	token.Initialize(mux, jwtService, actorProvider, authnProvider, grantHandlerProvider,
 		scopeValidator, observabilitySvc, discoveryService, dpopVerifier, jtiStore, cfg)
@@ -119,4 +127,15 @@ func Initialize(
 		oauth2logout.Initialize(mux, jwtService, actorProvider, flowExecService, runtimeStore, cfg)
 	}
 	return tokenValidator, nil
+}
+
+// newNativeSSOConsentStore returns the consent store of consent-only re-consent, or nil when the
+// feature is off: Native SSO off (no provider), oauth.native_sso.consent_only_reconsent false, or no
+// runtime store to keep tickets in.
+func newNativeSSOConsentStore(deviceSecretProvider providers.DeviceSecretProvider,
+	runtimeStore providers.RuntimeStoreProvider, cfg oauthconfig.Config) nativesso.ConsentStoreInterface {
+	if deviceSecretProvider == nil || runtimeStore == nil || !cfg.OAuth.NativeSSO.ConsentOnlyReconsent {
+		return nil
+	}
+	return nativesso.NewConsentStore(runtimeStore)
 }
