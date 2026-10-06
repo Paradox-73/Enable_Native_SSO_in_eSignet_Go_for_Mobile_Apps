@@ -156,7 +156,8 @@ oauth:
   # OpenID Connect Native SSO for Mobile Apps 1.0, read by the engine. Env overrides:
   # MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS, MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR,
   # MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY, MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT,
-  # MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS (see internal/config/native_sso.go).
+  # MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS,
+  # MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS (see internal/config/native_sso.go).
   native_sso:
     id_token_max_age_seconds: 0                 # 0: no cap beyond the device secret and its session
     scope_exceeded_error: interaction_required  # or invalid_scope
@@ -165,6 +166,10 @@ oauth:
     # login already released) are approved on /oauth2/native-sso/consent without a new login.
     consent_only_reconsent: true
     consent_ticket_ttl_seconds: 300             # lifetime of a consent_uri, at most 600
+    # Text the consent page shows for a scope (env: MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS,
+    # a JSON object). A scope with no entry is shown by its raw value.
+    consent_scope_descriptions:
+      health_card_share: Share your health card with clinics
 
 # Device secrets of OpenID Connect Native SSO, read by the device secret provider. Env overrides:
 # MOSIP_ESIGNET_NATIVE_SSO_ENABLED, MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS,

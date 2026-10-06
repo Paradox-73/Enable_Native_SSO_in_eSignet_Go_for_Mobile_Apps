@@ -44,13 +44,17 @@ type ConsentPageHandler struct {
 	store         ConsentStoreInterface
 	actorProvider providers.ActorProvider
 	baseURL       string
+	descriptions  map[string]string
 	now           func() time.Time
 }
 
 // NewConsentPageHandler returns the handler of constants.OAuth2NativeSSOConsentEndpoint.
+// scopeDescriptions maps a scope value to the plain-language text the page shows for it
+// (NativeSSOConfig.ConsentScopeDescriptions); a scope without an entry is shown by its raw value.
 func NewConsentPageHandler(store ConsentStoreInterface, actorProvider providers.ActorProvider,
-	baseURL string) *ConsentPageHandler {
-	return &ConsentPageHandler{store: store, actorProvider: actorProvider, baseURL: baseURL, now: time.Now}
+	baseURL string, scopeDescriptions map[string]string) *ConsentPageHandler {
+	return &ConsentPageHandler{store: store, actorProvider: actorProvider, baseURL: baseURL,
+		descriptions: scopeDescriptions, now: time.Now}
 }
 
 // RegisterConsentRoutes registers the consent page. CORS is not enabled: only the browser opens it.
@@ -61,8 +65,9 @@ func RegisterConsentRoutes(mux *http.ServeMux, handler *ConsentPageHandler) {
 
 // consentScopeView is one line of the page.
 type consentScopeView struct {
-	Scope  string
-	Claims string
+	Scope       string
+	Description string
+	Claims      string
 }
 
 type consentPageView struct {
@@ -102,8 +107,9 @@ func (h *ConsentPageHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, scope := range ticket.Scopes {
 		view.Scopes = append(view.Scopes, consentScopeView{
-			Scope:  scope,
-			Claims: strings.Join(ScopeClaimNames(scope, app), ", "),
+			Scope:       scope,
+			Description: strings.TrimSpace(h.descriptions[scope]),
+			Claims:      strings.Join(ScopeClaimNames(scope, app), ", "),
 		})
 	}
 	h.writeHeaders(w, ticket.RedirectURI)
@@ -324,7 +330,8 @@ var consentPageTemplate = template.Must(template.New("consent").Parse(`<!doctype
 <p><b>{{.AppName}}</b> asks for more than you allowed when you signed in to <b>{{.FirstAppName}}</b>.</p>
 <p>You stay signed in. No new login and no OTP are needed.</p>
 <ul aria-labelledby="title">
-{{range .Scopes}}<li>{{if .Claims}}Share: {{.Claims}} <span class="claims">({{.Scope}})</span>
+{{range .Scopes}}<li>{{if .Description}}<b>{{.Description}}</b> <span class="claims">({{.Scope}})</span>
+{{- else if .Claims}}Share: {{.Claims}} <span class="claims">({{.Scope}})</span>
 {{- else}}Permission: <b>{{.Scope}}</b>{{end}}</li>
 {{end}}</ul>
 <form method="post" action="{{.Action}}">

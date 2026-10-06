@@ -7,8 +7,10 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	engineconfig "github.com/thunder-id/thunderid/pkg/thunderidengine/config"
@@ -97,4 +99,21 @@ func applyNativeSSODefaults(cfg *AppConfig) {
 		cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
 	cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds = int64(envIntOrConfigOrDefault(
 		"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS", int(cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds), 0))
+	cfg.OAuth.NativeSSO.ConsentScopeDescriptions = scopeDescriptionsFromEnv(
+		os.Getenv("MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS"),
+		cfg.OAuth.NativeSSO.ConsentScopeDescriptions)
+}
+
+// scopeDescriptionsFromEnv returns the descriptions in raw, a JSON object of scope to text, or
+// fromYAML when raw is empty or is not such an object (a bad value never hides the yaml setting).
+func scopeDescriptionsFromEnv(raw string, fromYAML map[string]string) map[string]string {
+	if strings.TrimSpace(raw) == "" {
+		return fromYAML
+	}
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		fmt.Fprintf(os.Stderr, "MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS ignored: %v\n", err)
+		return fromYAML
+	}
+	return parsed
 }

@@ -37,7 +37,7 @@ type pageFixture struct {
 func newPageFixture(t *testing.T) *pageFixture {
 	f := &pageFixture{t: t, rs: newFakeRuntimeStore(), actor: actorprovidermock.NewActorProviderMock(t)}
 	f.store = NewConsentStore(f.rs)
-	f.handler = NewConsentPageHandler(f.store, f.actor, testBaseURL)
+	f.handler = NewConsentPageHandler(f.store, f.actor, testBaseURL, nil)
 	f.now = time.Unix(1900000000, 0)
 	f.handler.now = func() time.Time { return f.now }
 	f.mux = http.NewServeMux()
@@ -99,6 +99,31 @@ func assertPageHeaders(t *testing.T, rec *httptest.ResponseRecorder) {
 	assert.Contains(t, csp, "default-src 'none'")
 	assert.Contains(t, csp, "frame-ancestors 'none'")
 	assert.NotContains(t, csp, "script-src")
+}
+
+func TestConsentPage_ScopeDescriptions(t *testing.T) {
+	f := newPageFixture(t)
+	f.handler.descriptions = map[string]string{
+		"health_card_share": "Share your <health> card with clinics",
+		"email":             "  ",
+	}
+	f.expectNames("Health Card")
+	ticket := testTicket()
+	ticket.Scopes = []string{"health_card_share", "email", "other_scope"}
+	value := f.issue(ticket)
+
+	rec := f.get(value)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assertPageHeaders(t, rec)
+	assert.Contains(t, rec.Header().Get("Content-Security-Policy"), "form-action 'self' org.example.card:")
+	body := rec.Body.String()
+	assert.Contains(t, body,
+		`<b>Share your &lt;health&gt; card with clinics</b> <span class="claims">(health_card_share)</span>`,
+		"a configured description is shown, escaped, with the scope value in small text")
+	assert.NotContains(t, body, "Permission: <b>health_card_share</b>")
+	assert.Contains(t, body, "Share: email", "a blank description falls back to the claims line")
+	assert.Contains(t, body, "Permission: <b>other_scope</b>", "no entry falls back to the raw value")
 }
 
 func TestConsentPage_GetShowsAppsAndScopes(t *testing.T) {
@@ -293,7 +318,7 @@ func TestConsentPage_BadRegisteredRedirect(t *testing.T) {
 }
 
 func TestConsentPage_SameOriginWithBadBaseURL(t *testing.T) {
-	h := NewConsentPageHandler(nil, nil, "not a url")
+	h := NewConsentPageHandler(nil, nil, "not a url", nil)
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	req.Header.Set("Origin", "https://esignet.example")
 	assert.False(t, h.sameOrigin(req))
@@ -310,7 +335,7 @@ func TestRedirectSource(t *testing.T) {
 }
 
 func TestConsentPage_NilActorProvider(t *testing.T) {
-	h := NewConsentPageHandler(nil, nil, testBaseURL)
+	h := NewConsentPageHandler(nil, nil, testBaseURL, nil)
 	assert.Nil(t, h.client(context.Background(), "x"))
 	assert.Equal(t, "x", h.clientName(context.Background(), nil, "x"))
 }

@@ -106,7 +106,8 @@ func Initialize(
 	// page answers them. Both need the provider, the setting and the runtime store.
 	consentStore := newNativeSSOConsentStore(deviceSecretProvider, runtimeStore, cfg)
 	if consentStore != nil {
-		nativesso.RegisterConsentRoutes(mux, nativesso.NewConsentPageHandler(consentStore, actorProvider, cfg.BaseURL))
+		nativesso.RegisterConsentRoutes(mux, nativesso.NewConsentPageHandler(consentStore, actorProvider, cfg.BaseURL,
+			cfg.OAuth.NativeSSO.ConsentScopeDescriptions))
 	}
 
 	grantHandlerProvider := granthandlers.Initialize(

@@ -24,6 +24,7 @@ var nativeSSOEnvVars = []string{
 	"MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY",
 	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT",
 	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS",
+	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS",
 }
 
 // NativeSSOConfigTestSuite covers the native_sso and oauth.native_sso settings of OpenID Connect
@@ -178,4 +179,25 @@ func (ts *NativeSSOConfigTestSuite) TestShippedDeploymentYAML() {
 	// scope_claims keys become every client's allowed scopes, so device_sso must never be one:
 	// a client gets it only through its own allowed_authorization_scopes.
 	ts.NotContains(cfg.ScopeClaims, "device_sso")
+}
+
+func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_ConsentScopeDescriptions() {
+	yamlValue := map[string]string{"health_card_share": "from yaml"}
+
+	cfg := &AppConfig{}
+	cfg.OAuth.NativeSSO.ConsentScopeDescriptions = yamlValue
+	applyNativeSSODefaults(cfg)
+	ts.Equal(yamlValue, cfg.OAuth.NativeSSO.ConsentScopeDescriptions, "yaml kept when no env var")
+
+	ts.T().Setenv("MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS", `{"health_card_share":"from env"}`)
+	cfg = &AppConfig{}
+	cfg.OAuth.NativeSSO.ConsentScopeDescriptions = yamlValue
+	applyNativeSSODefaults(cfg)
+	ts.Equal(map[string]string{"health_card_share": "from env"}, cfg.OAuth.NativeSSO.ConsentScopeDescriptions)
+
+	ts.T().Setenv("MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS", `not json`)
+	cfg = &AppConfig{}
+	cfg.OAuth.NativeSSO.ConsentScopeDescriptions = yamlValue
+	applyNativeSSODefaults(cfg)
+	ts.Equal(yamlValue, cfg.OAuth.NativeSSO.ConsentScopeDescriptions, "a bad env value keeps the yaml setting")
 }

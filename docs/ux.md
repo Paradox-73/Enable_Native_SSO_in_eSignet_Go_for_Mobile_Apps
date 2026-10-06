@@ -124,8 +124,7 @@ Signed out of Health Card: "You signed out of Health Card. Hub is still signed i
   authentication (limit L02).
 - eSignet's consent page is the server's own page, not Health Card's: the app cannot claim the user said yes. It
   names both apps, uses the same 48 dp buttons and a readable font size, and needs no script.
-- Gap: the consent page shows the permission by its scope value (`health_card_share`); a friendly text from the
-  resource server's description is not wired yet.
+- The consent page shows each permission with a plain-language text from the setting `oauth.native_sso.consent_scope_descriptions` in `deployment.yaml` (or the env var `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS`, a JSON object of scope to text), with the scope value in small type behind it. `health_card_share` reads "Share your health card with clinics". A scope with no entry is shown by its raw value, as before. See [the page](screens/esignet-consent-only-page.png).
 - The switch "Share this sign-in with my other apps" is off by default in Hub (the user opts in) and decides whether the `device_sso` scope is
   requested at all; with it off Hub behaves as an ordinary sign-in app and Health Card shows the Hub-first state.
 - Hub lists the apps that used its sign-in by the name the launcher shows, with the time of last use, never a token

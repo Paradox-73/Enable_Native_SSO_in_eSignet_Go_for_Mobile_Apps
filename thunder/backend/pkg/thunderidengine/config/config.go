@@ -386,6 +386,10 @@ type NativeSSOConfig struct {
 	// ConsentTicketTTLSeconds is how long a consent_uri can be used: 0 means
 	// DefaultNativeSSOConsentTicketTTLSeconds; at most MaxNativeSSOConsentTicketTTLSeconds.
 	ConsentTicketTTLSeconds int64 `yaml:"consent_ticket_ttl_seconds" json:"consent_ticket_ttl_seconds"`
+	// ConsentScopeDescriptions maps a scope value to the plain-language text the consent page shows
+	// for it, for example health_card_share to "Share your health card with clinics". A scope with no
+	// entry is shown by its raw value.
+	ConsentScopeDescriptions map[string]string `yaml:"consent_scope_descriptions" json:"consent_scope_descriptions"`
 }
 
 // Limits of NativeSSOConfig.ConsentTicketTTLSeconds.
