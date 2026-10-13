@@ -264,7 +264,7 @@ sequenceDiagram
   P-->>T: claims: client_id, sid, auth_id, scope, acr, claims, cnf.jkt
   T->>T: id_token: signature, iss, aud = Super App (expired is allowed), ds_hash, sid
   T->>T: Same relying party, Super App allows device_sso, cnf.jkt = DPoP key thumbprint, scope subset
-  T-->>C: 200 access_token (cnf.jkt = dpop_jkt, the Child App key; sid), issued_token_type, token_type DPoP, id_token for Child App
+  T-->>C: 200 access_token (cnf.jkt = dpop_jkt, the Child App key, and sid), issued_token_type, token_type DPoP, id_token for Child App
   C->>C: Check id_token, store tokens encrypted
   C->>U: Home screen: no browser, no prompt
 ```
