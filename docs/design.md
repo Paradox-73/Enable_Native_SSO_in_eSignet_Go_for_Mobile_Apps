@@ -376,9 +376,11 @@ sequenceDiagram
 - Who answers the page: the person in the browser where the Super App's login happened, not the Child App. The
   ticket in `consent_uri` goes to the Child App, which could read it and post "Allow" itself, so the ticket alone is
   not enough. When the browser opens `/oauth2/authorize` for a login with `device_sso`, Thunder sets an `HttpOnly`,
-  `SameSite=Lax` cookie (`Secure` behind TLS) whose path is the consent page only, and keeps a SHA-256 hash of its
-  256-bit value under the login's `auth_id` for the device secret lifetime
-  (`nativesso/consent_browser.go`). The ticket carries the `auth_id` of the device secret, and the page shows
+  `SameSite=Lax` cookie `tid_nsso` (`Secure` behind TLS) whose path is the consent page only, under the path of the
+  public base URL (so `/v1/esignet/oauth2/native-sso/consent` behind a proxy that publishes eSignet at
+  `/v1/esignet`), and keeps a SHA-256 hash of its 256-bit value under the login's `auth_id` for the device secret
+  lifetime (`nativesso/consent_browser.go`). A browser holds one such cookie: a later `device_sso` login in it
+  replaces the cookie, and the consent pages of the earlier login then answer 403. The ticket carries the `auth_id` of the device secret, and the page shows
   the choice and records an answer only with the matching cookie. The Child App's own HTTP client and its web views
   have their own cookie stores; a Custom Tab shares the browser's, so the user sees the page and taps. Without
   the cookie the page answers 403, shows no buttons, writes an audit line and leaves the ticket for the user. A

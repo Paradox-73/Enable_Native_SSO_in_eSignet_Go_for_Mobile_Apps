@@ -7,7 +7,6 @@ package oauth
 import (
 	"net/http"
 	"slices"
-	"strings"
 
 	"github.com/thunder-id/thunderid/internal/attributecache"
 	"github.com/thunder-id/thunderid/internal/flow/flowexec"
@@ -97,9 +96,8 @@ func Initialize(
 	var consentBrowser *nativesso.ConsentBrowserBinding
 	var browserBinder oauth2authz.ConsentBrowserBinder
 	if consentStore != nil {
-		// The cookie is Secure whenever the consent page is served over TLS.
-		consentBrowser = nativesso.NewConsentBrowserBinding(runtimeStore,
-			strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://"), cfg.OAuth.NativeSSO.ConsentBrowserTTL())
+		consentBrowser = nativesso.NewConsentBrowserBinding(runtimeStore, cfg.BaseURL,
+			cfg.OAuth.NativeSSO.ConsentBrowserTTL())
 		browserBinder = consentBrowser
 	}
 	oauth2AuthzService, err := oauth2authz.Initialize(mux, actorProvider, resourceService,

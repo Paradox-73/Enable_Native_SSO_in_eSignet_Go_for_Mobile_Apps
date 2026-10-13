@@ -128,7 +128,12 @@ Why it is safe here: an expired id_token is accepted only when **all** of these 
   through the session check (R27, T9), and a Child App that is itself compromised holds tokens it can use until
   their `exp` (as any OAuth client does).
 - Denial of service against eSignet in general: unchanged by this feature; the exchange adds one RSA decryption,
-  which runs only after client authentication and the cheap request checks.
+  which runs only after client authentication and the cheap request checks. One addition: every
+  `GET /oauth2/authorize` with `device_sso` stores a 32-byte consent-browser record for the device secret lifetime
+  (8 hours), before the user logs in, so a script that repeats that request grows the runtime store for longer
+  than an authorization request lives. Registering the Super App's client with pushed authorization requests
+  required (`additionalConfig.require_pushed_authorization_requests: true`) limits this to callers that hold the
+  client's key. The browser keeps one `tid_nsso` cookie however often it logs in.
 - Runtime store in memory (the local stack and the demo): a restart ends every login session, so every device
   secret and every Child App token that carries a `sid` stops working. Two eSignet replicas on the in-memory
   store would not share session records, consent tickets or DPoP `jti` entries, so a proof replayed at the other

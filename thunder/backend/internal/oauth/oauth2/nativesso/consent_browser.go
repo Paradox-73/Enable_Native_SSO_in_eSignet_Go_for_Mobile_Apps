@@ -9,17 +9,19 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 )
 
-// consentBrowserCookiePrefix prefixes the cookie that marks the browser of a device_sso login.
-const consentBrowserCookiePrefix = "tid_nsso_"
+// ConsentBrowserCookieName is the cookie that marks the browser of the latest device_sso login in it.
+// There is one per browser, so repeated logins replace it instead of adding cookies.
+const ConsentBrowserCookieName = "tid_nsso"
 
 // consentBrowserKeyPrefix is the key prefix of the browser records inside
 // providers.NamespaceNativeSSOSession, next to the consent tickets and approvals.
@@ -39,18 +41,31 @@ const consentBrowserBytes = 32
 type ConsentBrowserBinding struct {
 	store      providers.RuntimeStoreProvider
 	secure     bool
+	cookiePath string
 	ttlSeconds int64
 }
 
-// NewConsentBrowserBinding returns the binding. secure sets the Secure attribute of the cookie (true
-// behind TLS); ttlSeconds is how long the browser can answer, normally the device secret lifetime.
-func NewConsentBrowserBinding(store providers.RuntimeStoreProvider, secure bool,
+// NewConsentBrowserBinding returns the binding. baseURL is the public URL the browser sees: an https
+// URL makes the cookie Secure, and its path is put in front of the consent page path, so the cookie still
+// reaches the page behind a proxy that publishes the server under a prefix. ttlSeconds is how long the
+// browser can answer, normally the device secret lifetime.
+func NewConsentBrowserBinding(store providers.RuntimeStoreProvider, baseURL string,
 	ttlSeconds int64) *ConsentBrowserBinding {
-	return &ConsentBrowserBinding{store: store, secure: secure, ttlSeconds: ttlSeconds}
+	prefix := ""
+	if u, err := url.Parse(baseURL); err == nil {
+		prefix = strings.TrimSuffix(u.Path, "/")
+	}
+	return &ConsentBrowserBinding{
+		store:      store,
+		secure:     strings.HasPrefix(strings.ToLower(baseURL), "https://"),
+		cookiePath: prefix + constants.OAuth2NativeSSOConsentEndpoint,
+		ttlSeconds: ttlSeconds,
+	}
 }
 
 // Bind marks the browser of the login authID: it stores the hash of a new random value and sets the
-// value as an HttpOnly cookie that only the consent page receives. Call it on the authorization
+// value as an HttpOnly cookie that only the consent page receives. The cookie replaces the one of an
+// earlier login in the same browser, whose consent pages then answer 403. Call it on the authorization
 // endpoint's answer to the browser, before any device secret exists.
 func (b *ConsentBrowserBinding) Bind(ctx context.Context, w http.ResponseWriter, authID string) error {
 	if authID == "" {
@@ -70,9 +85,9 @@ func (b *ConsentBrowserBinding) Bind(ctx context.Context, w http.ResponseWriter,
 		return fmt.Errorf("failed to store consent browser binding: %w", err)
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     ConsentBrowserCookieName(authID),
+		Name:     ConsentBrowserCookieName,
 		Value:    value,
-		Path:     constants.OAuth2NativeSSOConsentEndpoint,
+		Path:     b.cookiePath,
 		MaxAge:   int(b.ttlSeconds),
 		HttpOnly: true,
 		Secure:   b.secure,
@@ -88,7 +103,7 @@ func (b *ConsentBrowserBinding) Present(ctx context.Context, r *http.Request, au
 	if authID == "" {
 		return false, nil
 	}
-	cookie, err := r.Cookie(ConsentBrowserCookieName(authID))
+	cookie, err := r.Cookie(ConsentBrowserCookieName)
 	if err != nil || cookie.Value == "" {
 		return false, nil
 	}
@@ -101,14 +116,6 @@ func (b *ConsentBrowserBinding) Present(ctx context.Context, r *http.Request, au
 	}
 	got := sha256.Sum256([]byte(cookie.Value))
 	return subtle.ConstantTimeCompare(got[:], want) == 1, nil
-}
-
-// ConsentBrowserCookieName returns the cookie name for the login authID. Each login has its own cookie,
-// so a second login in the same browser does not replace the first one's; the auth id is hashed so it
-// does not appear in the name.
-func ConsentBrowserCookieName(authID string) string {
-	sum := sha256.Sum256([]byte(authID))
-	return consentBrowserCookiePrefix + hex.EncodeToString(sum[:])[:16]
 }
 
 func browserKey(authID string) string {

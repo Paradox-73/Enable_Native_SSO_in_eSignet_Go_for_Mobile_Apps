@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,13 +36,11 @@ func requestWith(cookies ...*http.Cookie) *http.Request {
 
 func TestConsentBrowser_BindSetsARestrictedCookie(t *testing.T) {
 	rs := newFakeRuntimeStore()
-	b := NewConsentBrowserBinding(rs, true, 28800)
+	b := NewConsentBrowserBinding(rs, testBaseURL, 28800)
 
 	cookie := bindBrowser(t, b, "auth-1")
 
-	assert.Equal(t, ConsentBrowserCookieName("auth-1"), cookie.Name)
-	assert.True(t, strings.HasPrefix(cookie.Name, "tid_nsso_"))
-	assert.NotContains(t, cookie.Name, "auth-1", "the auth id is not in the name")
+	assert.Equal(t, "tid_nsso", cookie.Name, "one cookie per browser, not one per login")
 	assert.Equal(t, constants.OAuth2NativeSSOConsentEndpoint, cookie.Path, "only the consent page receives it")
 	assert.True(t, cookie.HttpOnly)
 	assert.True(t, cookie.Secure)
@@ -62,17 +59,29 @@ func TestConsentBrowser_BindSetsARestrictedCookie(t *testing.T) {
 	}
 }
 
-func TestConsentBrowser_InsecureCookieOnlyWhenAsked(t *testing.T) {
-	cookie := bindBrowser(t, NewConsentBrowserBinding(newFakeRuntimeStore(), false, 60), "auth-1")
+func TestConsentBrowser_InsecureCookieOnlyWithoutTLS(t *testing.T) {
+	cookie := bindBrowser(t, NewConsentBrowserBinding(newFakeRuntimeStore(), "http://localhost:38088", 60), "auth-1")
 	assert.False(t, cookie.Secure)
+	assert.Equal(t, constants.OAuth2NativeSSOConsentEndpoint, cookie.Path)
+}
+
+// Behind a proxy that publishes the server under a prefix, the browser opens the consent page under that
+// prefix, so the cookie path must carry it too.
+func TestConsentBrowser_CookiePathKeepsTheBaseURLPrefix(t *testing.T) {
+	for _, base := range []string{"https://host/v1/esignet", "https://host/v1/esignet/", "HTTPS://host/v1/esignet"} {
+		cookie := bindBrowser(t, NewConsentBrowserBinding(newFakeRuntimeStore(), base, 60), "auth-1")
+		assert.Equal(t, "/v1/esignet"+constants.OAuth2NativeSSOConsentEndpoint, cookie.Path, base)
+		assert.True(t, cookie.Secure, base)
+	}
 }
 
 func TestConsentBrowser_PresentOnlyForTheBoundBrowser(t *testing.T) {
 	ctx := context.Background()
-	b := NewConsentBrowserBinding(newFakeRuntimeStore(), true, 28800)
+	b := NewConsentBrowserBinding(newFakeRuntimeStore(), testBaseURL, 28800)
 	first := bindBrowser(t, b, "auth-1")
+	// A second login in the same browser overwrites the cookie: same name, new value.
 	second := bindBrowser(t, b, "auth-2")
-	assert.NotEqual(t, first.Name, second.Name, "each login has its own cookie")
+	assert.Equal(t, first.Name, second.Name)
 	assert.NotEqual(t, first.Value, second.Value)
 
 	cases := []struct {
@@ -82,15 +91,11 @@ func TestConsentBrowser_PresentOnlyForTheBoundBrowser(t *testing.T) {
 		present bool
 	}{
 		{"cookie of the login", requestWith(first), "auth-1", true},
-		{"both cookies, first login", requestWith(first, second), "auth-1", true},
-		{"both cookies, second login", requestWith(first, second), "auth-2", true},
+		{"cookie of the latest login", requestWith(second), "auth-2", true},
 		{"no cookie", requestWith(), "auth-1", false},
 		{"cookie of another login", requestWith(second), "auth-1", false},
-		{"other login's value under this name", requestWith(&http.Cookie{
-			Name: first.Name, Value: second.Value}), "auth-1", false},
 		{"empty auth id", requestWith(first), "", false},
-		{"login never bound", requestWith(&http.Cookie{Name: ConsentBrowserCookieName("auth-3"),
-			Value: first.Value}), "auth-3", false},
+		{"login never bound", requestWith(first), "auth-3", false},
 	}
 	for _, c := range cases {
 		present, err := b.Present(ctx, c.req, c.authID)
@@ -101,7 +106,7 @@ func TestConsentBrowser_PresentOnlyForTheBoundBrowser(t *testing.T) {
 
 func TestConsentBrowser_RebindReplacesTheOldValue(t *testing.T) {
 	ctx := context.Background()
-	b := NewConsentBrowserBinding(newFakeRuntimeStore(), true, 28800)
+	b := NewConsentBrowserBinding(newFakeRuntimeStore(), testBaseURL, 28800)
 	old := bindBrowser(t, b, "auth-1")
 	fresh := bindBrowser(t, b, "auth-1")
 
@@ -116,10 +121,10 @@ func TestConsentBrowser_RebindReplacesTheOldValue(t *testing.T) {
 func TestConsentBrowser_Errors(t *testing.T) {
 	ctx := context.Background()
 	rs := newFakeRuntimeStore()
-	b := NewConsentBrowserBinding(rs, true, 28800)
+	b := NewConsentBrowserBinding(rs, testBaseURL, 28800)
 
 	assert.ErrorContains(t, b.Bind(ctx, httptest.NewRecorder(), ""), "auth id")
-	assert.ErrorContains(t, NewConsentBrowserBinding(rs, true, 0).Bind(ctx, httptest.NewRecorder(), "a"),
+	assert.ErrorContains(t, NewConsentBrowserBinding(rs, testBaseURL, 0).Bind(ctx, httptest.NewRecorder(), "a"),
 		"lifetime")
 
 	rs.putErr = errFakeStore

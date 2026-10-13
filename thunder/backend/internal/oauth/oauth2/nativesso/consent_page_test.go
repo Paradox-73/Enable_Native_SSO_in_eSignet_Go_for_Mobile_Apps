@@ -40,7 +40,7 @@ type pageFixture struct {
 func newPageFixture(t *testing.T) *pageFixture {
 	f := &pageFixture{t: t, rs: newFakeRuntimeStore(), actor: actorprovidermock.NewActorProviderMock(t)}
 	f.store = NewConsentStore(f.rs)
-	f.browser = NewConsentBrowserBinding(f.rs, true, 28800)
+	f.browser = NewConsentBrowserBinding(f.rs, testBaseURL, 28800)
 	f.handler = NewConsentPageHandler(f.store, f.browser, f.actor, testBaseURL, nil)
 	f.now = time.Unix(1900000000, 0)
 	f.handler.now = func() time.Time { return f.now }
@@ -388,10 +388,10 @@ func TestConsentPage_OnlyTheLoginBrowserCanAnswer(t *testing.T) {
 		{"no cookie (the app's own client)", func(*pageFixture) *http.Cookie { return nil }},
 		{"cookie of another login", func(f *pageFixture) *http.Cookie { return f.loginBrowser("auth-2") }},
 		{"forged value", func(f *pageFixture) *http.Cookie {
-			return &http.Cookie{Name: ConsentBrowserCookieName("auth-1"), Value: "forged"}
+			return &http.Cookie{Name: ConsentBrowserCookieName, Value: "forged"}
 		}},
 		{"empty value", func(f *pageFixture) *http.Cookie {
-			return &http.Cookie{Name: ConsentBrowserCookieName("auth-1"), Value: ""}
+			return &http.Cookie{Name: ConsentBrowserCookieName, Value: ""}
 		}},
 	}
 	for _, c := range cases {
