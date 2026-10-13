@@ -243,6 +243,12 @@ type DeviceSecretProvider interface {
 	// with ErrorDeviceSecretSessionEnded. The engine calls it when the client the device secret was
 	// issued to revokes it (RFC 7009). Ending a session that has already ended is not an error.
 	EndDeviceSecretSession(ctx context.Context, claims *DeviceSecretClaims) *common.ServiceError
+
+	// IsDeviceSecretSessionActive reports whether the login session sessionID (the sid of the device
+	// secret and of the tokens issued for it) is still active. The engine asks it when it validates an
+	// access token that carries a sid, so that the tokens a token exchange issued stop working once
+	// the session ends. An unknown or ended session is false; an error is an operational failure.
+	IsDeviceSecretSessionActive(ctx context.Context, sessionID string) (bool, *common.ServiceError)
 }
 
 // RuntimeStoreProvider defines the interface for runtime store operations.

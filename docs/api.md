@@ -83,8 +83,9 @@ Sent by the first app (Hub) when the user signs out of all apps: `POST /oauth2/r
 | `401 invalid_client` | client authentication failed |
 | `500 server_error` | the session store could not be reached |
 
-The second app's tokens already issued stay valid until they expire (they are short-lived JWTs); it can no longer
-get new ones.
+The second app can no longer get new tokens, and the access tokens it already got are refused from then on:
+they carry the session's `sid`, and userinfo answers `401 invalid_token` (introspection `active: false`) once the
+session has ended. A resource server that checks the JWT without asking eSignet accepts them until their `exp`.
 
 ## Errors
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
 	"github.com/thunder-id/thunderid/internal/system/jose/jwt"
 )
 
@@ -102,4 +103,25 @@ func (tv *tokenValidator) ValidateNativeSSOIDToken(
 		SessionID:        sid,
 		DeviceSecretHash: dsHash,
 	}, nil
+}
+
+// ensureNativeSSOSessionActive refuses an access token issued for a Native SSO login session (it carries
+// the session's sid) once that session has ended, for example after the first app revoked its device
+// secret ("sign out of all apps"). Userinfo, introspection and every other caller of ValidateAccessToken
+// then treat the token as revoked, without the deny list. An ended session is revocation.ErrTokenRevoked;
+// a session store that cannot answer is revocation.ErrEnforcementUnavailable, so the token is refused
+// (fail closed). Tokens without a sid, and every token when Native SSO is off, are not affected.
+func (tv *tokenValidator) ensureNativeSSOSessionActive(ctx context.Context, claims map[string]interface{}) error {
+	sid, _ := extractStringClaim(claims, constants.ClaimSessionID)
+	if sid == "" || tv.deviceSecretProvider == nil {
+		return nil
+	}
+	active, svcErr := tv.deviceSecretProvider.IsDeviceSecretSessionActive(ctx, sid)
+	if svcErr != nil {
+		return revocation.ErrEnforcementUnavailable
+	}
+	if !active {
+		return revocation.ErrTokenRevoked
+	}
+	return nil
 }

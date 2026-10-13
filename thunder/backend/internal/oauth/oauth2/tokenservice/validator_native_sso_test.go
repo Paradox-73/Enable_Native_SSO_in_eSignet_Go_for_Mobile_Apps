@@ -19,6 +19,7 @@ import (
 	"github.com/thunder-id/thunderid/internal/system/jose/jwt"
 	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
 	engineconfig "github.com/thunder-id/thunderid/pkg/thunderidengine/config"
+	"github.com/thunder-id/thunderid/tests/mocks/devicesecretprovidermock"
 	"github.com/thunder-id/thunderid/tests/mocks/jose/jwtmock"
 	"github.com/thunder-id/thunderid/tests/mocks/oauth/oauth2/revocationmock"
 )
@@ -165,4 +166,62 @@ func (s *TokenValidatorNativeSSOTestSuite) TestNativeSSOIDToken_Revoked() {
 	_, err := s.validator.ValidateNativeSSOIDToken(s.T().Context(), token)
 
 	s.True(errors.Is(err, revocation.ErrTokenRevoked))
+}
+
+// nativeSSOAccessToken returns an access token as a Native SSO token exchange issues it, carrying the
+// sid of the login session; an empty sid leaves the claim out.
+func nativeSSOAccessToken(sid string) string {
+	now := time.Now().Unix()
+	claims := map[string]interface{}{
+		"iss": nativeSSOTestIssuer, "sub": "user-1", "aud": "child-app", "client_id": "child-app",
+		"scope": "openid", "iat": now, "exp": now + 120, "jti": "at-jti",
+		"grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+	}
+	if sid != "" {
+		claims["sid"] = sid
+	}
+	return nativeSSOTestToken(jwt.TokenTypeAccessToken, claims)
+}
+
+// Rule R27: an access token issued for a Native SSO login session is refused once that session ended
+// (the first app revoked its device secret), and refused as well when the session cannot be checked.
+func (s *TokenValidatorNativeSSOTestSuite) TestAccessToken_NativeSSOSession() {
+	provider := devicesecretprovidermock.NewDeviceSecretProviderMock(s.T())
+	s.validator.deviceSecretProvider = provider
+	token := nativeSSOAccessToken("session-1")
+	s.jwtService.EXPECT().VerifyJWT(mock.Anything, token, "", nativeSSOTestIssuer).Return(nil)
+	s.enforcement.EXPECT().EnsureNotRevoked(mock.Anything, mock.Anything).Return(nil)
+
+	provider.EXPECT().IsDeviceSecretSessionActive(mock.Anything, "session-1").Return(true, nil).Once()
+	claims, err := s.validator.ValidateAccessToken(s.T().Context(), token)
+	s.Require().NoError(err, "active session")
+	s.Equal("session-1", claims.Claims["sid"])
+
+	provider.EXPECT().IsDeviceSecretSessionActive(mock.Anything, "session-1").Return(false, nil).Once()
+	claims, err = s.validator.ValidateAccessToken(s.T().Context(), token)
+	s.Nil(claims)
+	s.True(errors.Is(err, revocation.ErrTokenRevoked), "ended session: %v", err)
+
+	provider.EXPECT().IsDeviceSecretSessionActive(mock.Anything, "session-1").
+		Return(false, &tidcommon.InternalServerError).Once()
+	claims, err = s.validator.ValidateAccessToken(s.T().Context(), token)
+	s.Nil(claims)
+	s.True(errors.Is(err, revocation.ErrEnforcementUnavailable), "session store down: %v", err)
+}
+
+// A token without a sid, or any token while Native SSO is off, is not checked against a session.
+func (s *TokenValidatorNativeSSOTestSuite) TestAccessToken_NoNativeSSOSessionCheck() {
+	s.enforcement.EXPECT().EnsureNotRevoked(mock.Anything, mock.Anything).Return(nil)
+
+	s.validator.deviceSecretProvider = devicesecretprovidermock.NewDeviceSecretProviderMock(s.T())
+	withoutSID := nativeSSOAccessToken("")
+	s.jwtService.EXPECT().VerifyJWT(mock.Anything, withoutSID, "", nativeSSOTestIssuer).Return(nil)
+	_, err := s.validator.ValidateAccessToken(s.T().Context(), withoutSID)
+	s.NoError(err, "no sid: the provider is not asked")
+
+	s.validator.deviceSecretProvider = nil
+	withSID := nativeSSOAccessToken("session-1")
+	s.jwtService.EXPECT().VerifyJWT(mock.Anything, withSID, "", nativeSSOTestIssuer).Return(nil)
+	_, err = s.validator.ValidateAccessToken(s.T().Context(), withSID)
+	s.NoError(err, "Native SSO off")
 }

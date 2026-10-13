@@ -64,3 +64,21 @@ func TestBuildIDTokenClaims_NativeSSO(t *testing.T) {
 		assert.NotContains(t, claims, constants.ClaimDeviceSecretHash)
 	})
 }
+
+// TestBuildAccessTokenClaims_NativeSSO checks the sid claim of an access token issued for a Native SSO
+// login session, which token validation uses to refuse the token once the session ends (rule R27).
+func TestBuildAccessTokenClaims_NativeSSO(t *testing.T) {
+	tb := &tokenBuilder{}
+
+	claims, err := tb.buildAccessTokenClaims(&AccessTokenBuildContext{
+		Subject:           "user-1",
+		SubjectAttributes: map[string]interface{}{"sid": "forged"},
+		SessionID:         "session-id",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "session-id", claims[constants.ClaimSessionID], "a user attribute cannot replace it")
+
+	claims, err = tb.buildAccessTokenClaims(&AccessTokenBuildContext{Subject: "user-1"})
+	assert.NoError(t, err)
+	assert.NotContains(t, claims, constants.ClaimSessionID)
+}

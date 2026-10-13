@@ -102,8 +102,8 @@ Non-goals:
 - Refresh tokens: eSignet allows only the `authorization_code` grant today (`deployment.yaml:136`), so no refresh
   token is issued by the code grant or the exchange; the Child App exchanges again when its access token expires.
 - Server-side single logout. The specification defines no logout. The device secret itself can be revoked
-  (section [6.4](#64-sign-out), rule R27); revoking the tokens already issued from it is future work
-  (section [21](#21-future-work)).
+  (section [6.4](#64-sign-out), rule R27), which also ends the access tokens the exchange issued from it; the
+  Super App's own code-grant tokens are not revoked on the server.
 - A generic token-exchange service. eSignet enables token exchange only for the Native SSO profile (D9).
 - Device attestation (Play Integrity, key attestation): listed as future work.
 
@@ -417,7 +417,16 @@ sequenceDiagram
   Every later exchange with that device secret is `invalid_grant` (session ended). The endpoint exists whenever the
   engine has a provider, also with eSignet's deny-list revocation (`oauth.token_revocation`) off; other tokens then
   get `unsupported_token_type`. If the call fails (no network), the record still ends by its TTL and the deleted
-  DPoP key already blocks every use. Child App tokens issued earlier stay valid until they expire.
+  DPoP key already blocks every use.
+- Child App access tokens issued earlier stop working at the same moment. The exchange writes the login's `sid`
+  into each access token it issues, and Thunder's token validation (`ValidateAccessToken`, used by userinfo,
+  introspection and every other engine endpoint that takes an access token) asks the Device Secret Provider
+  whether that session is still active (`IsDeviceSecretSessionActive`; eSignet looks for the session record). An
+  ended session answers like a revoked token (`401 invalid_token` at userinfo, `active: false` at
+  introspection); a session store that cannot answer refuses the token (fail closed). No deny list is needed.
+  Limits: a resource server that checks the JWT itself, without introspection, still accepts the token until its
+  `exp`, and the Super App's own code-grant access token carries no `sid`, so it lives until its `exp` (the Super
+  App has already deleted it).
 
 Overview of the whole journey: [diagrams/user-flow.mmd](diagrams/user-flow.mmd).
 
@@ -858,7 +867,7 @@ the local stack and are named `TestE2E_*`. Dated results per rule: [test-report.
 | R24 | Native SSO 5 | discovery: `native_sso_supported`, `device_sso`, token-exchange grant | discovery | `TestE2E_Discovery_NativeSSO` |
 | R25 | enablement | client registration accepts the token-exchange grant, rejects unknown grants | eSignet clientmgmt | `TestE2E_ClientRegistration_TokenExchangeGrant` |
 | R26 | D9 | other token exchanges blocked: `invalid_request` | granthandlers | `TestE2E_GenericExchangeRejected` |
-| R27 | sign-out, RFC 7009 | the issuing client revokes its device secret: `200`, then the exchange is `invalid_grant`; another client gets `invalid_grant` and nothing changes; other tokens get `unsupported_token_type` while the deny list is off; discovery lists `revocation_endpoint` | revocation, discovery, eSignet engine | `TestE2E_Revoke_DeviceSecret` |
+| R27 | sign-out, RFC 7009 | the issuing client revokes its device secret: `200`, then the exchange is `invalid_grant` and the Child App's earlier access token gets `401 invalid_token` at userinfo; another client gets `invalid_grant` and nothing changes; other tokens get `unsupported_token_type` while the deny list is off; discovery lists `revocation_endpoint` | revocation, discovery, eSignet engine | `TestE2E_Revoke_DeviceSecret` |
 | R28 | B1 | consent only: `interaction_required` with `consent_uri` for a scope that needs no new user data; page without login; "Not now" changes nothing; cross-site form refused; the page and an "Allow" from a client other than the login browser refused (403), ticket kept for the user; "Allow" once, then the exchange returns the scope bound to the Super App's key; another DPoP key still `invalid_grant`; `phone` gets no `consent_uri`; a scope the app is not allowed gets none; a new login asks again; a revoked device secret is `invalid_grant` | granthandlers, nativesso, token | `TestE2E_Exchange_ConsentOnlyReconsent` |
 
 App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `android/*/src/androidTest` that need the emulator, or a recorded command). A rule with a JVM part and a device part has two rows in the test report (`a`, `b`):
@@ -881,8 +890,8 @@ App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `an
 
 ## 21. Future work
 
-- Cascade a device secret revocation (R27) to every token already issued from it. Needs eSignet's deny-list
-  revocation (`oauth.token_revocation`, off today) and a token family shared by the exchange.
+- End the Super App's own code-grant tokens on sign-out as well: mint the session id before the access token is
+  built, so it can carry the `sid` too.
 - Audit events for "device secret issued", "exchange accepted", "exchange rejected" (reason code, client id, no
   personal data) through eSignet's audit plugin interface.
 - Consent-only re-consent for new user data: needs an identity-system API that releases more claims for an

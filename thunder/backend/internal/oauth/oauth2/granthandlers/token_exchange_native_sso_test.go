@@ -287,6 +287,7 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_Success() {
 	s.Equal(nssoChildClientID, built.ClientID)
 	s.Equal([]string{nssoChildClientID}, built.Audiences)
 	s.Equal(testDPoPThumbprint, built.DPoPJkt)
+	s.Equal(nssoSessionID, built.SessionID, "the access token carries the login's sid (rule R27)")
 	s.Equal(string(providers.GrantTypeTokenExchange), built.GrantType)
 	s.NotContains(built.Scopes, constants.ScopeDeviceSSO)
 	s.Contains(built.Scopes, constants.ScopeOpenID)

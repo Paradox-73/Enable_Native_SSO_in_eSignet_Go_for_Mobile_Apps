@@ -3480,7 +3480,7 @@ paths:
         - OIDC
       summary: Revocation Endpoint
       description: |-
-        **Native SSO**: the app a device secret was issued to revokes it here (RFC 7009), for example when the user signs out of all apps. The server ends the login session of the device secret, so every later token exchange with it is refused with `invalid_grant`. Requires client authentication; only the client the device secret was issued to may revoke it. Other apps of the same vendor that hold it get `invalid_grant` and change nothing.
+        **Native SSO**: the app a device secret was issued to revokes it here (RFC 7009), for example when the user signs out of all apps. The server ends the login session of the device secret, so every later token exchange with it is refused with `invalid_grant`, and the access tokens earlier exchanges issued for that session (they carry its `sid`) are refused by userinfo (`401 invalid_token`) and introspection (`active: false`). Requires client authentication; only the client the device secret was issued to may revoke it. Other apps of the same vendor that hold it get `invalid_grant` and change nothing.
 
         1. The only supported client authentication method: <b>private_key_jwt</b> (`aud` = issuer).
         2. A value that is not a valid device secret, or whose session has already ended, is a successful no-op (HTTP 200).

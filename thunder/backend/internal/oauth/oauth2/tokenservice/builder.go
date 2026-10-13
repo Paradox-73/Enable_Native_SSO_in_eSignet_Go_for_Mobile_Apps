@@ -232,6 +232,11 @@ func (tb *tokenBuilder) buildAccessTokenClaims(
 		claims[constants.ClaimTokenFamilyID] = ctx.TokenFamilyID
 	}
 
+	// Set after merging subject attributes, so that no user attribute can replace the session id.
+	if ctx.SessionID != "" {
+		claims[constants.ClaimSessionID] = ctx.SessionID
+	}
+
 	return claims, nil
 }
 

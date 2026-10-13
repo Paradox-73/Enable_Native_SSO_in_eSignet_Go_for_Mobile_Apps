@@ -144,7 +144,8 @@ Design decisions in this step:
 ### Device secret revocation (rule R27)
 
 The app a device secret was issued to revokes it at the RFC 7009 endpoint; the login session ends, so every later
-exchange with it is `invalid_grant`.
+exchange with it is `invalid_grant`, and the access tokens earlier exchanges issued for that session fail token
+validation.
 
 | Change | File (under `backend/` unless noted) |
 |---|---|
@@ -154,6 +155,9 @@ exchange with it is `invalid_grant`.
 | The endpoint is registered when token revocation is on **or** the engine has a provider; with only the provider, other tokens get `unsupported_token_type` (RFC 7009 2.2.1) | `internal/oauth/init.go` |
 | `revocation_endpoint` in discovery in the same two cases | `internal/oauth/oauth2/discovery/service.go` |
 | API description | `api/oauth2.yaml` |
+| `DeviceSecretProvider.IsDeviceSecretSessionActive` (mock regenerated) | `pkg/thunderidengine/providers/interface.go`, `tests/mocks/devicesecretprovidermock/` |
+| `AccessTokenBuildContext.SessionID`, written as `sid` after the subject attributes; the Native SSO exchange sets it to the device secret's session | `internal/oauth/oauth2/tokenservice/model.go`, `builder.go`, `granthandlers/token_exchange_native_sso.go` |
+| `ValidateAccessToken` refuses a token whose `sid` names an ended session (`revocation.ErrTokenRevoked`; a provider error is `ErrEnforcementUnavailable`); the validator gets the provider through `tokenservice.Initialize` | `internal/oauth/oauth2/tokenservice/validator.go`, `validator_native_sso.go`, `init.go`, `internal/oauth/init.go` |
 
 Tests: `revocation/device_secret_test.go` (routing, ownership, no-op cases, server errors, `unsupported_token_type`,
 route registration without the deny list), `discovery/discovery_native_sso_test.go`

@@ -784,3 +784,50 @@ func (ts *DeviceSecretProviderTestSuite) TestEndDeviceSecretSession_Failures() {
 			DeviceSecretRequest: providers.DeviceSecretRequest{SessionID: "sid-1"}}))
 	})
 }
+
+// Rule R27: the access tokens of a session are refused once the session ends, so the provider must
+// report a revoked or expired session as inactive.
+func (ts *DeviceSecretProviderTestSuite) TestIsDeviceSecretSessionActive() {
+	ctx := context.Background()
+	p := ts.newProvider(nil, nil, nil, nil)
+	value := ts.generate(p)
+
+	active, svcErr := p.IsDeviceSecretSessionActive(ctx, "sid-1")
+	ts.Require().Nil(svcErr)
+	ts.True(active, "a fresh login session is active")
+
+	claims, svcErr := p.ValidateDeviceSecret(ctx, value)
+	ts.Require().Nil(svcErr)
+	ts.Require().Nil(p.EndDeviceSecretSession(ctx, claims))
+	active, svcErr = p.IsDeviceSecretSessionActive(ctx, "sid-1")
+	ts.Nil(svcErr)
+	ts.False(active, "a revoked session is not active")
+
+	for _, sid := range []string{"", " ", "sid-unknown"} {
+		active, svcErr = p.IsDeviceSecretSessionActive(ctx, sid)
+		ts.Nil(svcErr)
+		ts.False(active, "session %q", sid)
+	}
+
+	ts.putSession("sid-old", nativeSSOSession{AuthID: "a", ClientID: "c", ExpiresAt: ts.now.Unix()})
+	active, svcErr = p.IsDeviceSecretSessionActive(ctx, "sid-old")
+	ts.Nil(svcErr)
+	ts.False(active, "a record past its expiry is not active")
+}
+
+func (ts *DeviceSecretProviderTestSuite) TestIsDeviceSecretSessionActive_Failures() {
+	ctx := context.Background()
+	ts.Run("store down", func() {
+		p := ts.newProvider(nil, nil, nil, &stubRuntimeStore{RuntimeStoreProvider: ts.store,
+			getErr: errors.New("redis down")})
+		active, svcErr := p.IsDeviceSecretSessionActive(ctx, "sid-1")
+		ts.False(active)
+		ts.assertServerError(svcErr)
+	})
+	ts.Run("corrupt record", func() {
+		ts.Require().NoError(ts.store.Put(ctx, providers.NamespaceNativeSSOSession, "sid-bad", []byte("{"), 600))
+		active, svcErr := ts.newProvider(nil, nil, nil, nil).IsDeviceSecretSessionActive(ctx, "sid-bad")
+		ts.False(active)
+		ts.assertServerError(svcErr)
+	})
+}

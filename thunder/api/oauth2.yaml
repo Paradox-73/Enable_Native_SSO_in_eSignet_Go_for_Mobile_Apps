@@ -481,7 +481,9 @@ paths:
         **Native SSO**: the endpoint also revokes an OpenID Connect Native SSO device secret
         (`token_type_hint=device_secret`, or no hint and a compact JWE). Revoking it ends its login
         session in the Device Secret Provider, so every later token exchange with it is refused
-        with `invalid_grant`. Only the client the device secret was issued to may revoke it. When the
+        with `invalid_grant`, and access tokens earlier exchanges issued for that session (they
+        carry its `sid`) fail validation at userinfo and introspection. Only the client the device
+        secret was issued to may revoke it. When the
         engine has a Device Secret Provider the endpoint exists even with token revocation turned
         off; other tokens then get `unsupported_token_type`.
       tags:

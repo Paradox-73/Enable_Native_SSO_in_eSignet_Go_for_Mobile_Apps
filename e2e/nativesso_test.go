@@ -512,8 +512,9 @@ func TestE2E_GenericExchangeRejected(t *testing.T) {
 }
 
 // R27: the Hub revokes its device secret at the revocation endpoint (RFC 7009), which ends the
-// login session: the Health Card's next exchange is invalid_grant. Another client of the same vendor
-// that holds the device secret cannot revoke it. Uses its own login, so the shared one stays valid.
+// login session: the Health Card's next exchange is invalid_grant, and the access token an earlier
+// exchange gave it is refused at userinfo. Another client of the same vendor that holds the device
+// secret cannot revoke it. Uses its own login, so the shared one stays valid.
 func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 	c := newClient(t)
 	if c.Disc.RevocationEndpoint != c.Issuer+"/oauth2/revoke" {
@@ -528,7 +529,8 @@ func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.tok = tok
-	expectExchangeOK(t, "R27", doExchange(t, c, f.exchange(f.child)))
+	childTok := expectExchangeOK(t, "R27", doExchange(t, c, f.exchange(f.child)))
+	userinfoJWT(t, c, f.hubDPoP, childTok.AccessToken)
 
 	t.Run("other client of the vendor", func(t *testing.T) {
 		r, err := c.Revoke(f.child, f.tok.DeviceSecret, client.TokenTypeHintDeviceSecret)
@@ -549,6 +551,12 @@ func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 		}
 		record(t, "R27", r.Status, client.OAuthError{}, "device secret revoked by the Hub")
 		expectError(t, "R27", doExchange(t, c, f.exchange(f.child)), http.StatusBadRequest, "invalid_grant")
+
+		info, err := c.Userinfo(f.hubDPoP, childTok.AccessToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectError(t, "R27", info, http.StatusUnauthorized, "invalid_token")
 	})
 
 	t.Run("again and unknown values are no-ops", func(t *testing.T) {

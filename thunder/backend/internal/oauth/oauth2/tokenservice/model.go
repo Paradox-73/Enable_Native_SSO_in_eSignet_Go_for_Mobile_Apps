@@ -59,6 +59,9 @@ type AccessTokenBuildContext struct {
 	// TokenFamilyID, when set, is stamped as the `tfid` claim so the token can be revoked as part of
 	// its authorization grant's family. It is constant across refresh rotation.
 	TokenFamilyID string
+	// SessionID, when set, is the OpenID Connect Native SSO login session the token was issued for. It
+	// is stamped as the `sid` claim, and token validation refuses the token once that session ends.
+	SessionID string
 }
 
 // RefreshTokenBuildContext contains all the information needed to build a refresh token.

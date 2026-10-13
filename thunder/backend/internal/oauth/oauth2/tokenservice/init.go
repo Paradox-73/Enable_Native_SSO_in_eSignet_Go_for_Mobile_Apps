@@ -23,8 +23,10 @@ func Initialize(
 	idpService providers.IDPProvider,
 	enforcementService revocation.EnforcementServiceInterface,
 	jtiStore jti.JTIStoreInterface,
+	deviceSecretProvider providers.DeviceSecretProvider,
 ) (TokenBuilderInterface, TokenValidatorInterface) {
 	tokenBuilder := newTokenBuilder(cfg, jwtService, jweService, resolver)
-	tokenValidator := newTokenValidator(cfg, jwtService, idpService, enforcementService, jtiStore)
+	tokenValidator := newTokenValidator(cfg, jwtService, idpService, enforcementService, jtiStore,
+		deviceSecretProvider)
 	return tokenBuilder, tokenValidator
 }

@@ -61,6 +61,9 @@ type tokenValidator struct {
 	idpService         providers.IDPProvider
 	enforcementService revocation.EnforcementServiceInterface
 	jtiStore           jti.JTIStoreInterface
+	// deviceSecretProvider tells whether the Native SSO login session of an access token (its sid) is
+	// still active; nil when Native SSO is off.
+	deviceSecretProvider providers.DeviceSecretProvider
 }
 
 // NewTokenValidator creates a new TokenValidator instance.
@@ -70,13 +73,15 @@ func newTokenValidator(
 	idpService providers.IDPProvider,
 	enforcementService revocation.EnforcementServiceInterface,
 	jtiStore jti.JTIStoreInterface,
+	deviceSecretProvider providers.DeviceSecretProvider,
 ) TokenValidatorInterface {
 	return &tokenValidator{
-		cfg:                cfg,
-		jwtService:         jwtService,
-		idpService:         idpService,
-		enforcementService: enforcementService,
-		jtiStore:           jtiStore,
+		cfg:                  cfg,
+		jwtService:           jwtService,
+		idpService:           idpService,
+		enforcementService:   enforcementService,
+		jtiStore:             jtiStore,
+		deviceSecretProvider: deviceSecretProvider,
 	}
 }
 
@@ -130,6 +135,9 @@ func (tv *tokenValidator) ValidateAccessToken(ctx context.Context, token string)
 	jti, _ := extractStringClaim(claims, constants.ClaimJTI)
 	tokenFamilyID, _ := extractStringClaim(claims, constants.ClaimTokenFamilyID)
 	if err := tv.ensureNotRevoked(ctx, revocationIdentity(claims, jti, tokenFamilyID)); err != nil {
+		return nil, err
+	}
+	if err := tv.ensureNativeSSOSessionActive(ctx, claims); err != nil {
 		return nil, err
 	}
 

@@ -408,7 +408,8 @@ func (h *tokenExchangeGrantHandler) scopeExceeded(ctx context.Context, oauthApp 
 // 4.4, rule R23):
 //   - access token: the same user, the resolved scope, the attribute-cache id (aci) of the login so that
 //     userinfo answers with the claims the user released, and bound to the DPoP key of this request,
-//     which step 12 proved is the key of the device secret (statement task 8, decision D3);
+//     which step 12 proved is the key of the device secret (statement task 8, decision D3), and carrying
+//     the sid of the login, so that it stops working when that session ends (sign-out, rule R27);
 //   - id_token: aud is the second app, the same sub, sid, acr and auth_time as the login, and no ds_hash
 //     (no device secret is issued to the second app);
 //   - user attributes: only the claims both released to the first app (the device secret's claims) and
@@ -435,6 +436,7 @@ func (h *tokenExchangeGrantHandler) issueNativeSSOTokens(ctx context.Context, to
 		OAuthApp:          oauthApp,
 		ValidityPeriod:    userSubConfig.ValidityPeriodOrZero(),
 		DPoPJkt:           dpop.GetJkt(ctx),
+		SessionID:         dsClaims.SessionID,
 	})
 	if err != nil {
 		logger.Error(ctx, "Failed to generate the Native SSO access token", log.Error(err))

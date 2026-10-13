@@ -87,7 +87,7 @@ func Initialize(
 	}
 
 	tokenBuilder, tokenValidator := tokenservice.Initialize(
-		cfg, jwtService, jweService, resolver, idpService, enforcementService, jtiStore)
+		cfg, jwtService, jweService, resolver, idpService, enforcementService, jtiStore, deviceSecretProvider)
 	parService := par.Initialize(mux, actorProvider, authnProvider, jwtService, discoveryService,
 		resourceService, dpopVerifier, cfg, runtimeStore, jtiStore)
 	// Consent-only re-consent of Native SSO: the token exchange issues consent tickets and the consent

@@ -17,7 +17,8 @@ import (
 // deviceSecretRevoker revokes OpenID Connect Native SSO device secrets at the RFC 7009 endpoint. A
 // device secret is not a JWT the deny list could hold: revoking it ends its login session through
 // the DeviceSecretProvider, after which every token exchange with it fails with invalid_grant
-// (Native SSO 4.3, step 4). It needs no database, so it works when the deny list is turned off.
+// (Native SSO 4.3, step 4) and the access tokens earlier exchanges issued for that session (they carry
+// its sid) fail token validation. It needs no database, so it works when the deny list is turned off.
 type deviceSecretRevoker struct {
 	provider providers.DeviceSecretProvider
 	logger   *log.Logger

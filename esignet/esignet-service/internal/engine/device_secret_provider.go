@@ -305,6 +305,30 @@ func (p *deviceSecretProvider) EndDeviceSecretSession(ctx context.Context,
 	return nil
 }
 
+// IsDeviceSecretSessionActive reports whether the session record of sessionID still exists and has
+// not passed its expiry. The engine asks it for every access token that carries a sid, so the tokens
+// a token exchange issued stop working once EndDeviceSecretSession deleted the record.
+func (p *deviceSecretProvider) IsDeviceSecretSessionActive(ctx context.Context, sessionID string) (bool,
+	*common.ServiceError) {
+	if strings.TrimSpace(sessionID) == "" {
+		return false, nil
+	}
+	raw, err := p.store.Get(ctx, providers.NamespaceNativeSSOSession, sessionID)
+	if errors.Is(err, providers.ErrRuntimeStoreKeyNotFound) || (err == nil && len(raw) == 0) {
+		return false, nil
+	}
+	if err != nil {
+		applog.GetLogger().Error(ctx, "device secret session lookup failed", applog.Error(err))
+		return false, shared.InternalServerError
+	}
+	var session nativeSSOSession
+	if err := json.Unmarshal(raw, &session); err != nil {
+		applog.GetLogger().Error(ctx, "device secret session record is corrupt", applog.Error(err))
+		return false, shared.InternalServerError
+	}
+	return session.ExpiresAt > p.now().Unix(), nil
+}
+
 // sign builds the inner JWS (compact serialization) over claims with the device secret signing
 // key. The certificate and the key come from one ResolveSigner call, so the kid always names the
 // key that produced the signature, even across a key rotation.
