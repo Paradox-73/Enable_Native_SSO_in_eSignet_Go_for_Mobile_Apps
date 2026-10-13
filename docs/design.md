@@ -641,11 +641,12 @@ In the Native SSO branch of the token-exchange handler:
 8. Session record for the device secret's `sid` exists and matches its `auth_id` and `client_id` (task 9 iii.2).
    A missing record is an ended session: `invalid_grant` (R12).
 9. id_token (task 9 iii): signature by this server's key from its own JWKS, `iss` equal to the issuer, `aud`
-   equal to the device secret's `client_id`. **Expiry is not required**: see the next subsection. The cap
-   `id_token_max_age_seconds` (eSignet default 3600 s) rejects id_tokens older than the cap with `invalid_grant`, as for an ended session
-   (R20, R21).
+   equal to the device secret's `client_id`. **Expiry is not required**: see the next subsection (R20, R21).
 10. `ds_hash` in the id_token equals the hash of the presented device secret (task 9 iii.1, R11), and the
     id_token's `sid` equals the device secret's `sid` (task 9 iii.2, R12). Mismatch: `invalid_request`.
+    Only then the cap `id_token_max_age_seconds` (eSignet default 3600 s) rejects an id_token older than the cap
+    with `invalid_grant`, as for an ended session (R21). The order matters: an old id_token paired with the wrong
+    device secret gets the mismatch error, not "sign in again".
 11. Same vendor: the Child App and the Super App named in the device secret belong to the same relying party, and
     the Super App still allows `device_sso` (Native SSO 4.3 step 5, task 9 iii.3; D7). Else `invalid_request` (R19).
 12. The device secret's `cnf.jkt` equals the thumbprint of the key in this request's DPoP proof (task 9 iii.4),
@@ -700,7 +701,7 @@ All errors use Thunder's `model.ErrorResponse` (HTTP 400 unless noted) and the c
 | Device secret generation fails | `server_error` (500), no tokens | Native SSO 3.4: both or neither | R08 |
 | Malformed exchange: token types, missing `actor_token`, old `urn:x-oath:` URN | `invalid_request` | RFC 8693 2.2.2 | R10 |
 | Device secret invalid or expired; id_token signature or issuer; `ds_hash` or `sid` mismatch; other vendor | `invalid_request` | RFC 8693 2.2.2 ("invalid ... or unacceptable based on policy") | R09, R11, R12, R19, R20 |
-| Login session ended (no session record for `sid`); id_token older than `id_token_max_age_seconds` | `invalid_grant` | Native SSO 4.3 step 4; the same remedy, a new login of the Super App, which the Child App tells the user | R12, R21 |
+| Login session ended (no session record for `sid`); id_token older than `id_token_max_age_seconds` | `invalid_grant` | Native SSO 4.3 step 4; the same remedy, a new login of the Super App, which the Child App tells the user. RFC 8693 2.2.2 would answer a subject_token "unacceptable based on policy" with `invalid_request`; for the age cap this profile follows the Native SSO session rule instead, because only a new Super App login helps | R12, R21 |
 | DPoP key differs from `cnf.jkt` | `invalid_grant` | existing `dpop.VerifyProofBinding` | R14 |
 | DPoP proof malformed or replayed | `invalid_dpop_proof` | RFC 9449 5, 11.1 | R22 |
 | `audience` is not the issuer | `invalid_target` | RFC 8693 2.2.2, Native SSO 4.1 | R18 |

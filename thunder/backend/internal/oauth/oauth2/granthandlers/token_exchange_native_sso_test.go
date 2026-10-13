@@ -391,11 +391,14 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_IDTokenBindi
 	for _, tc := range cases {
 		s.Run(tc.name, func() {
 			s.SetupTest()
+			// The id_token is also past the age cap: the binding error must win over "too old".
+			s.handler.cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = 300
 			tc.mutate(s.idClaims)
 			s.expectDeviceSecret()
 			s.expectIDToken()
 			_, errResp := s.handle()
 			s.assertError(errResp, constants.ErrorInvalidRequest)
+			s.NotEqual(errDescNSSOIDTokenTooOld, errResp.ErrorDescription)
 		})
 	}
 }

@@ -223,11 +223,11 @@ func (h *tokenExchangeGrantHandler) validateDeviceSecret(
 // checkNativeSSOIDToken validates the id_token presented as subject_token and its binding to the device
 // secret (design section 11, steps 9 and 10):
 //   - signed by this server, issued by this server, issued to the client of the device secret and for
-//     the same user (rule R20); its expiry is not required (design section 11.1, rule R21), but an
-//     optional cap (oauth.native_sso.id_token_max_age_seconds) limits its age since iat; an older
-//     id_token is invalid_grant, as for an ended session, because the first app must log in again;
+//     the same user (rule R20); its expiry is not required (design section 11.1, rule R21);
 //   - ds_hash equals the hash of the presented device secret (statement task 9 iii.1, rule R11);
-//   - sid equals the session of the device secret (statement task 9 iii.2, rule R12).
+//   - sid equals the session of the device secret (statement task 9 iii.2, rule R12);
+//   - last, an optional cap (oauth.native_sso.id_token_max_age_seconds) on its age since iat; an older
+//     id_token is invalid_grant, as for an ended session, because the first app must log in again.
 func (h *tokenExchangeGrantHandler) checkNativeSSOIDToken(ctx context.Context, tokenRequest *model.TokenRequest,
 	dsClaims *providers.DeviceSecretClaims) *model.ErrorResponse {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "TokenExchangeGrantHandler"))
@@ -249,16 +249,17 @@ func (h *tokenExchangeGrantHandler) checkNativeSSOIDToken(ctx context.Context, t
 	if idClaims.Sub != dsClaims.Subject {
 		return invalidRequest(errDescNSSOIDTokenSubject)
 	}
-	if maxAge := h.cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds; maxAge > 0 &&
-		h.currentTime().Unix()-idClaims.IssuedAt > maxAge {
-		// Like an ended session (Native SSO 4.3 step 4): only a new login of the first app helps.
-		return &model.ErrorResponse{Error: constants.ErrorInvalidGrant, ErrorDescription: errDescNSSOIDTokenTooOld}
-	}
 	if !constantTimeEqual(idClaims.DeviceSecretHash, nativesso.DeviceSecretHash(tokenRequest.ActorToken)) {
 		return invalidRequest(errDescNSSODSHashMismatch)
 	}
 	if !constantTimeEqual(idClaims.SessionID, dsClaims.SessionID) {
 		return invalidRequest(errDescNSSOSIDMismatch)
+	}
+	// After the binding checks, so a mismatched pair gets the mismatch error, not "too old".
+	if maxAge := h.cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds; maxAge > 0 &&
+		h.currentTime().Unix()-idClaims.IssuedAt > maxAge {
+		// Like an ended session (Native SSO 4.3 step 4): only a new login of the first app helps.
+		return &model.ErrorResponse{Error: constants.ErrorInvalidGrant, ErrorDescription: errDescNSSOIDTokenTooOld}
 	}
 	return nil
 }

@@ -100,8 +100,9 @@ All errors are JSON `{"error": ..., "error_description": ...}`, HTTP 400 unless 
 | Any token request without a DPoP proof from a DPoP-bound client | `invalid_dpop_proof` | R07, R14 |
 | Device secret generation fails (500, no tokens) | `server_error` | R08 |
 | Exchange: wrong token types, missing `actor_token`, the old `urn:x-oath:` token type | `invalid_request` | R10 |
-| Device secret invalid, tampered or expired; id_token signature, issuer or age; `ds_hash` or `sid` mismatch; clients of another relying party | `invalid_request` | R09, R11, R12, R19, R20 |
+| Device secret invalid, tampered or expired; id_token signature or issuer; `ds_hash` or `sid` mismatch; clients of another relying party | `invalid_request` | R09, R11, R12, R19, R20 |
 | Login session ended (the server restarted, or the secret's lifetime ran out of its session record) | `invalid_grant` | R12 |
+| The first app's id_token is older than `id_token_max_age_seconds` (checked after `ds_hash` and `sid`). This follows the Native SSO session rule, not RFC 8693 2.2.2's `invalid_request`: only a new login of the first app helps | `invalid_grant` | R21 |
 | DPoP key differs from the one the secret is bound to | `invalid_grant` | R14 |
 | DPoP proof malformed or replayed | `invalid_dpop_proof` | R22 |
 | `audience` is not the issuer | `invalid_target` | R18 |
