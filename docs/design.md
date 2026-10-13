@@ -629,8 +629,9 @@ In the Native SSO branch of the token-exchange handler:
 8. Session record for the device secret's `sid` exists and matches its `auth_id` and `client_id` (task 9 iii.2).
    A missing record is an ended session: `invalid_grant` (R12).
 9. id_token (task 9 iii): signature by this server's key from its own JWKS, `iss` equal to the issuer, `aud`
-   equal to the device secret's `client_id`. **Expiry is not required**: see the next subsection. An optional cap
-   `id_token_max_age_seconds` rejects id_tokens older than the cap (R20, R21).
+   equal to the device secret's `client_id`. **Expiry is not required**: see the next subsection. The cap
+   `id_token_max_age_seconds` (eSignet default 3600 s) rejects id_tokens older than the cap with `invalid_request`
+   (R20, R21).
 10. `ds_hash` in the id_token equals the hash of the presented device secret (task 9 iii.1, R11), and the
     id_token's `sid` equals the device secret's `sid` (task 9 iii.2, R12). Mismatch: `invalid_request`.
 11. Same vendor: the Child App and the Super App named in the device secret belong to the same relying party, and
@@ -708,7 +709,7 @@ for every eSignet setting, architecture 2.8):
 | `oauth.allowed_scopes` | (yaml) | adds `device_sso` | advertised in discovery |
 | `oauth.allowed_grant_types` | (yaml) | adds `urn:ietf:params:oauth:grant-type:token-exchange` | Thunder builds the handler only for listed grants |
 | `native_sso.enabled` | `MOSIP_ESIGNET_NATIVE_SSO_ENABLED` | false (opt-in); true in `deployment.yaml` | off: no device secret provider is passed to the engine, so `device_sso` is refused, and no userinfo filter |
-| `oauth.native_sso.id_token_max_age_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | 0 (no cap beyond the device secret and session) | optional age cap on the exchanged id_token |
+| `oauth.native_sso.id_token_max_age_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | 3600 in eSignet (0 or absent means 3600); 0 (no cap) in the bare engine | age cap on the exchanged id_token, so also how long after the Super App's login silent sign-in works; a value of at least the device secret lifetime turns it off |
 | `oauth.native_sso.scope_exceeded_error` | `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `interaction_required` | or `invalid_scope` |
 | `oauth.native_sso.exchange_only` | `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | true in eSignet | token exchange only for the device-secret profile |
 | `oauth.native_sso.consent_only_reconsent` | `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT` | false; true in `deployment.yaml` | consent-only re-consent (section 6.3); needs `scope_exceeded_error: interaction_required` |

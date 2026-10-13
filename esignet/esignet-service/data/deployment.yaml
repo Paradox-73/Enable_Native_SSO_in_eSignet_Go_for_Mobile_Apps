@@ -159,7 +159,10 @@ oauth:
   # MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS,
   # MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS (see internal/config/native_sso.go).
   native_sso:
-    id_token_max_age_seconds: 0                 # 0: no cap beyond the device secret and its session
+    # Oldest first-app id_token accepted in the exchange (seconds since its iat), so also how long after
+    # the first app's login a second app can sign in silently. 0 means this default; a value of at least
+    # device_secret_validity_seconds turns the cap off.
+    id_token_max_age_seconds: 3600
     scope_exceeded_error: interaction_required  # or invalid_scope
     exchange_only: true                         # token exchange only with a device secret
     # Extra scopes for the second app that need no new user data (permission scopes, or claims the

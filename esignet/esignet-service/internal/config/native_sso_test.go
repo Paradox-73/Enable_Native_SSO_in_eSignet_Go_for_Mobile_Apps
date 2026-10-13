@@ -52,7 +52,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_Defaults() {
 		EncryptionKeyRefID:          "DEVICE_SECRET",
 		SigningKeyRefID:             "EC_SECP256R1_SIGN",
 	}, cfg.NativeSSO)
-	ts.EqualValues(0, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
+	ts.EqualValues(3600, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds, "an id_token older than an hour is refused")
 	ts.Equal("interaction_required", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
 	ts.False(cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
