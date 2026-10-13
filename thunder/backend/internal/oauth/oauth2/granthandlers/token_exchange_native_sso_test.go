@@ -409,13 +409,15 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_ExpiredIDTok
 	s.Nil(errResp)
 }
 
-// R21: an id_token older than the optional age cap is refused, even with a valid device secret.
+// R21: an id_token older than the optional age cap is refused, even with a valid device secret, with
+// invalid_grant: like an ended session, only a new login of the first app helps.
 func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_ExpiredIDTokenOutsideCap() {
 	s.handler.cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = 300
 	s.expectDeviceSecret()
 	s.expectIDToken()
 	_, errResp := s.handle()
-	s.assertError(errResp, constants.ErrorInvalidRequest)
+	s.assertError(errResp, constants.ErrorInvalidGrant)
+	s.Equal(errDescNSSOIDTokenTooOld, errResp.ErrorDescription)
 }
 
 // Native SSO 4.3 step 5 and D7: only apps of the same vendor that still allows device_sso (rule R19).

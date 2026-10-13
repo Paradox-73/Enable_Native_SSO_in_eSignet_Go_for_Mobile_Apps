@@ -106,7 +106,8 @@ Why it is safe here: an expired id_token is accepted only when **all** of these 
 - How long silent sign-in works is therefore decided by the id_token age cap (1 hour by default), the device
   secret's `exp`, the session record's TTL and the Super App still holding its key, all of which the operator or
   the user controls. The Super App cannot renew its id_token without a new login, so after the cap the Child App
-  gets `invalid_request` until the user signs in to the Super App again.
+  gets `invalid_grant` ("Your Hub sign-in has ended. Open Hub and sign in again.") until the user signs in to the
+  Super App again.
 - An attacker who has only an old id_token (from a log, a screenshot, a backup) gets nothing: the exchange needs
   the matching device secret and a proof from the Super App's key.
 
