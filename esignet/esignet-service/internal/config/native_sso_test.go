@@ -102,6 +102,15 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML(
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
 }
 
+// The env var set to 0 keeps its meaning from before the 3600 s default: no cap, even over yaml.
+func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvZeroTurnsIDTokenCapOff() {
+	ts.T().Setenv("MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS", "0")
+	cfg := &AppConfig{}
+	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = 3600
+	applyNativeSSODefaults(cfg)
+	ts.EqualValues(0, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
+}
+
 // Consent-only re-consent: yaml values are kept, and the env vars override them.
 func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_ConsentOnly() {
 	cfg := &AppConfig{}

@@ -93,8 +93,9 @@ func applyNativeSSODefaults(cfg *AppConfig) {
 	cfg.NativeSSO.SigningKeyRefID = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID",
 		cfg.NativeSSO.SigningKeyRefID, defaultDeviceSecretSigningKeyRefID)
 
-	// 0 or absent means the default cap; a cap of at least the device secret lifetime turns it off.
-	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = int64(envIntOrConfigOrDefault(
+	// The env var set to 0 turns the cap off, as it did before the default existed; a yaml value of 0
+	// cannot be told apart from an absent key, so it means the default.
+	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = int64(envIntOrConfigOrDefaultAllowEnvZero(
 		"MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS", int(cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds),
 		defaultIDTokenMaxAgeSeconds))
 	cfg.OAuth.NativeSSO.ScopeExceededError = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR",
