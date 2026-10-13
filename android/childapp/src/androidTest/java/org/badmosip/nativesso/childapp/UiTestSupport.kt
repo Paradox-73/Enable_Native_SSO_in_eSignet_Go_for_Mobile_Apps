@@ -137,6 +137,7 @@ internal class CardUi {
                     step("OTP typed into ${fields.size} fields")
                 }
                 !uinTyped && fields.size in 1..3 -> {
+                    screenshot("esignet-login-page")
                     fields.first().click()
                     typeText(uin)
                     uinTyped = true

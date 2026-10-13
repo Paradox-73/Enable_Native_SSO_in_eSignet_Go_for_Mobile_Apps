@@ -49,6 +49,7 @@ class ChildAppConsentOnlyTest {
 
     @Test
     fun permissionIsApprovedOnEsignetsPageWithoutLogin() {
+        refuseOnEsignetsPage()
         assertEquals(ui.context.getString(R.string.sharing_not_allowed), sharingValue())
         ui.waitFor("allow_sharing_button").click()
         ui.step("allow card sharing tapped")
@@ -91,6 +92,27 @@ class ChildAppConsentOnlyTest {
         ui.step("consent-only re-consent verified (scope ${session.scope})")
     }
 
+    /** Refusing on eSignet's page: the browser returns, Health Card says nothing changed and keeps Hub's sign-in. Runs first: after "Allow" the grant is kept. */
+    private fun refuseOnEsignetsPage() {
+        ui.waitFor("allow_sharing_button").click()
+        ui.waitFor("consent_continue_button").click()
+        val title = ui.device.wait(Until.findObject(By.pkg(CardUi.CHROME).text(PAGE_TITLE)), 60_000)
+        assertNotNull("eSignet's consent page did not open", title)
+        val deny = ui.device.findObject(By.pkg(CardUi.CHROME).clazz("android.widget.Button").text(NOT_NOW))
+            ?: ui.device.findObject(By.pkg(CardUi.CHROME).text(NOT_NOW))
+        assertNotNull("no Not now button on eSignet's consent page", deny)
+        deny!!.click()
+        ui.step("Not now tapped on eSignet's consent page")
+
+        assertEquals(ui.context.getString(R.string.error_consent_declined), ui.waitFor("notice_text", 60_000).text)
+        val session = ui.services.authenticator.currentSession()
+        assertNotNull(session)
+        assertTrue("the refused scope was granted", CardConfig.SHARE_SCOPE !in session!!.scopes)
+        assertEquals(Binding.HUB, session.binding)
+        assertEquals(ui.context.getString(R.string.sharing_not_allowed), sharingValue())
+        ui.screenshot("health-card-consent-only-declined")
+    }
+
     /** The value of the "Card sharing with clinics" item: the last text of the item and its children. */
     private fun sharingValue(): String? {
         val texts = mutableListOf<String>()
@@ -106,6 +128,7 @@ class ChildAppConsentOnlyTest {
         const val HUB_RATE_WINDOW_MILLIS = 61_000L
         val PAGE_TITLE: Pattern = Pattern.compile("(?i)\\s*allow more access\\?\\s*")
         val NO_LOGIN: Pattern = Pattern.compile("(?i).*no new login.*")
+        val NOT_NOW: Pattern = Pattern.compile("(?i)\\s*not now\\s*")
         val ALLOW: Pattern = Pattern.compile("(?i)\\s*allow\\s*")
     }
 }
