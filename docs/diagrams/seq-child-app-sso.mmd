@@ -15,7 +15,7 @@ sequenceDiagram
   C->>H: signDpopProof(POST, token endpoint)
   H->>H: htm and htu allow-list, fresh jti and iat, sign with the Hub DPoP key
   H-->>C: DPoP proof
-  C->>T: POST /oauth2/token: token-exchange grant, subject_token = id_token, actor_token = device_secret, audience = issuer, scope openid email, client_assertion, DPoP (task 8)
+  C->>T: POST /oauth2/token: token-exchange grant, subject_token = id_token, actor_token = device_secret, audience = issuer, scope openid email, dpop_jkt = Child App key, client_assertion, DPoP by the Hub key (task 8)
   T->>T: Child App client auth, DPoP proof valid and not replayed
   T->>T: Token types, audience = issuer, no device_sso in scope, Child App allows device_sso and the grant
   T->>P: ValidateDeviceSecret(actor_token) (task 9 ii)
@@ -24,6 +24,6 @@ sequenceDiagram
   P-->>T: claims: client_id, sid, auth_id, scope, acr, claims, cnf.jkt
   T->>T: id_token: signature, iss, aud = Super App (expired is allowed), ds_hash, sid
   T->>T: Same relying party, Super App allows device_sso, cnf.jkt = DPoP key thumbprint, scope subset
-  T-->>C: 200 access_token (cnf.jkt = Hub key), issued_token_type, token_type DPoP, id_token for Child App
+  T-->>C: 200 access_token (cnf.jkt = dpop_jkt, the Child App key; sid), issued_token_type, token_type DPoP, id_token for Child App
   C->>C: Check id_token, store tokens encrypted
   C->>U: Home screen: no browser, no prompt

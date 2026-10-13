@@ -16,6 +16,7 @@ import org.badmosip.nativesso.oidc.HttpStatusException
 import org.badmosip.nativesso.oidc.IdTokenFailure
 import org.badmosip.nativesso.oidc.IdTokenValidationException
 import org.badmosip.nativesso.oidc.InvalidResponseException
+import org.badmosip.nativesso.oidc.JwkThumbprint
 import org.badmosip.nativesso.oidc.NetworkException
 import org.badmosip.nativesso.oidc.OAuthError
 import org.badmosip.nativesso.oidc.OAuthErrorException
@@ -68,19 +69,22 @@ class CardAuthenticatorTest {
         assertEquals(f.esignet.issuer, form["audience"])
         assertEquals("openid profile", form["scope"])
         assertFalse("never device_sso", form.getValue("scope").contains("device_sso"))
+        // The new tokens are bound to Health Card's own DPoP key (RFC 9449 section 10 dpop_jkt).
+        assertEquals(JwkThumbprint.compute(f.ownDpop.publicJwk), form["dpop_jkt"])
         // Health Card's own private_key_jwt, not Hub's.
         val assertion = SignedJWT.parse(form["client_assertion"])
         assertEquals(f.clientId, assertion.jwtClaimsSet.issuer)
         assertTrue(assertion.verify(com.nimbusds.jose.crypto.ECDSAVerifier(com.nimbusds.jose.jwk.ECKey.parse(f.clientKey.publicJwk))))
 
-        // Both proofs come from Hub's key: the device secret and the new access token are bound to it.
+        // Hub signs only the exchange proof (the device secret is bound to its key); userinfo gets
+        // Health Card's own proof, because the new access token is bound to Health Card's key.
         val exchangeProof = verifiedJws(f.esignet.exchangeProofs.single(), f.hub.key.publicJwk)
         assertEquals(f.esignet.tokenEndpoint, exchangeProof.payload.toJSONObject()["htu"])
-        val userinfoProof = verifiedJws(f.esignet.userinfoProofs.single(), f.hub.key.publicJwk)
+        val userinfoProof = verifiedJws(f.esignet.userinfoProofs.single(), f.ownDpop.publicJwk)
         assertEquals(DpopProofs.accessTokenHash(f.esignet.exchangeAccessToken), userinfoProof.payload.toJSONObject()["ath"])
         assertEquals("GET", userinfoProof.payload.toJSONObject()["htm"])
         assertEquals("DPoP ${f.esignet.exchangeAccessToken}", f.esignet.userinfoAuthorizations.single())
-        assertEquals(listOf("POST", "GET"), f.hub.proofRequests.map { it.htm })
+        assertEquals(listOf("POST"), f.hub.proofRequests.map { it.htm })
 
         assertEquals(Binding.HUB, session.binding)
         assertEquals(f.esignet.hubSid, session.sessionId)

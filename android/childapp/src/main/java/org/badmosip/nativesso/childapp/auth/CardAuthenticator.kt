@@ -45,9 +45,10 @@ import java.time.temporal.ChronoUnit
  *
  * - [silentSignIn]: Hub's id_token and device secret -> Native SSO token exchange (Native SSO 1.0
  *   section 4.1: `audience` = issuer, Health Card's own `private_key_jwt`, a DPoP proof signed by
- *   Hub) -> id_token checks (signature, `iss`, `aud` = Health Card, `at_hash`, and `sid` equal to the
- *   `sid` of Hub's id_token) -> userinfo with a Hub-signed proof carrying `ath` -> encrypted storage.
- *   No browser, no password, no OTP.
+ *   Hub, and `dpop_jkt` = Health Card's own DPoP key, which the new tokens are bound to) -> id_token
+ *   checks (signature, `iss`, `aud` = Health Card, `at_hash`, and `sid` equal to the `sid` of Hub's
+ *   id_token) -> userinfo with Health Card's own proof carrying `ath` -> encrypted storage. Hub signs
+ *   only the exchange proof. No browser, no password, no OTP.
  * - [startConsentLogin] and [completeConsentLogin]: when the exchange asks for more than Hub's login
  *   granted, eSignet answers `interaction_required` (bonus B1); Health Card then runs its own PAR
  *   login with `prompt=consent` and its own DPoP key.
@@ -104,14 +105,15 @@ class CardAuthenticator(
             ?: throw CardException(CardException.Reason.SESSION_MISMATCH, "Hub's id_token carries no sid")
         val client = oidc()
         log("token exchange (scope=${ScopeStrings.format(scope)})")
-        val tokens = client.exchangeDeviceSecret(DeviceSecretExchange(share.idToken, share.deviceSecret, scope), calls.proofs)
+        val exchange = DeviceSecretExchange(share.idToken, share.deviceSecret, scope, dpopJkt = ownDpop.thumbprint)
+        val tokens = client.exchangeDeviceSecret(exchange, calls.proofs)
         if (tokens.deviceSecret != null) throw InvalidResponseException("token exchange returned a device secret")
         val idToken = validate(tokens, nonce = null)
         val sid = idToken.sessionId
         if (sid == null || !MessageDigest.isEqual(sid.toByteArray(), hubSid.toByteArray())) {
             throw CardException(CardException.Reason.SESSION_MISMATCH, "the new id_token does not belong to Hub's login session")
         }
-        val profile = profile(client, tokens.accessToken, idToken.subject, calls.proofs)
+        val profile = profile(client, tokens.accessToken, idToken.subject, ownDpop)
         return save(tokens, idToken, Binding.HUB, hubSid, profile)
     }
 

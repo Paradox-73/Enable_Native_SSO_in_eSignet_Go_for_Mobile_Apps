@@ -58,7 +58,7 @@ data class PendingLogin(
  * @property dpopKeyThumbprint `jkt` of the DPoP key the tokens (and the device secret) are bound to
  * @property displayName the user's name from userinfo, when the server sent one
  * @property tokenEndpoint the token endpoint from discovery at login; the family service signs
- *   DPoP proofs only for this URL and [userinfoEndpoint] (null in sessions saved before WP-11)
+ *   DPoP proofs only for this URL (null in sessions saved before WP-11)
  * @property userinfoEndpoint the userinfo endpoint from discovery at login, or null
  */
 data class TokenBundle(

@@ -200,9 +200,9 @@ class CardControllerTest {
         f.shareHubSignIn()
         controller.start(null)
         assertEquals(Binding.HUB, home().session.binding)
-        // version, bundle, then one proof for the token exchange and one for userinfo.
+        // version, bundle, then one proof for the token exchange; userinfo uses Health Card's own key.
         assertEquals(2 + f.hub.proofRequests.size, f.hub.calls.get())
-        assertEquals(2, f.hub.proofRequests.size)
+        assertEquals(1, f.hub.proofRequests.size)
     }
 
     @Test

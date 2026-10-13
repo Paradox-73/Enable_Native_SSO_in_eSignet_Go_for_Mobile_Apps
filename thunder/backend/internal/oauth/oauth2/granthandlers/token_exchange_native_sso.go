@@ -18,6 +18,7 @@ import (
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/tokenservice"
 	oauth2utils "github.com/thunder-id/thunderid/internal/oauth/oauth2/utils"
+	"github.com/thunder-id/thunderid/internal/system/jose/jws"
 	"github.com/thunder-id/thunderid/internal/system/log"
 	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
@@ -59,6 +60,7 @@ const (
 	errDescNSSOConsentNeeded = "The requested scope exceeds the scope granted to the first app and can be " +
 		"approved at consent_uri without a new login; user consent is needed for: "
 	errDescNSSOAttributesGone = "The user attributes of the login session are no longer available"
+	errDescNSSOInvalidDPoPJkt = "Invalid dpop_jkt parameter"
 	errDescNSSOFailed         = "Failed to generate token"
 )
 
@@ -108,6 +110,9 @@ func (h *tokenExchangeGrantHandler) validateNativeSSORequest(tokenRequest *model
 	}
 	if len(tokenRequest.Audiences) != 1 || tokenRequest.Audiences[0] != h.cfg.JWT.Issuer {
 		return &model.ErrorResponse{Error: constants.ErrorInvalidTarget, ErrorDescription: errDescNSSOAudience}
+	}
+	if tokenRequest.DPoPJkt != "" && !jws.IsValidJKT(tokenRequest.DPoPJkt) {
+		return invalidRequest(errDescNSSOInvalidDPoPJkt)
 	}
 	// Native SSO 4.1 and statement task 10b: a requested scope must include openid and must not include
 	// device_sso, which only an authorization-code grant may carry (rule R16). No scope is allowed and
@@ -407,9 +412,11 @@ func (h *tokenExchangeGrantHandler) scopeExceeded(ctx context.Context, oauthApp 
 // issueNativeSSOTokens issues the second app's tokens for the login of the device secret (Native SSO
 // 4.4, rule R23):
 //   - access token: the same user, the resolved scope, the attribute-cache id (aci) of the login so that
-//     userinfo answers with the claims the user released, and bound to the DPoP key of this request,
-//     which step 12 proved is the key of the device secret (statement task 8, decision D3), and carrying
-//     the sid of the login, so that it stops working when that session ends (sign-out, rule R27);
+//     userinfo answers with the claims the user released, and carrying the sid of the login, so that it
+//     stops working when that session ends (sign-out, rule R27). It is bound to the key the second app
+//     names in dpop_jkt (RFC 9449 section 10), so the second app signs its own proofs for every later
+//     call; without dpop_jkt, to the DPoP key of this request, which step 12 proved is the key of the
+//     device secret (statement task 8, decision D3);
 //   - id_token: aud is the second app, the same sub, sid, acr and auth_time as the login, and no ds_hash
 //     (no device secret is issued to the second app);
 //   - user attributes: only the claims both released to the first app (the device secret's claims) and
@@ -424,6 +431,12 @@ func (h *tokenExchangeGrantHandler) issueNativeSSOTokens(ctx context.Context, to
 		return nil, errResp
 	}
 
+	// The request's proof is the first app's key (step 12); the second app may name its own key to bind
+	// to. Binding to a key the requester does not hold only makes its own token unusable.
+	boundJkt := dpop.GetJkt(ctx)
+	if tokenRequest.DPoPJkt != "" {
+		boundJkt = tokenRequest.DPoPJkt
+	}
 	userSubConfig := oauthApp.UserAccessTokenConfig()
 	accessToken, err := h.tokenBuilder.BuildAccessToken(ctx, &tokenservice.AccessTokenBuildContext{
 		Subject:           dsClaims.Subject,
@@ -435,7 +448,7 @@ func (h *tokenExchangeGrantHandler) issueNativeSSOTokens(ctx context.Context, to
 		GrantType:         string(providers.GrantTypeTokenExchange),
 		OAuthApp:          oauthApp,
 		ValidityPeriod:    userSubConfig.ValidityPeriodOrZero(),
-		DPoPJkt:           dpop.GetJkt(ctx),
+		DPoPJkt:           boundJkt,
 		SessionID:         dsClaims.SessionID,
 	})
 	if err != nil {

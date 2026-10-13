@@ -32,7 +32,7 @@ Lint results (2026-10-05): the eSignet file `0 errors, 8 warnings` (the import h
 ## Token exchange request
 
 Sent by the second app (Health Card) to `POST /oauth2/token`, `application/x-www-form-urlencoded`, with a `DPoP` header
-whose proof is signed by the first app's DPoP key.
+whose proof is signed by the first app's DPoP key (the key the device secret is bound to).
 
 | Parameter | Value |
 |---|---|
@@ -44,8 +44,9 @@ whose proof is signed by the first app's DPoP key.
 | `audience` | exactly the issuer, `http://localhost:38088` on the local stack |
 | `scope` | optional; must contain `openid`, must not contain `device_sso`, must lie within the first app's scope; default is that scope without `device_sso` |
 | `client_assertion_type`, `client_assertion` | the second app's own `private_key_jwt` (ES256, `aud` = issuer) |
+| `dpop_jkt` | optional (RFC 9449 section 10): SHA-256 thumbprint of the second app's own DPoP key; the issued access token is bound to it, so the second app signs its own proofs for userinfo and its APIs. Without it the token is bound to the first app's key. Not a 43-character base64url value: `invalid_request` |
 
-Success: `200` with `access_token` (`token_type` DPoP, `cnf.jkt` = the first app's key), `id_token` (`aud` = second app,
+Success: `200` with `access_token` (`token_type` DPoP, `cnf.jkt` = the `dpop_jkt` key, else the first app's key, and the login's `sid`), `id_token` (`aud` = second app,
 same `sub` and `sid`, no `ds_hash`), `issued_token_type`, `expires_in`, `scope`. No `device_secret` and no `ds_hash`.
 
 Example with the values shortened (a worked run with real tokens is the Postman folder, request "Card 01 Token exchange with the device secret"):

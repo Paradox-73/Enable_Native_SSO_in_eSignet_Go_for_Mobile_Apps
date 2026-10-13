@@ -67,3 +67,24 @@ func (suite *TokenHandlerTestSuite) TestHandleTokenRequest_InteractionRequiredWi
 	assert.Len(suite.T(), response, 2)
 	assert.NotContains(suite.T(), response, "consent_uri")
 }
+
+// F2: the token endpoint passes dpop_jkt on to the grant handlers; the Native SSO exchange binds the
+// second app's tokens to it.
+func (suite *TokenHandlerTestSuite) TestHandleTokenRequest_PassesDPoPJkt() {
+	handler := suite.newHandler()
+	formData := url.Values{}
+	formData.Set("grant_type", string(providers.GrantTypeTokenExchange))
+	formData.Set("dpop_jkt", "Q2hpbGRBcHBEUG9QS2V5VGh1bWJwcmludDQzY2hhcnM")
+	req := suite.withClientContext(suite.buildRequest(formData), &providers.OAuthClient{ClientID: "test-client-id"})
+
+	suite.mockTokenService.EXPECT().
+		ProcessTokenRequest(mock.Anything, mock.MatchedBy(func(r *model.TokenRequest) bool {
+			return r.DPoPJkt == "Q2hpbGRBcHBEUG9QS2V5VGh1bWJwcmludDQzY2hhcnM"
+		}), mock.Anything).
+		Return(nil, &model.ErrorResponse{Error: constants.ErrorInvalidGrant, ErrorDescription: "stop here"})
+
+	rr := httptest.NewRecorder()
+	handler.HandleTokenRequest(rr, req)
+
+	assert.Equal(suite.T(), http.StatusBadRequest, rr.Code)
+}

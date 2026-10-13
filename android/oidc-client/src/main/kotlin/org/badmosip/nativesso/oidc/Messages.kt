@@ -95,15 +95,20 @@ public data class TokenResponse(
  * @property deviceSecret the Super App's device secret, sent as actor_token
  * @property scope what the Child App asks for: must hold openid, must not hold device_sso, and
  *   should be a subset of the Super App's granted scope (the server enforces that)
+ * @property dpopJkt RFC 7638 thumbprint of the Child App's own DPoP key, sent as `dpop_jkt`: the
+ *   issued tokens are bound to it, so the Child App signs its own proofs for every later call. Null
+ *   binds them to the key of the request's proof, the Super App's.
  */
 public data class DeviceSecretExchange(
     val idToken: String,
     val deviceSecret: String,
     val scope: Set<String>,
+    val dpopJkt: String? = null,
 ) {
     init {
         require(idToken.isNotBlank()) { "idToken must not be blank" }
         require(deviceSecret.isNotBlank()) { "deviceSecret must not be blank" }
+        require(dpopJkt == null || JKT.matches(dpopJkt)) { "dpopJkt must be a SHA-256 thumbprint: 43 base64url characters" }
         require(Scopes.OPENID in scope) { "the exchange scope must include openid (Native SSO 1.0 section 4.1)" }
         require(Scopes.DEVICE_SSO !in scope) {
             "a token exchange must not ask for device_sso: only the interactive login gets a device secret"
@@ -111,4 +116,8 @@ public data class DeviceSecretExchange(
     }
 
     override fun toString(): String = "DeviceSecretExchange(scope=$scope)"
+
+    private companion object {
+        val JKT = Regex("[A-Za-z0-9_-]{43}")
+    }
 }

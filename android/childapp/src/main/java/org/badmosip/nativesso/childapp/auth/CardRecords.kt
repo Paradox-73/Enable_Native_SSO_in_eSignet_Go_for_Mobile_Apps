@@ -85,9 +85,9 @@ data class CardConfig(
     }
 }
 
-/** Which DPoP key Health Card's access token is bound to. */
+/** How Health Card signed in. Either way its access token is bound to Health Card's own DPoP key. */
 enum class Binding {
-    /** Token exchange: bound to Hub's key, so userinfo needs a proof signed by Hub. */
+    /** Token exchange with Hub's sign-in; Hub signed only the exchange proof. */
     HUB,
 
     /** Health Card's own browser login (re-consent): bound to Health Card's own key. */

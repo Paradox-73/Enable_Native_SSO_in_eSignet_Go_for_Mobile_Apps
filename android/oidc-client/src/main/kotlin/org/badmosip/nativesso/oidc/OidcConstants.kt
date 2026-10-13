@@ -63,6 +63,13 @@ public object DpopHttp {
 
     /** JWS "typ" of a proof (RFC 9449 section 4.2). */
     public const val PROOF_TYPE: String = "dpop+jwt"
+
+    /**
+     * Request parameter naming the thumbprint of the key the issued tokens are bound to (RFC 9449
+     * section 10). In the Native SSO token exchange eSignet binds the Child App's tokens to it, while
+     * the DPoP header still proves the Super App's key.
+     */
+    public const val JKT_PARAM: String = "dpop_jkt"
 }
 
 /** Space-separated scope string helpers (RFC 6749 section 3.3). */
