@@ -26,6 +26,7 @@ func Initialize(
 	cfg oauthconfig.Config,
 	storeProvider providers.RuntimeStoreProvider,
 	transactioner providers.Transactioner,
+	browserBinder ConsentBrowserBinder,
 ) (AuthorizeServiceInterface, error) {
 	authzCodeStore := newAuthorizationCodeStore(storeProvider)
 	authzReqStore := newAuthorizationRequestStore(storeProvider, cfg.OAuth.AuthorizationRequest.ValidityPeriod)
@@ -35,6 +36,9 @@ func Initialize(
 		authzCodeStore, authzReqStore, parService, transactioner, criteriaRevoker, cfg,
 	)
 	authzHandler := newAuthorizeHandler(authzService, cfg)
+	if h, ok := authzHandler.(*authorizeHandler); ok {
+		h.browserBinder = browserBinder
+	}
 	registerRoutes(mux, authzHandler)
 	return authzService, nil
 }

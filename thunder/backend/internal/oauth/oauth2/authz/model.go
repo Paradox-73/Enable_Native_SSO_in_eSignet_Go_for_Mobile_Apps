@@ -64,6 +64,9 @@ type AuthZPostResponse struct {
 // AuthorizationInitResult holds the result of a successful initial authorization request processing.
 type AuthorizationInitResult struct {
 	QueryParams map[string]string
+	// DeviceSSO is true when the request asks for device_sso (OpenID Connect Native SSO): the handler then
+	// marks the browser for the consent page of a later consent-only re-consent.
+	DeviceSSO bool
 }
 
 // AuthorizationError holds structured error info for authorization failures.

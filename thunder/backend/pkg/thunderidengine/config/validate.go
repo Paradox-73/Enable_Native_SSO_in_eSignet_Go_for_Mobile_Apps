@@ -187,6 +187,10 @@ func (c *NativeSSOConfig) Validate() error {
 		return fmt.Errorf("native_sso: consent_ticket_ttl_seconds must be between 0 and %d, got %d",
 			MaxNativeSSOConsentTicketTTLSeconds, c.ConsentTicketTTLSeconds)
 	}
+	if c.ConsentBrowserTTLSeconds < 0 {
+		return fmt.Errorf("native_sso: consent_browser_ttl_seconds must not be negative, got %d",
+			c.ConsentBrowserTTLSeconds)
+	}
 	// The consent page answers the interaction_required signal; with invalid_scope the app has no
 	// reason to open it, so the combination is a configuration mistake.
 	if c.ConsentOnlyReconsent && c.ScopeExceededErrorCode() != NativeSSOScopeExceededInteractionRequired {

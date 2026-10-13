@@ -390,6 +390,11 @@ type NativeSSOConfig struct {
 	// for it, for example health_card_share to "Share your health card with clinics". A scope with no
 	// entry is shown by its raw value.
 	ConsentScopeDescriptions map[string]string `yaml:"consent_scope_descriptions" json:"consent_scope_descriptions"`
+	// ConsentBrowserTTLSeconds is how long the browser of a device_sso login can answer consent pages for
+	// that login. The authorization endpoint sets a cookie in that browser, and the consent page accepts an
+	// answer only with it, so the app that receives the consent_uri cannot answer for the user. Set it to the
+	// device secret lifetime; 0 means DefaultNativeSSOConsentBrowserTTLSeconds.
+	ConsentBrowserTTLSeconds int64 `yaml:"consent_browser_ttl_seconds" json:"consent_browser_ttl_seconds"`
 }
 
 // Limits of NativeSSOConfig.ConsentTicketTTLSeconds.
@@ -398,6 +403,8 @@ const (
 	DefaultNativeSSOConsentTicketTTLSeconds int64 = 300
 	// MaxNativeSSOConsentTicketTTLSeconds keeps a consent_uri short-lived: ten minutes at most.
 	MaxNativeSSOConsentTicketTTLSeconds int64 = 600
+	// DefaultNativeSSOConsentBrowserTTLSeconds is eight hours, eSignet's default device secret lifetime.
+	DefaultNativeSSOConsentBrowserTTLSeconds int64 = 28800
 )
 
 // ConsentTicketTTL returns ConsentTicketTTLSeconds, or the default when it is not set.
@@ -406,6 +413,14 @@ func (c NativeSSOConfig) ConsentTicketTTL() int64 {
 		return DefaultNativeSSOConsentTicketTTLSeconds
 	}
 	return c.ConsentTicketTTLSeconds
+}
+
+// ConsentBrowserTTL returns ConsentBrowserTTLSeconds, or the default when it is not set.
+func (c NativeSSOConfig) ConsentBrowserTTL() int64 {
+	if c.ConsentBrowserTTLSeconds <= 0 {
+		return DefaultNativeSSOConsentBrowserTTLSeconds
+	}
+	return c.ConsentBrowserTTLSeconds
 }
 
 // ScopeExceededErrorCode returns the configured ScopeExceededError, or interaction_required when

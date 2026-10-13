@@ -475,7 +475,8 @@ func (as *authorizeService) initiateFlowAndStoreRequest(
 		queryParams[oauth2const.ShowInsecureWarning] = "true"
 	}
 
-	return &AuthorizationInitResult{QueryParams: queryParams}, nil
+	return &AuthorizationInitResult{QueryParams: queryParams,
+		DeviceSSO: nativesso.RequestsDeviceSSO(oauthParams.StandardScopes)}, nil
 }
 
 // HandleAuthorizationCallback processes the callback assertion from the flow engine. The assertion is

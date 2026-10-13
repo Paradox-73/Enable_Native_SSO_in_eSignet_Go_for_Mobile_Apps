@@ -4,13 +4,17 @@
 package authz
 
 import (
+	"context"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	oauthconfig "github.com/thunder-id/thunderid/internal/oauth/config"
+	oauth2const "github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	oauth2model "github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
 )
 
@@ -44,4 +48,31 @@ func TestCreateAuthorizationCode_DeviceSSOCarriesAuthID(t *testing.T) {
 			assert.Contains(t, code.Scopes, tc.scopes[1])
 		})
 	}
+}
+
+// A login that asks for device_sso is flagged, so the handler marks its browser for the Native SSO consent
+// page of that login.
+func (suite *AuthorizeServiceTestSuite) TestHandleInitialAuthorizationRequest_DeviceSSOFlagged() {
+	app := suite.testApp()
+	suite.mockInboundClient.EXPECT().GetOAuthClientByClientID(mock.Anything, "test-client-id").Return(app, nil)
+	suite.mockValidator.On("validateInitialAuthorizationRequest", mock.Anything, mock.Anything, app).
+		Return(false, "", "")
+	suite.mockFlowExecService.EXPECT().InitiateFlow(mock.Anything, mock.Anything).Return("test-flow-id", nil)
+	suite.mockAuthReqStore.EXPECT().AddRequest(mock.Anything, mock.Anything).Return(testAuthID, nil)
+	msg := &OAuthMessage{
+		RequestType: oauth2const.TypeInitialAuthorizationRequest,
+		RequestQueryParams: url.Values{
+			"client_id":     {"test-client-id"},
+			"redirect_uri":  {"https://client.example.com/callback"},
+			"response_type": {"code"},
+			"scope":         {"openid device_sso"},
+		},
+	}
+
+	result, authErr := suite.newService().HandleInitialAuthorizationRequest(context.Background(), msg)
+
+	assert.Nil(suite.T(), authErr)
+	require.NotNil(suite.T(), result)
+	assert.True(suite.T(), result.DeviceSSO)
+	assert.Equal(suite.T(), testAuthID, result.QueryParams[oauth2const.AuthID])
 }

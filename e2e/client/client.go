@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"time"
@@ -47,6 +48,8 @@ type Client struct {
 // ("localhost:38088=esignet:8080,..."), so a client inside the compose network can use URLs
 // that name the public issuer without changing the issuer, htu or aud values.
 // Redirects are never followed: the authorize step reads the Location header itself.
+// The client keeps cookies, as the browser of a login does: the authorization endpoint marks the browser
+// of a device_sso login, and only that browser can answer the Native SSO consent page.
 func New(issuer, dialOverride string) (*Client, error) {
 	over := map[string]string{}
 	for _, pair := range strings.Split(dialOverride, ",") {
@@ -64,9 +67,14 @@ func New(issuer, dialOverride string) (*Client, error) {
 		},
 		Proxy: nil,
 	}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
 	c := &Client{
 		Issuer: strings.TrimRight(issuer, "/"),
 		HTTP: &http.Client{
+			Jar:           jar,
 			Transport:     tr,
 			Timeout:       30 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },

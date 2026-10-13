@@ -28,21 +28,42 @@ type pageFixture struct {
 	t       *testing.T
 	rs      *fakeRuntimeStore
 	store   ConsentStoreInterface
+	browser *ConsentBrowserBinding
 	actor   *actorprovidermock.ActorProviderMock
 	handler *ConsentPageHandler
 	mux     *http.ServeMux
 	now     time.Time
+	// cookie is what the browser of the login (auth-1) sends; nil plays any other client.
+	cookie *http.Cookie
 }
 
 func newPageFixture(t *testing.T) *pageFixture {
 	f := &pageFixture{t: t, rs: newFakeRuntimeStore(), actor: actorprovidermock.NewActorProviderMock(t)}
 	f.store = NewConsentStore(f.rs)
-	f.handler = NewConsentPageHandler(f.store, f.actor, testBaseURL, nil)
+	f.browser = NewConsentBrowserBinding(f.rs, true, 28800)
+	f.handler = NewConsentPageHandler(f.store, f.browser, f.actor, testBaseURL, nil)
 	f.now = time.Unix(1900000000, 0)
 	f.handler.now = func() time.Time { return f.now }
 	f.mux = http.NewServeMux()
 	RegisterConsentRoutes(f.mux, f.handler)
+	f.cookie = f.loginBrowser("auth-1")
 	return f
+}
+
+// loginBrowser marks a browser for the login authID, as the authorization endpoint does, and returns
+// the cookie it would keep.
+func (f *pageFixture) loginBrowser(authID string) *http.Cookie {
+	rec := httptest.NewRecorder()
+	require.NoError(f.t, f.browser.Bind(context.Background(), rec, authID))
+	cookies := rec.Result().Cookies()
+	require.Len(f.t, cookies, 1)
+	return cookies[0]
+}
+
+func (f *pageFixture) addCookie(req *http.Request) {
+	if f.cookie != nil {
+		req.AddCookie(&http.Cookie{Name: f.cookie.Name, Value: f.cookie.Value})
+	}
 }
 
 // expectNames lets the actor provider name both apps (the first one Hub).
@@ -70,6 +91,7 @@ func (f *pageFixture) issue(ticket ConsentTicket) string {
 func (f *pageFixture) get(value string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, constants.OAuth2NativeSSOConsentEndpoint+"?ticket="+
 		url.QueryEscape(value), nil)
+	f.addCookie(req)
 	rec := httptest.NewRecorder()
 	f.mux.ServeHTTP(rec, req)
 	return rec
@@ -79,9 +101,13 @@ func (f *pageFixture) post(form url.Values, headers map[string]string) *httptest
 	req := httptest.NewRequest(http.MethodPost, constants.OAuth2NativeSSOConsentEndpoint,
 		strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if headers == nil {
+		headers = map[string]string{"Origin": testBaseURL}
+	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+	f.addCookie(req)
 	rec := httptest.NewRecorder()
 	f.mux.ServeHTTP(rec, req)
 	return rec
@@ -263,6 +289,8 @@ func TestConsentPage_PostRejections(t *testing.T) {
 			map[string]string{"Sec-Fetch-Site": "cross-site"}, http.StatusForbidden},
 		{"same-site fetch", url.Values{"ticket": {value}, "decision": {"allow"}},
 			map[string]string{"Sec-Fetch-Site": "same-site"}, http.StatusForbidden},
+		{"neither Origin nor Sec-Fetch-Site", url.Values{"ticket": {value}, "decision": {"allow"}},
+			map[string]string{}, http.StatusForbidden},
 		{"unknown decision", url.Values{"ticket": {value}, "decision": {"maybe"}}, nil, http.StatusBadRequest},
 		{"no decision", url.Values{"ticket": {value}}, nil, http.StatusBadRequest},
 		{"malformed ticket", url.Values{"ticket": {"x"}, "decision": {"allow"}}, nil, http.StatusBadRequest},
@@ -318,7 +346,7 @@ func TestConsentPage_BadRegisteredRedirect(t *testing.T) {
 }
 
 func TestConsentPage_SameOriginWithBadBaseURL(t *testing.T) {
-	h := NewConsentPageHandler(nil, nil, "not a url", nil)
+	h := NewConsentPageHandler(nil, nil, nil, "not a url", nil)
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	req.Header.Set("Origin", "https://esignet.example")
 	assert.False(t, h.sameOrigin(req))
@@ -335,7 +363,98 @@ func TestRedirectSource(t *testing.T) {
 }
 
 func TestConsentPage_NilActorProvider(t *testing.T) {
-	h := NewConsentPageHandler(nil, nil, testBaseURL, nil)
+	h := NewConsentPageHandler(nil, nil, nil, testBaseURL, nil)
 	assert.Nil(t, h.client(context.Background(), "x"))
 	assert.Equal(t, "x", h.clientName(context.Background(), nil, "x"))
+}
+
+func TestConsentPage_SameOriginFetchWithoutOrigin(t *testing.T) {
+	f := newPageFixture(t)
+	f.expectNames("Health Card")
+	value := f.issue(testTicket())
+	rec := f.post(url.Values{"ticket": {value}, "decision": {"allow"}},
+		map[string]string{"Sec-Fetch-Site": "same-origin"})
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+}
+
+// The app that receives the consent_uri can read the ticket and post the form itself, as a plain HTTP
+// client or in its own web view. Neither has the cookie of the browser where the user logged in, so the
+// page shows no choice, records nothing and leaves the ticket for the user.
+func TestConsentPage_OnlyTheLoginBrowserCanAnswer(t *testing.T) {
+	cases := []struct {
+		name   string
+		cookie func(f *pageFixture) *http.Cookie
+	}{
+		{"no cookie (the app's own client)", func(*pageFixture) *http.Cookie { return nil }},
+		{"cookie of another login", func(f *pageFixture) *http.Cookie { return f.loginBrowser("auth-2") }},
+		{"forged value", func(f *pageFixture) *http.Cookie {
+			return &http.Cookie{Name: ConsentBrowserCookieName("auth-1"), Value: "forged"}
+		}},
+		{"empty value", func(f *pageFixture) *http.Cookie {
+			return &http.Cookie{Name: ConsentBrowserCookieName("auth-1"), Value: ""}
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newPageFixture(t)
+			value := f.issue(testTicket())
+			f.cookie = c.cookie(f)
+
+			page := f.get(value)
+			assert.Equal(t, http.StatusForbidden, page.Code)
+			assertPageHeaders(t, page)
+			assert.Contains(t, page.Body.String(), "only in the browser where you signed in")
+			assert.NotContains(t, page.Body.String(), "consent-allow")
+
+			answer := f.post(url.Values{"ticket": {value}, "decision": {"allow"}},
+				map[string]string{"Origin": testBaseURL, "Sec-Fetch-Site": "same-origin"})
+			assert.Equal(t, http.StatusForbidden, answer.Code)
+			assert.Contains(t, answer.Body.String(), "only in the browser where you signed in")
+
+			granted, err := f.store.GrantedScopes(context.Background(), "sid-1", "health-card", "psut-1")
+			require.NoError(t, err)
+			assert.Nil(t, granted, "nothing recorded")
+			peeked, err := f.store.PeekTicket(context.Background(), value)
+			require.NoError(t, err)
+			assert.NotNil(t, peeked, "the ticket is left for the user")
+		})
+	}
+}
+
+func TestConsentPage_TicketWithoutAuthIDIsNotAnswered(t *testing.T) {
+	f := newPageFixture(t)
+	ticket := testTicket()
+	ticket.AuthID = ""
+	value := f.issue(ticket)
+	assert.Equal(t, http.StatusForbidden, f.get(value).Code)
+	assert.Equal(t, http.StatusForbidden, f.post(url.Values{"ticket": {value}, "decision": {"allow"}}, nil).Code)
+}
+
+func TestConsentPage_NoBrowserBindingAcceptsNothing(t *testing.T) {
+	f := newPageFixture(t)
+	f.handler.browser = nil
+	value := f.issue(testTicket())
+	assert.Equal(t, http.StatusForbidden, f.get(value).Code)
+	assert.Equal(t, http.StatusForbidden, f.post(url.Values{"ticket": {value}, "decision": {"allow"}}, nil).Code)
+}
+
+func TestConsentPage_BrowserCheckStoreError(t *testing.T) {
+	f := newPageFixture(t)
+	value := f.issue(testTicket())
+	// The ticket is read first, then the browser record: fail only the second read.
+	f.rs.getErrAfter = 1
+	f.rs.getErr = errFakeStore
+	assert.Equal(t, http.StatusInternalServerError, f.get(value).Code)
+
+	f.rs.getErrAfter = 1
+	assert.Equal(t, http.StatusInternalServerError,
+		f.post(url.Values{"ticket": {value}, "decision": {"allow"}}, nil).Code)
+}
+
+func TestConsentPage_PostPeekStoreError(t *testing.T) {
+	f := newPageFixture(t)
+	value := f.issue(testTicket())
+	f.rs.getErr = errFakeStore
+	rec := f.post(url.Values{"ticket": {value}, "decision": {"allow"}}, nil)
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }

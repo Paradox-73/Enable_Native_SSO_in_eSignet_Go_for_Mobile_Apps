@@ -369,7 +369,7 @@ func (h *tokenExchangeGrantHandler) scopeExceeded(ctx context.Context, oauthApp 
 	}
 	nssoCfg := h.cfg.OAuth.NativeSSO
 	if h.consentStore == nil || !nssoCfg.ConsentOnlyReconsent ||
-		errResp.Error != constants.ErrorInteractionRequired || dsClaims.ExpiresAt == 0 ||
+		errResp.Error != constants.ErrorInteractionRequired || dsClaims.ExpiresAt == 0 || dsClaims.AuthID == "" ||
 		!nativesso.ConsentOnlyEligible(missing, oauthApp, dsClaims.Claims) {
 		return errResp
 	}
@@ -385,6 +385,7 @@ func (h *tokenExchangeGrantHandler) scopeExceeded(ctx context.Context, oauthApp 
 		FirstClientID:  dsClaims.ClientID,
 		Subject:        dsClaims.Subject,
 		SessionID:      dsClaims.SessionID,
+		AuthID:         dsClaims.AuthID,
 		Scopes:         missing,
 		GrantExpiresAt: dsClaims.ExpiresAt,
 	}

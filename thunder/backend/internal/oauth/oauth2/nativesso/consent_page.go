@@ -35,25 +35,29 @@ const (
 var schemePattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*$`)
 
 // ConsentPageHandler serves the consent-only re-consent page: GET shows what the second app asks for,
-// POST records the answer and sends the browser back to the app. The consent ticket in the link is the
-// only credential: it was issued to the second app after it proved, in the token exchange, that it
-// holds the device secret, the id_token and the first app's DPoP key, it is valid for minutes and it
-// can be answered once. The approval it records is kept for that login session only and is used only
-// by a later token exchange that passes every binding check again.
+// POST records the answer and sends the browser back to the app. The consent ticket in the link was
+// issued to the second app after it proved, in the token exchange, that it holds the device secret, the
+// id_token and the first app's DPoP key; it is valid for minutes and can be answered once. The ticket
+// alone is not enough, because the second app could post the answer itself: the page shows the choice
+// and records an answer only in the browser where the user logged in to the first app
+// (ConsentBrowserBinding). The approval is kept for that login session only and is used only by a later
+// token exchange that passes every binding check again.
 type ConsentPageHandler struct {
 	store         ConsentStoreInterface
+	browser       *ConsentBrowserBinding
 	actorProvider providers.ActorProvider
 	baseURL       string
 	descriptions  map[string]string
 	now           func() time.Time
 }
 
-// NewConsentPageHandler returns the handler of constants.OAuth2NativeSSOConsentEndpoint.
+// NewConsentPageHandler returns the handler of constants.OAuth2NativeSSOConsentEndpoint. browser tells
+// the browser of the login from any other client; without it no answer is accepted.
 // scopeDescriptions maps a scope value to the plain-language text the page shows for it
 // (NativeSSOConfig.ConsentScopeDescriptions); a scope without an entry is shown by its raw value.
-func NewConsentPageHandler(store ConsentStoreInterface, actorProvider providers.ActorProvider,
-	baseURL string, scopeDescriptions map[string]string) *ConsentPageHandler {
-	return &ConsentPageHandler{store: store, actorProvider: actorProvider, baseURL: baseURL,
+func NewConsentPageHandler(store ConsentStoreInterface, browser *ConsentBrowserBinding,
+	actorProvider providers.ActorProvider, baseURL string, scopeDescriptions map[string]string) *ConsentPageHandler {
+	return &ConsentPageHandler{store: store, browser: browser, actorProvider: actorProvider, baseURL: baseURL,
 		descriptions: scopeDescriptions, now: time.Now}
 }
 
@@ -97,6 +101,9 @@ func (h *ConsentPageHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		h.writeMessage(w, http.StatusBadRequest, "", msgExpired)
 		return
 	}
+	if !h.fromLoginBrowser(w, r, ticket) {
+		return
+	}
 
 	app := h.client(ctx, ticket.ClientID)
 	view := consentPageView{
@@ -119,7 +126,8 @@ func (h *ConsentPageHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandlePost records the user's answer. The ticket is used up first, so a second submission (a double
+// HandlePost records the user's answer. An answer from outside the browser of the login is refused
+// without using the ticket up. Otherwise the ticket is used up first, so a second submission (a double
 // tap, a replayed form) finds nothing and changes nothing.
 func (h *ConsentPageHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -137,7 +145,21 @@ func (h *ConsentPageHandler) HandlePost(w http.ResponseWriter, r *http.Request) 
 		h.writeMessage(w, http.StatusBadRequest, "", msgBadRequest)
 		return
 	}
-	ticket, err := h.store.TakeTicket(ctx, r.PostForm.Get(consentFormTicket))
+	value := r.PostForm.Get(consentFormTicket)
+	peeked, err := h.store.PeekTicket(ctx, value)
+	if err != nil && !errors.Is(err, ErrInvalidConsentTicket) {
+		h.logger().Error(ctx, "Failed to read a Native SSO consent ticket", log.Error(err))
+		h.writeMessage(w, http.StatusInternalServerError, "", msgServerError)
+		return
+	}
+	if peeked == nil {
+		h.writeMessage(w, http.StatusBadRequest, "", msgExpired)
+		return
+	}
+	if !h.fromLoginBrowser(w, r, peeked) {
+		return
+	}
+	ticket, err := h.store.TakeTicket(ctx, value)
 	if err != nil && !errors.Is(err, ErrInvalidConsentTicket) {
 		h.logger().Error(ctx, "Failed to take a Native SSO consent ticket", log.Error(err))
 		h.writeMessage(w, http.StatusInternalServerError, "", msgServerError)
@@ -187,15 +209,38 @@ func (h *ConsentPageHandler) HandlePost(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusSeeOther)
 }
 
-// sameOrigin rejects a form posted from another site. Browsers send Origin on every form POST; a
-// request without it (an older client or a test tool) still needs the unguessable ticket.
+// fromLoginBrowser reports whether r comes from the browser in which the user logged in to the first
+// app. When it does not, it answers with a message page and the page's choice is not shown.
+func (h *ConsentPageHandler) fromLoginBrowser(w http.ResponseWriter, r *http.Request, ticket *ConsentTicket) bool {
+	ctx := r.Context()
+	if h.browser == nil {
+		h.writeMessage(w, http.StatusForbidden, "", msgOtherBrowser)
+		return false
+	}
+	present, err := h.browser.Present(ctx, r, ticket.AuthID)
+	if err != nil {
+		h.logger().Error(ctx, "Failed to check the browser of a Native SSO consent", log.Error(err))
+		h.writeMessage(w, http.StatusInternalServerError, "", msgServerError)
+		return false
+	}
+	if !present {
+		AuditConsent(ctx, AuditConsentOtherBrowser, ticket)
+		h.writeMessage(w, http.StatusForbidden, "", msgOtherBrowser)
+		return false
+	}
+	return true
+}
+
+// sameOrigin rejects a form posted from another site. Browsers send Origin on every form POST, so a
+// request with neither Origin nor Sec-Fetch-Site same-origin did not come from this page.
 func (h *ConsentPageHandler) sameOrigin(r *http.Request) bool {
-	if site := r.Header.Get("Sec-Fetch-Site"); site == "cross-site" || site == "same-site" {
+	site := r.Header.Get("Sec-Fetch-Site")
+	if site == "cross-site" || site == "same-site" {
 		return false
 	}
 	origin := r.Header.Get("Origin")
 	if origin == "" {
-		return true
+		return site == "same-origin"
 	}
 	base, err := url.Parse(h.baseURL)
 	if err != nil || base.Scheme == "" || base.Host == "" {
@@ -299,9 +344,11 @@ func appendQuery(rawURI, name, value string) (string, error) {
 const (
 	msgExpired = "This permission request has expired or was already answered. Go back to the app and " +
 		"try again."
-	msgServerError       = "Something went wrong. Go back to the app and try again later."
-	msgBadRequest        = "This request could not be read. Go back to the app and try again."
-	msgForbidden         = "This request did not come from this page. Go back to the app and try again."
+	msgServerError  = "Something went wrong. Go back to the app and try again later."
+	msgBadRequest   = "This request could not be read. Go back to the app and try again."
+	msgForbidden    = "This request did not come from this page. Go back to the app and try again."
+	msgOtherBrowser = "This permission request can be answered only in the browser where you signed in. " +
+		"Go back to the app and try again, or sign in again."
 	msgGrantedNoRedirect = "Done. {app} now has the permission. Go back to {app}."
 	msgDeniedNoRedirect  = "Nothing changed. Go back to {app}."
 )

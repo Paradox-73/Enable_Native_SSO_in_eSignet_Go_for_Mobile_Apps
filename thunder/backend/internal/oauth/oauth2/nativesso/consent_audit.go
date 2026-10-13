@@ -21,6 +21,9 @@ const (
 	AuditConsentGranted = "native_sso_consent_granted"
 	// AuditConsentDenied: the user declined the extra scopes on the consent page.
 	AuditConsentDenied = "native_sso_consent_denied"
+	// AuditConsentOtherBrowser: the consent page was opened or answered outside the browser of the login
+	// (for example by the app that asked), and nothing was shown or recorded.
+	AuditConsentOtherBrowser = "native_sso_consent_other_browser"
 )
 
 // AuditConsent writes one audit line for ticket. It names the apps, the scopes and a short hash of
