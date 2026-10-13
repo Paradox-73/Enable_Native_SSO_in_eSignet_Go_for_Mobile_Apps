@@ -94,6 +94,7 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_Consent_PermissionScopeG
 	s.Equal(nssoHubClientID, ticket.FirstClientID)
 	s.Equal(testUserID, ticket.Subject)
 	s.Equal(nssoSessionID, ticket.SessionID)
+	s.Equal(nativeSSOAuthID, ticket.AuthID, "the consent page answers only in the browser of this login")
 	s.Equal([]string{nssoPermissionScope}, ticket.Scopes)
 	s.Equal(nssoChildRedirect, ticket.RedirectURI)
 	s.Equal(s.dsClaims.ExpiresAt, ticket.GrantExpiresAt)
@@ -191,6 +192,20 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_Consent_SeveralRedirectU
 func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_Consent_NoDeviceSecretExpiry() {
 	store := s.enableConsentOnly()
 	s.dsClaims.ExpiresAt = 0
+	s.request.Scope = "openid " + nssoPermissionScope
+	s.expectChecksPass()
+
+	_, errResp := s.handle()
+
+	s.assertError(errResp, constants.ErrorInteractionRequired)
+	s.Empty(errResp.ConsentURI)
+	s.Empty(store.issued)
+}
+
+// Without the auth_id of the login there is no browser to answer in, so no consent_uri is offered.
+func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_Consent_NoAuthID() {
+	store := s.enableConsentOnly()
+	s.dsClaims.AuthID = ""
 	s.request.Scope = "openid " + nssoPermissionScope
 	s.expectChecksPass()
 

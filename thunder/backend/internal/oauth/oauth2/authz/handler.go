@@ -25,9 +25,16 @@ type AuthorizeHandlerInterface interface {
 
 // authorizeHandler implements the AuthorizeHandlerInterface for handling OAuth2 authorization requests.
 type authorizeHandler struct {
-	cfg          oauthconfig.Config
-	authZService AuthorizeServiceInterface
-	logger       *log.Logger
+	cfg           oauthconfig.Config
+	authZService  AuthorizeServiceInterface
+	browserBinder ConsentBrowserBinder
+	logger        *log.Logger
+}
+
+// ConsentBrowserBinder marks the browser of a device_sso login, so that only this browser can answer the
+// Native SSO consent page of that login (nativesso.ConsentBrowserBinding).
+type ConsentBrowserBinder interface {
+	Bind(ctx context.Context, w http.ResponseWriter, authID string) error
 }
 
 // newAuthorizeHandler creates a new instance of authorizeHandler with injected dependencies.
@@ -71,6 +78,12 @@ func (ah *authorizeHandler) HandleAuthorizeGetRequest(w http.ResponseWriter, r *
 		return
 	}
 
+	if result.DeviceSSO && ah.browserBinder != nil {
+		// Without the mark the login still works; only a later consent-only re-consent needs a new login.
+		if err := ah.browserBinder.Bind(ctx, w, result.QueryParams[oauth2const.AuthID]); err != nil {
+			ah.logger.Error(ctx, "Failed to mark the browser for Native SSO consent", log.Error(err))
+		}
+	}
 	ah.redirectToLoginPage(w, r, result.QueryParams)
 }
 

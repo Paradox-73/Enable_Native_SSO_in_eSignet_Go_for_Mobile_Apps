@@ -28,6 +28,8 @@ type fakeRuntimeStore struct {
 	putErr  error
 	getErr  error
 	takeErr error
+	// getErrAfter lets that many Get calls succeed before getErr applies (0: getErr applies at once).
+	getErrAfter int
 }
 
 func newFakeRuntimeStore() *fakeRuntimeStore {
@@ -50,7 +52,10 @@ func (f *fakeRuntimeStore) Put(_ context.Context, ns providers.RuntimeStoreNames
 
 func (f *fakeRuntimeStore) Get(_ context.Context, ns providers.RuntimeStoreNamespace, key string) ([]byte, error) {
 	if f.getErr != nil {
-		return nil, f.getErr
+		if f.getErrAfter == 0 {
+			return nil, f.getErr
+		}
+		f.getErrAfter--
 	}
 	return f.data[f.key(ns, key)], nil
 }
@@ -66,7 +71,7 @@ func (f *fakeRuntimeStore) Take(_ context.Context, ns providers.RuntimeStoreName
 
 func testTicket() ConsentTicket {
 	return ConsentTicket{
-		ClientID: "health-card", FirstClientID: "hub", Subject: "psut-1", SessionID: "sid-1",
+		ClientID: "health-card", FirstClientID: "hub", Subject: "psut-1", SessionID: "sid-1", AuthID: "auth-1",
 		Scopes: []string{"health_card_share"}, RedirectURI: "org.example.card://oauth/callback",
 		GrantExpiresAt: 2000000000,
 	}

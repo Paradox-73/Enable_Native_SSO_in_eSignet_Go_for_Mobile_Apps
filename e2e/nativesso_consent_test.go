@@ -19,7 +19,9 @@ import (
 // R28: consent-only re-consent (bonus B1). A scope beyond the Hub's grant that needs no new user data
 // (the permission health_card_share) is approved on eSignet's consent page without a new login; the
 // approval counts for that login session and that app only, and a later exchange still passes every
-// binding check. A scope that needs new user data (phone) gets no consent page.
+// binding check. A scope that needs new user data (phone) gets no consent page. Only the browser of the
+// Hub's login can answer: the client c plays that browser (it kept the cookie of /oauth2/authorize), and
+// a second client plays the app that received the consent_uri.
 
 const (
 	permissionScope = "health_card_share"
@@ -151,6 +153,31 @@ func TestE2E_Exchange_ConsentOnlyReconsent(t *testing.T) {
 		}
 		if r.Status != http.StatusForbidden {
 			t.Errorf("cross-site POST: HTTP %d, want 403", r.Status)
+		}
+	})
+
+	t.Run("the app cannot answer for the user", func(t *testing.T) {
+		a := askConsent(t, c, f.exchange(f.child))
+		app := newClient(t)
+		page, err := app.Get(a.ConsentURI, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Status != http.StatusForbidden || strings.Contains(string(page.Body), "consent-allow") {
+			t.Errorf("consent page outside the login browser: HTTP %d %.200s", page.Status, page.Body)
+		}
+		r := answerConsent(t, app, a.ConsentURI, "allow")
+		if r.Status != http.StatusForbidden {
+			t.Fatalf("allow outside the login browser: HTTP %d Location %q, want 403", r.Status,
+				r.Header.Get("Location"))
+		}
+		record(t, "R28", r.Status, client.OAuthError{}, "allow posted by the app itself refused")
+		req := f.exchange(f.child)
+		req.Scope = consentScope
+		expectError(t, "R28", doExchange(t, c, req), http.StatusBadRequest, "interaction_required")
+		// The ticket was not used up: the user can still answer it in the browser.
+		if d := answerConsent(t, c, a.ConsentURI, "deny"); d.Status != http.StatusSeeOther {
+			t.Errorf("user's answer after the app's attempt: HTTP %d, want 303", d.Status)
 		}
 	})
 

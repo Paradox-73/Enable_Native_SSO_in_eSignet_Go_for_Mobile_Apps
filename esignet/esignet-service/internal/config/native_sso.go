@@ -99,6 +99,8 @@ func applyNativeSSODefaults(cfg *AppConfig) {
 		cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
 	cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds = int64(envIntOrConfigOrDefault(
 		"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS", int(cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds), 0))
+	// The browser of a login answers consent pages for as long as the login's device secret is valid.
+	cfg.OAuth.NativeSSO.ConsentBrowserTTLSeconds = cfg.NativeSSO.DeviceSecretValiditySeconds
 	cfg.OAuth.NativeSSO.ConsentScopeDescriptions = scopeDescriptionsFromEnv(
 		os.Getenv("MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS"),
 		cfg.OAuth.NativeSSO.ConsentScopeDescriptions)

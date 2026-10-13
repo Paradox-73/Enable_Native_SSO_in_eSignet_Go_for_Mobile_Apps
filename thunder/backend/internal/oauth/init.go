@@ -7,6 +7,7 @@ package oauth
 import (
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/thunder-id/thunderid/internal/attributecache"
 	"github.com/thunder-id/thunderid/internal/flow/flowexec"
@@ -89,8 +90,20 @@ func Initialize(
 		cfg, jwtService, jweService, resolver, idpService, enforcementService, jtiStore)
 	parService := par.Initialize(mux, actorProvider, authnProvider, jwtService, discoveryService,
 		resourceService, dpopVerifier, cfg, runtimeStore, jtiStore)
+	// Consent-only re-consent of Native SSO: the token exchange issues consent tickets and the consent
+	// page answers them, in the browser the authorization endpoint marked at the first app's login. All
+	// need the provider, the setting and the runtime store.
+	consentStore := newNativeSSOConsentStore(deviceSecretProvider, runtimeStore, cfg)
+	var consentBrowser *nativesso.ConsentBrowserBinding
+	var browserBinder oauth2authz.ConsentBrowserBinder
+	if consentStore != nil {
+		// The cookie is Secure whenever the consent page is served over TLS.
+		consentBrowser = nativesso.NewConsentBrowserBinding(runtimeStore,
+			strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://"), cfg.OAuth.NativeSSO.ConsentBrowserTTL())
+		browserBinder = consentBrowser
+	}
 	oauth2AuthzService, err := oauth2authz.Initialize(mux, actorProvider, resourceService,
-		jwtService, flowExecService, parService, revocationSvc, cfg, runtimeStore, transactioner)
+		jwtService, flowExecService, parService, revocationSvc, cfg, runtimeStore, transactioner, browserBinder)
 	if err != nil {
 		return nil, err
 	}
@@ -102,12 +115,9 @@ func Initialize(
 			discoveryService, resourceService, runtimeStore, jtiStore, cfg)
 	}
 
-	// Consent-only re-consent of Native SSO: the token exchange issues consent tickets and the consent
-	// page answers them. Both need the provider, the setting and the runtime store.
-	consentStore := newNativeSSOConsentStore(deviceSecretProvider, runtimeStore, cfg)
 	if consentStore != nil {
-		nativesso.RegisterConsentRoutes(mux, nativesso.NewConsentPageHandler(consentStore, actorProvider, cfg.BaseURL,
-			cfg.OAuth.NativeSSO.ConsentScopeDescriptions))
+		nativesso.RegisterConsentRoutes(mux, nativesso.NewConsentPageHandler(consentStore, consentBrowser,
+			actorProvider, cfg.BaseURL, cfg.OAuth.NativeSSO.ConsentScopeDescriptions))
 	}
 
 	grantHandlerProvider := granthandlers.Initialize(

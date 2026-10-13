@@ -44,6 +44,8 @@ type ConsentTicket struct {
 	Subject string `json:"sub"`
 	// SessionID is the sid of the login; the approval is kept for this login session only.
 	SessionID string `json:"sid"`
+	// AuthID is the auth_id of the login: the consent page answers only in the browser marked for it.
+	AuthID string `json:"auth_id"`
 	// Scopes are the extra scopes the user is asked to approve, in the order the app asked for them.
 	Scopes []string `json:"scopes"`
 	// RedirectURI is where the page sends the browser back to the app; empty when the app has no

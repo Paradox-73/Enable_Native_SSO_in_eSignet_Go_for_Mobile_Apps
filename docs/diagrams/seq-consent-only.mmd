@@ -14,10 +14,11 @@ sequenceDiagram
   C->>U: "Health Card needs your permission. No ID or OTP is needed."
   U->>C: Continue
   C->>B: Open consent_uri (only if it is the issuer's consent page)
-  B->>T: GET /oauth2/native-sso/consent?ticket=...
+  B->>T: GET /oauth2/native-sso/consent?ticket=... with the cookie set at Hub's login
+  T->>T: the cookie matches the login of the ticket (auth_id), without it 403 and no choice shown
   T-->>B: Page: Health Card asks for more than you allowed in Hub. Allow / Not now
   U->>B: Allow
-  B->>T: POST ticket, decision=allow (ticket used up, approval kept for this sid and app, audit line)
+  B->>T: POST ticket, decision=allow, same cookie (ticket used up, approval kept for this sid and app, audit line)
   T-->>B: 303 to Health Card redirect URI ?native_sso_consent=granted
   B-->>C: Redirect
   C->>H: signDpopProof(POST, token endpoint)

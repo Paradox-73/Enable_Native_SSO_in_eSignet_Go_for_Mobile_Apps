@@ -47,6 +47,8 @@ func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_Validate() {
 			config: NativeSSOConfig{ConsentTicketTTLSeconds: -1}, wantErr: "consent_ticket_ttl_seconds"},
 		{name: "consent ticket lifetime over ten minutes fails",
 			config: NativeSSOConfig{ConsentTicketTTLSeconds: 601}, wantErr: "consent_ticket_ttl_seconds"},
+		{name: "negative consent browser lifetime fails",
+			config: NativeSSOConfig{ConsentBrowserTTLSeconds: -1}, wantErr: "consent_browser_ttl_seconds"},
 	}
 	for _, tc := range cases {
 		suite.Run(tc.name, func() {
@@ -63,6 +65,11 @@ func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_Validate() {
 func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_ConsentTicketTTL() {
 	assert.Equal(suite.T(), DefaultNativeSSOConsentTicketTTLSeconds, NativeSSOConfig{}.ConsentTicketTTL())
 	assert.Equal(suite.T(), int64(120), NativeSSOConfig{ConsentTicketTTLSeconds: 120}.ConsentTicketTTL())
+}
+
+func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_ConsentBrowserTTL() {
+	assert.Equal(suite.T(), DefaultNativeSSOConsentBrowserTTLSeconds, NativeSSOConfig{}.ConsentBrowserTTL())
+	assert.Equal(suite.T(), int64(3600), NativeSSOConfig{ConsentBrowserTTLSeconds: 3600}.ConsentBrowserTTL())
 }
 
 func (suite *NativeSSOConfigTestSuite) TestNativeSSOConfig_ScopeExceededErrorCode() {

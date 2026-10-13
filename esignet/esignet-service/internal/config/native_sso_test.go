@@ -57,6 +57,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_Defaults() {
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
 	ts.False(cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
 	ts.EqualValues(0, cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds)
+	ts.EqualValues(28800, cfg.OAuth.NativeSSO.ConsentBrowserTTLSeconds, "the device secret lifetime")
 	ts.NoError(cfg.NativeSSO.Validate("RSA_2048"))
 	ts.NoError(cfg.OAuth.NativeSSO.Validate())
 }
@@ -95,6 +96,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML(
 
 	ts.Equal(NativeSSOConfig{Enabled: true, DeviceSecretValiditySeconds: 900, EncryptionKeyRefID: "ENV_ENC",
 		SigningKeyRefID: "ENV_SIGN"}, cfg.NativeSSO)
+	ts.EqualValues(900, cfg.OAuth.NativeSSO.ConsentBrowserTTLSeconds, "follows the device secret lifetime")
 	ts.EqualValues(120, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
 	ts.Equal("invalid_scope", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
