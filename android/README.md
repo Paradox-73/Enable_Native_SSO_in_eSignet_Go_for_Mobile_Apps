@@ -7,14 +7,14 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 - **Health Card** (Child App, `org.badmosip.nativesso.childapp`): signs the same user in without a
   password or OTP, by sending Hub's id_token and device secret to eSignet in a token exchange.
 
-> **State on 2026-10-06.** Built and tested: the Gradle project, shared signing, the binder contract,
-> the `oidc-client` library (68 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
+> **State on 2026-10-14.** Built and tested: the Gradle project, shared signing, the binder contract,
+> the `oidc-client` library (69 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
 > with eSignet, the family single sign-on service, "Sign out of all apps" that deletes the DPoP key and
 > revokes the device secret on eSignet: 64 JVM and Robolectric tests) and Health Card (silent sign-in by
 > token exchange, re-consent with and without a new login, sign-out, accessibility: 62 Robolectric and
 > JVM tests). On the emulator `bash android/scripts/run-ui-test.sh all` passed (`SuperAppSignInTest`,
 > `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest`, `ChildAppReconsentTest` with its "Not now"
-> step, `ChildAppSignOutTest`, `ChildAppHubMissingTest`: `OK (6 tests)` on 2026-10-06, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
+> step, `ChildAppSignOutTest`, `ChildAppHubMissingTest`: `OK (6 tests)` on 2026-10-14, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
 > [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)). Dated results:
 > [../docs/test-report.md](../docs/test-report.md); screenshots: [../docs/ux.md](../docs/ux.md#screenshots).
 
@@ -22,7 +22,7 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 
 | Module | Kind | What it holds |
 |---|---|---|
-| `oidc-client` | Kotlin/JVM library, no Android code | discovery, PKCE, DPoP proofs, `private_key_jwt`, PAR, authorization-code and Native SSO token-exchange requests, userinfo, `use_dpop_nonce` retry, RFC 7638 thumbprints, id_token checks including `ds_hash` and `sid`, typed errors |
+| `oidc-client` | Kotlin/JVM library, no Android code | discovery, PKCE, DPoP proofs, `private_key_jwt`, PAR, authorization-code and Native SSO token-exchange requests (with the optional `dpop_jkt` parameter, which the apps do not send), userinfo, `use_dpop_nonce` retry, RFC 7638 thumbprints, id_token checks including `ds_hash` and `sid`, typed errors |
 | `sso-contract` | Android library | `IFamilySso.aidl` and the `SsoBundle` parcelable, the permission, action and package names, error codes, a signing-certificate helper |
 | `secure-store` | Android library | `EncryptedFileStore`: one AES-256-GCM file per blob in `noBackupFilesDir`, key in Android Keystore (`KeystoreSecureStore`) |
 | `superapp` | Android app | Hub: sign-in with eSignet (Custom Tab, PAR, PKCE, DPoP, `private_key_jwt`), Keystore keys, encrypted token storage; the family single sign-on service (`sso/`); declares the family permission |

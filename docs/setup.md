@@ -9,7 +9,7 @@ How to install the tools, start the stack, run the tests and run both apps. Ever
 |---|---|
 | Windows 11, Git Bash, Docker Desktop (Linux containers) | the path that was run: every command in this repository's results was run here |
 | Linux (Ubuntu) | every job of `.github/workflows/ci.yml` was replayed in Linux containers on 2026-10-05 (ubuntu 24.04 for repo-lint, the Docker daemon for the Go jobs and e2e, eclipse-temurin 17 with Android SDK 34 for the Android job): all passed; the hosted GitHub Actions run of 2026-10-06 (ubuntu-24.04 runners, 2 CPUs) passed every job |
-| macOS | on 2026-10-13 (macOS 15, Apple silicon, Docker Desktop with 4 GB, GNU bash 5.3 from Homebrew) `repo-lint`, `docs-check`, the Go unit tests, `go-lint` and the 31 live e2e tests passed; the Android builds and the emulator were not run. The default `/bin/bash` 3.2 is too old: install bash 4.4 or newer (`brew install bash`). On Apple silicon use the `arm64-v8a` emulator image |
+| macOS | on 2026-10-13 (macOS 15, Apple silicon, Docker Desktop with 4 GB, GNU bash 5.3 from Homebrew) `repo-lint`, `docs-check`, the Go unit tests, `go-lint` and the 31 live e2e tests of that day passed; the Android builds and the emulator were not run. The default `/bin/bash` 3.2 is too old: install bash 4.4 or newer (`brew install bash`). On Apple silicon use the `arm64-v8a` emulator image |
 
 ## Prerequisites
 
@@ -63,8 +63,8 @@ bash scripts/with-stack.sh bash e2e/run.sh
 ```
 
 - It builds the eSignet image from this repository, starts the stack (about 30 to 40 s once the image is cached, 78 s the
-  first time), checks it (`stack smoke: PASS`), runs the 29 live tests, and removes the stack with its volumes.
-- Expected last lines: `e2e: 31 passed, 0 failed`. The suite waits out a real 120 s id_token lifetime, in parallel with the other tests (see the timing in the e2e log).
+  first time), checks it (`stack smoke: PASS`), runs the live tests, and removes the stack with its volumes.
+- Expected last lines: `e2e: 32 passed, 0 failed`. The suite waits out a real 120 s id_token lifetime, in parallel with the other tests (see the timing in the e2e log).
 - Leave the stack up for manual work: `PS03_KEEP_STACK=1 bash scripts/with-stack.sh true`, then
   `bash deploy/stack.sh down` when done. Other commands: `bash deploy/stack.sh status | logs [service]`.
 - The Postman folder: `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` (needs newman);

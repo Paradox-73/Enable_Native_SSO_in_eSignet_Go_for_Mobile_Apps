@@ -7,7 +7,7 @@ task on their own computer. How to set up a machine, build, test and commit: [..
 
 | Item | Value |
 |---|---|
-| Written | 2026-10-04; updated 2026-10-05 when all tasks were done, that evening after the full re-run, and 2026-10-06 after the hosted CI fix and the 5-test emulator run, and that evening after WP-19 (consent-only re-consent) and the 6-test re-run |
+| Written | 2026-10-04; updated 2026-10-05 when all tasks were done, that evening after the full re-run, 2026-10-06 after the hosted CI fix and the 5-test emulator run, that evening after WP-19 (consent-only re-consent) and the 6-test re-run, and 2026-10-14 after WP-20 (review fixes and a full re-run) |
 | `main` | all work is on `main`; [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) gets it at each push |
 | Unfinished work | none; the earlier `wip/2026-10-04-stop` branch was brought into `main` with WP-07 and deleted |
 | Deadline | 2026-10-26 23:59 IST (MOSIP Decode 2026, problem statement 03, team Badmosip) |
@@ -64,6 +64,7 @@ Update this file in the same pull request that changes a task's state (see [Defi
 | WP-17 | platform | Test report with dated evidence | WP-13, WP-14, WP-16 | DONE | see card |
 | WP-18 | platform | Documentation set and submission pack | WP-05, WP-16, WP-17 | DONE | see card |
 | WP-19 | thunder, android | Consent-only re-consent (B1 in full) and tests of the OAuth start-up code | WP-12, WP-15 | DONE | `28f42ee`, `e450de8`, `7464f37`, `0a03abc`, `ef69358` |
+| WP-20 | all | Review fixes of 2026-10-13/14 and a full re-run | WP-19 | DONE | `1c453a9` to `1f4aa6b` (server), `989200d`, `fd48556`, `2ec2c0d` and the docs commits after them |
 
 Results recorded for the DONE tasks (all on 2026-10-04, commands in [../CONTRIBUTING.md](../CONTRIBUTING.md)):
 
@@ -992,9 +993,38 @@ commit of that folder.
 - **Still open**
   - New user data (the phone number) still needs the own login with OTP (limit L02): MOSIP's identity system has no
     call that releases more claims for an existing authentication.
-  - The consent page shows a permission by its scope value, not by the resource server's description.
+  - The consent page shows a permission by its scope value, not by the resource server's description (fixed later: the page shows a configurable description since `1151dd6`).
   - Approvals are audit log lines, not eSignet consent records (design section 21).
   - Hosted CI has not run on these commits yet (GitHub Actions run of the next push).
+
+### WP-20 Review fixes of 2026-10-13/14 and a full re-run (DONE)
+
+- **Done 2026-10-14**. Sources: the teammate review of 2026-10-13 (findings F1 to F9) and a second review of the fixes.
+  - Consent presence (F1): the consent-only page records an answer only with an `HttpOnly` cookie that eSignet sets at
+    the user's `device_sso` login, under the base URL path. The app cannot approve for the user (threat T12).
+  - Sign-out (F3, L04): Health Card's access tokens carry the login `sid`; userinfo, introspection and the OpenID4VCI
+    endpoint refuse them once the session ended, and a generic token exchange checks the session of its subject token.
+  - id_token age (F7): the exchange refuses an id_token older than 3600 s (`invalid_grant`), configurable with
+    `id_token_max_age_seconds`; the check runs after the `ds_hash` and `sid` checks. This replaces the earlier decision
+    that an expired id_token is accepted while the device secret lives.
+  - Binding (F2): Health Card's token stays bound to Hub's key (same `cnf.jkt`), as the statement's diagram 2 shows, and
+    Hub signs the proofs for the token endpoint and for userinfo. The server also accepts the optional parameter
+    `dpop_jkt` (the second app's own key); the apps do not send it.
+  - Library (F9): `golang.org/x/text` v0.42.0, `x/net` v0.60.0; govulncheck reports 0 vulnerabilities in called code.
+  - Docs only: in-memory store and replicas (F8), the Thunder test scope (F6), bash 4.4 or newer (F4), stale limit text (F5).
+  - Tests: the UI test drivers now check the UIN field after typing (a cold emulator once lost the first characters and the
+    login timed out after 180 s); diagrams re-rendered (a `;` in a message had stopped Mermaid from parsing one source).
+- **Results (2026-10-14, `bash scripts/evidence.sh --run` and the emulator runs, `PS03_HELD_LOCKS` set, no lock directory)**
+  - Thunder @UT@; eSignet @UE@; e2e @E2E@ passed; newman @NR@ requests, @NA@ assertions, 0 failed.
+  - Android JVM: @JVM@ tests, 0 failed (oidc-client 69, secure-store 13, Hub 64, Health Card 62), run with `--rerun-tasks`.
+  - `run-ui-test.sh all`: `OK (6 tests)`; `run-family-tests.sh`: 5 steps PASS; `demo.sh --check`: demo ready, teardown ok, 328 s;
+    `demo.sh` (full, ended at once with Enter): demo ready, teardown ok, 192 s.
+- **Still open**
+  - Hub keeps saying "signed in" after the one-hour cap (it cannot see the cap).
+  - Each `device_sso` authorize request stores a small record for 8 hours before the user logs in (threat model, T12); a client
+    registered with `require_pushed_authorization_requests: true` (the demo Hub is) closes the path.
+  - One consent cookie per browser: a second `device_sso` login in the same browser invalidates the first login's consent page.
+  - The optional `dpop_jkt` key is not proven by the second app (the apps do not use it).
 
 ## Decisions that may change
 
@@ -1003,13 +1033,13 @@ Open questions for the mentor call on Wed 2026-10-07, 16:00 IST. Each answer is 
 | Question | Current choice | Where it is decided |
 |---|---|---|
 | Is `ds_hash` plus `sid` in the id_token the intended reading of "device secret embedded into the id_token" (T4a ix)? | `ds_hash` and `sid` in the id_token, device secret as its own response field | Thunder token builder (WP-07); D2 |
-| Child App tokens bound to Hub's DPoP key (T8), or to the Child App's own key? | Hub's key | WP-10, WP-15; D3 |
+| Child App tokens bound to Hub's DPoP key (T8), or to the Child App's own key? | Hub's key, as the statement's diagram 2 shows; the optional parameter `dpop_jkt` (own key) exists on the server and the apps do not use it | WP-10, WP-15, WP-20; D3 |
 | `interaction_required` or `invalid_scope` for a wider scope; OTP again on re-consent for new user data acceptable (permissions need no login since WP-19)? | `interaction_required`, plus `consent_uri` when consent alone is enough | `oauth.native_sso.scope_exceeded_error`; D6 |
 | "Same vendor" = same eSignet relying party, both clients allow `device_sso`? | yes | WP-10; D7 |
 | Meaning of `auth_id` and `claims` in the device secret | authorization request id; names of released claims | WP-07, WP-08 |
 | Client key held in Android Keystore instead of a backend? | Keystore key, not exportable | WP-09; design.md section 18 |
-| Expired id_token accepted while the device secret lives; default device-secret lifetime? | accepted; 28800 s (8 h) | `id_token_max_age_seconds`, `device_secret_validity_seconds`; D8 |
-| Server-side sign-out cascade needed? | done on 2026-10-05: Hub's sign-out deletes its DPoP key, then revokes the device secret (RFC 7009), which ends the session record (rule R27); issued access tokens live until they expire | Thunder `revocation/`, eSignet `EndDeviceSecretSession`, `HubAuthenticator.signOut` |
+| Expired id_token accepted while the device secret lives; default device-secret lifetime? | accepted for the device secret's lifetime (28800 s) until 2026-10-14; since WP-20 an id_token older than 3600 s is refused with `invalid_grant` | `id_token_max_age_seconds` (default 3600), `device_secret_validity_seconds`; D8 |
+| Server-side sign-out cascade needed? | done on 2026-10-05: Hub's sign-out deletes its DPoP key, then revokes the device secret (RFC 7009), which ends the session record (rule R27); since WP-20 Health Card's access tokens carry the session id (`sid`) and userinfo and introspection refuse them once the session has ended | Thunder `revocation/`, eSignet `EndDeviceSecretSession`, `HubAuthenticator.signOut` |
 
 Record each answer and the date in the notes of the affected task card.
 
