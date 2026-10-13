@@ -2,7 +2,7 @@
 
 How to run the Native SSO demo (Hub and Health Card on an Android emulator against the local eSignet stack) the same
 way every time, what to say and show for each of the 4 minutes 30 seconds of the video, and what to do when
-something fails. Written 2026-10-05.
+something fails. Written 2026-10-05, updated 2026-10-14.
 
 ## Status of this runbook
 
@@ -88,24 +88,15 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
    - In Hub tap "Sign out of all apps". Hub shows "You are signed out of Hub and of every app that used this
      sign-in."; its DPoP key is deleted and eSignet ends the device secret's session (rule R27).
    - Open Health Card: it clears its tokens and shows "Sign in to Hub first" with "Open Hub".
-5. **Health Card after a long wait** (rehearse once, more than 2 minutes after the Hub login): sign in to Hub
-   again, wait, open Health Card. It still signs in without a browser: the expired id_token is accepted while the
-   device secret lives (the device secret lives 8 hours by default).
+5. **Health Card after the one-hour cap** (rehearse only if you can wait an hour): sign in to Hub, wait more than 60 minutes,
+   clear Health Card's data and open it. The exchange is refused (`invalid_grant`, the id_token is older than 3600 s) and Health
+   Card shows "Your Hub sign-in has ended. Open Hub and sign in again." Hub still says "signed in": it cannot see the cap, so the
+   user signs out of Hub and in again. Within the hour an expired id_token is still accepted, so the demo flow above is not affected.
 
-## Video storyboard: 4 min 30 s
+## Video storyboard
 
-Narration is written to be read at a calm pace. Times are planned, not measured.
-
-| Time | Screen | Say | Show |
-|---|---|---|---|
-| 0:00-0:20 | Title card with the two app names | The problem: three apps from one publisher make the user sign in three times. Native SSO signs in once. | Slide: problem statement 03, team Badmosip |
-| 0:20-0:50 | Diagram `docs/diagrams/user-flow.png` | One sign-in in Hub; Hub holds a device secret; Health Card trades it for its own tokens at the token endpoint. | The user-flow diagram |
-| 0:50-1:30 | Hub: tap Sign in, Chrome login | Hub asks for the extra scope `device_sso`. eSignet answers with a device secret next to the tokens. The tokens are bound to Hub's key with DPoP. | Hub home, Chrome login with UIN and OTP, "Signed in as" |
-| 1:30-2:20 | Health Card opens | Health Card binds to Hub's service, which only answers apps signed with the same certificate. It sends the id_token and device secret to eSignet with its own client key. No browser, no OTP. | Health Card home, "With Hub's sign-in" line; Hub's "Apps using this sign-in" |
-| 2:20-3:10 | Re-consent | Health Card asks for a permission Hub's login did not include. eSignet answers `interaction_required` with a consent page: one tap, no login. For the phone number, which needs new user data, the user logs in once more. | Consent-only page, "Allowed"; consent screen, Chrome login, phone number on screen |
-| 3:10-3:40 | Sign out of all apps | Hub deletes its key and asks eSignet to end the device secret's session. No family app can sign in with it any more. | Hub sign out, Health Card "Sign in to Hub first" |
-| 3:40-4:10 | Terminal | The same rules are tested live: 31 of 31 end-to-end tests, 34 Postman requests with 125 assertions. | `e2e: 31 passed, 0 failed`; newman summary |
-| 4:10-4:30 | Closing slide | Thunder and eSignet changes, API docs, Postman collection, design doc, both apps. | Repository link, README |
+The shot-by-shot script (times, screens, narration, the rubric criterion each shot proves) is [video-script.md](video-script.md). The
+checks to make before recording are in [manual-test-checklist.md](manual-test-checklist.md).
 
 ## Timings
 
