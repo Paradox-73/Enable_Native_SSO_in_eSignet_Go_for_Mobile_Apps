@@ -353,7 +353,7 @@ pm.environment.set('ns_hub_sid', idt.sid);
 USERINFO_PRE = PRE + SIGN_HELPERS + r"""
 const at = pm.environment.get('%(tokenvar)s');
 pm.request.headers.upsert({ key: 'Authorization', value: 'DPoP ' + at });
-dpop('ns_hub_dpop_key', 'GET', '/oauth2/userinfo', at);
+dpop('%(dpopkey)s', 'GET', '/oauth2/userinfo', at);
 """
 
 USERINFO_TEST = PRE + r"""
@@ -367,7 +367,7 @@ pm.test('userinfo sub equals the sub of the id_token', () => pm.expect(claims.su
 
 userinfo_hub = item(
     "Hub 10 Userinfo with the Hub token", "GET", ISS + "/oauth2/userinfo",
-    pre=USERINFO_PRE % {"tokenvar": "ns_hub_access_token"},
+    pre=USERINFO_PRE % {"tokenvar": "ns_hub_access_token", "dpopkey": "ns_hub_dpop_key"},
     test=USERINFO_TEST % {"subvar": "ns_hub_sub", "extra": "pm.test('userinfo has the email claim', () => pm.expect(claims.email).to.be.a('string').and.not.empty);"})
 
 hub = [
@@ -456,11 +456,40 @@ exchange_ok = exchange(
 
 userinfo_card = item(
     "Card 02 Userinfo with the Health Card token", "GET", ISS + "/oauth2/userinfo",
-    pre=USERINFO_PRE % {"tokenvar": "ns_card_access_token"},
+    pre=USERINFO_PRE % {"tokenvar": "ns_card_access_token", "dpopkey": "ns_hub_dpop_key"},
     test=USERINFO_TEST % {"subvar": "ns_hub_sub", "extra": """pm.test('userinfo has the email claim (scope email)', () => pm.expect(claims.email).to.be.a('string').and.not.empty);
 pm.test('userinfo has no phone_number (scope phone not granted)', () => pm.expect(claims.phone_number).to.be.undefined);
 pm.test('userinfo has no name claim (scope profile not granted to the Health Card)', () => pm.expect(claims.name).to.be.undefined);"""},
     description="The Health Card token is bound to the Hub's DPoP key, so the userinfo proof is signed with that key and carries `ath`.")
+
+# The optional dpop_jkt profile extension (the demo apps do not send it): the Health Card names its own
+# DPoP key, and the access token is bound to that key instead of the Hub's.
+exchange_own_key = item(
+    "Card 03 Token exchange with dpop_jkt (optional extension)", "POST", ISS + "/oauth2/token",
+    pre=EXCHANGE_PRE % {"grant": GRANT_EX, "idtype": ID_TOKEN_TYPE, "dstype": DS_TYPE, "atype": ASSERT_TYPE,
+                        "overrides": """pm.environment.set('ns_card_dpop_key', JSON.stringify(L.newKey()));
+f.dpop_jkt = L.thumbprint(L.getKey('ns_card_dpop_key'));"""},
+    body=form([(k, "{{ns_ex_%s}}" % k) for k in EX_FIELDS + ["dpop_jkt"]]),
+    test=PRE + r"""
+pm.test('exchange answers 200', () => pm.response.to.have.status(200));
+const t = pm.response.json();
+pm.test('access token cnf.jkt is the Health Card key, not the Hub key', () =>
+  pm.expect(L.decodeJwt(t.access_token).payload.cnf.jkt).to.eql(L.thumbprint(L.getKey('ns_card_dpop_key'))));
+pm.environment.set('ns_card_own_access_token', t.access_token);
+""",
+    description="Profile extension, not used by the demo apps: `dpop_jkt` names the Health Card's own DPoP key. The DPoP header is still signed with the Hub's key (the device secret's `cnf.jkt`); the issued access token is bound to the named key. RFC 9449 section 10 defines `dpop_jkt` for the authorization request only.")
+
+userinfo_own_key = item(
+    "Card 04 Userinfo with the dpop_jkt token and the Health Card key", "GET", ISS + "/oauth2/userinfo",
+    pre=USERINFO_PRE % {"tokenvar": "ns_card_own_access_token", "dpopkey": "ns_card_dpop_key"},
+    test=USERINFO_TEST % {"subvar": "ns_hub_sub", "extra": ""},
+    description="The token from Card 03 is bound to the Health Card's key, so the proof is signed with that key.")
+
+USERINFO_REVOKED_TEST = r"""
+pm.test('userinfo answers 401 after the sign-out', () => pm.response.to.have.status(401));
+pm.test('the answer names invalid_token', () =>
+  pm.expect((pm.response.headers.get('WWW-Authenticate') || '') + pm.response.text()).to.include('invalid_token'));
+"""
 
 negatives = [
     exchange("Neg 01 Exchange: scope wider than the Hub grant -> interaction_required", "f.scope = 'openid email phone';",
@@ -545,13 +574,21 @@ pm.test('body is empty (RFC 7009 2.2)', () => pm.expect(pm.response.text()).to.e
     exchange("Rev 03 Exchange after the revocation -> invalid_grant", "",
              expect_error(400, "invalid_grant"),
              "The session of the device secret has ended, so the Health Card can no longer sign in with it."),
+    item("Rev 04 Card userinfo after the revocation -> 401", "GET", ISS + "/oauth2/userinfo",
+         pre=USERINFO_PRE % {"tokenvar": "ns_card_access_token", "dpopkey": "ns_hub_dpop_key"},
+         test=USERINFO_REVOKED_TEST,
+         description="The Health Card token from Card 01 (bound to the Hub key, the apps' path) carries the login's `sid`. The session ended at Rev 02, so userinfo refuses the token although it has not expired."),
+    item("Rev 05 Card userinfo with the dpop_jkt token after the revocation -> 401", "GET", ISS + "/oauth2/userinfo",
+         pre=USERINFO_PRE % {"tokenvar": "ns_card_own_access_token", "dpopkey": "ns_card_dpop_key"},
+         test=USERINFO_REVOKED_TEST,
+         description="Same for the token from Card 03 (the optional extension, bound to the Health Card key)."),
 ]
 
 cleanup = item(
     "99 Cleanup: remove keys and tokens from the environment", "GET", ISS + "/oauth2/jwks",
     pre=r"""
 ['hub', 'card', 'plain', 'other'].forEach((n) => ['key', 'pub', 'id'].forEach((s) => pm.environment.unset('ns_' + n + '_' + s)));
-['ns_hub_dpop_key', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',
+['ns_hub_dpop_key', 'ns_card_dpop_key', 'ns_card_own_access_token', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',
  'ns_card_id_token', 'ns_code', 'ns_code_verifier', 'ns_assertion', 'ns_challenge_token', 'ns_request_uri',
  'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt'].forEach((k) => pm.environment.unset(k));
 """,
@@ -563,7 +600,7 @@ FOLDER = {
     "item": [
         {"name": "Setup", "item": setup},
         {"name": "Hub sign-in (first app)", "item": hub},
-        {"name": "Health Card sign-in (second app)", "item": [exchange_ok, userinfo_card]},
+        {"name": "Health Card sign-in (second app)", "item": [exchange_ok, userinfo_card, exchange_own_key, userinfo_own_key]},
         {"name": "Negative cases", "item": negatives},
         {"name": "Revocation", "item": revocation},
         {"name": "Cleanup", "item": [cleanup]},

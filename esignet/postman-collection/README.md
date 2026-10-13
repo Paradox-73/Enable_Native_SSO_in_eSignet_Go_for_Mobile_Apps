@@ -146,10 +146,11 @@ Both **Initiate PAR** and **Exchange Code for Token** sign their own `private_ke
 
 The **Native SSO** folder runs OpenID Connect Native SSO for Mobile Apps 1.0 end to end against the local stack
 (`deploy/` at the repository root): a first app ("Hub") signs in with `device_sso` and receives a `device_secret`; a
-second app ("Health Card") of the same relying party signs in without a browser by token exchange. It has 34
+second app ("Health Card") of the same relying party signs in without a browser by token exchange. It has 38
 requests: setup (discovery check, four client registrations), the Hub sign-in, the Health Card exchange and userinfo,
-13 negative requests with tests, three revocation requests (only the Hub may revoke its device secret; the
-exchange fails afterwards), and a cleanup request.
+the same with the optional `dpop_jkt` profile extension (`Card 03`, `Card 04`; the demo apps do not send it),
+13 negative requests with tests, five revocation requests (only the Hub may revoke its device secret; the
+exchange fails afterwards, and userinfo refuses both Health Card tokens with 401), and a cleanup request.
 
 ### Run it in newman
 
@@ -159,7 +160,7 @@ bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh
 
 `with-stack.sh` starts the stack, runs the command and stops the stack. `run.sh` calls
 `newman run Go-eSignet.postman_collection.json -e "Go-eSignet Native SSO (local stack).postman_environment.json" --folder "Native SSO"`.
-It needs newman 6. Expected result: 34 requests, 0 failed.
+It needs newman 6. Expected result: 38 requests, 0 failed.
 
 ### Run it in the Postman app
 
@@ -195,6 +196,7 @@ Postman desktop app. To change the folder, edit `native-sso/lib.js` or `native-s
 | `client_mgmt_token` | you | Bearer JWT for `/client-mgmt/*`; empty on the local stack |
 | `ns_hub_*`, `ns_card_*`, `ns_plain_*`, `ns_other_*` (`_id`, `_key`, `_pub`) | script | Client ids and key pairs of the Hub, the Health Card, a client without `device_sso`, and an app of another relying party |
 | `ns_hub_dpop_key` | script | The Hub's DPoP key |
+| `ns_card_dpop_key`, `ns_card_own_access_token` | script | The Health Card's own DPoP key and the token bound to it (`dpop_jkt` extension, `Card 03`) |
 | `ns_request_uri`, `ns_auth_id`, `ns_execution_id`, `ns_challenge_token`, `ns_action_ref`, `ns_assertion`, `ns_code`, `ns_code_verifier`, `ns_state`, `ns_nonce` | script | State of the authorization and login steps |
 | `ns_device_secret`, `ns_hub_id_token`, `ns_hub_access_token`, `ns_card_id_token`, `ns_card_access_token`, `ns_hub_sub`, `ns_hub_sid` | script | Results of the token requests |
 

@@ -120,6 +120,25 @@ func (c *Client) Revoke(reg Registration, token, hint string) (*Response, error)
 	return c.PostForm(c.Disc.RevocationEndpoint, form, nil)
 }
 
+// Introspect asks the introspection endpoint (RFC 7662) about token, authenticated as reg with its
+// private_key_jwt.
+func (c *Client) Introspect(reg Registration, token string) (*Response, error) {
+	if c.Disc.IntrospectionEndpoint == "" {
+		return nil, errors.New("discovery has no introspection_endpoint")
+	}
+	assertion, err := ClientAssertion(reg.Key, reg.ClientID, c.Issuer)
+	if err != nil {
+		return nil, err
+	}
+	form := url.Values{
+		"client_id":             {reg.ClientID},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+		"client_assertion":      {assertion},
+		"token":                 {token},
+	}
+	return c.PostForm(c.Disc.IntrospectionEndpoint, form, nil)
+}
+
 func orDefault(v, def string) string {
 	if v == "" {
 		return def

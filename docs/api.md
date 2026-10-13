@@ -9,7 +9,7 @@ requests. The full request and response schemas are in the OpenAPI files; this p
 |---|---|
 | [../esignet/docs/esignet-openapi.yaml](../esignet/docs/esignet-openapi.yaml) | eSignet's public API as served on port 38088 (`/oauth2/par`, `/oauth2/authorize`, `/oauth2/token`, `/oauth2/revoke`, `/oauth2/userinfo`, `/client-mgmt/client`, discovery, login `/flow/execute`), with the Native SSO additions marked in each section and a client registration example for a Native SSO app |
 | [../thunder/api/oauth2.yaml](../thunder/api/oauth2.yaml) | Thunder's token endpoint with the Native SSO token exchange, and its revocation endpoint with device secrets (the file has no discovery path) |
-| [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | the Postman folder "Native SSO": 34 requests, how it signs, how to run it |
+| [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | the Postman folder "Native SSO": 38 requests, how it signs, how to run it |
 | [../esignet/docs/configuration.md](../esignet/docs/configuration.md) | the settings `oauth.native_sso.*` and `native_sso.*` and their `MOSIP_ESIGNET_NATIVE_SSO_*` variables |
 | [design.md](design.md) sections 6, 9, 11, 13, 14 | flows, device secret format, validation order, error table, configuration |
 | [../android/README.md](../android/README.md) | the binder contract between the two apps (`IFamilySso.aidl`) and the OpenID Connect client library |
@@ -134,7 +134,7 @@ user enters the UIN and a new OTP there. Full description: [oauth2.yaml](../thun
 
 | Way | Command | Needs |
 |---|---|---|
-| Newman (Postman CLI) | `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` | Docker, newman 6; 34 requests (results: [test-report.md](test-report.md)) |
+| Newman (Postman CLI) | `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` | Docker, newman 6; 38 requests (results: [test-report.md](test-report.md)) |
 | Postman app | import the collection and the environment "Go-eSignet Native SSO (local stack)", start the stack with `bash deploy/stack.sh up`, run the folder "Native SSO" top to bottom | Postman desktop; not run by the team (limit L07) for the upstream folders |
 | Go client | `bash scripts/with-stack.sh bash e2e/run.sh` | Docker; 31 live tests, `e2e/client` shows each request |
 

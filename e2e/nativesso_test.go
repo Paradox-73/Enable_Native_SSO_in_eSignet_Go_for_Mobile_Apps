@@ -15,6 +15,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -452,7 +453,8 @@ func TestE2E_Exchange_ChildTokens(t *testing.T) {
 	}
 }
 
-// R23: with dpop_jkt the Health Card's access token is bound to its own DPoP key, so it signs its own
+// R23, optional dpop_jkt profile extension (the demo apps do not send it): with dpop_jkt the Health
+// Card's access token is bound to its own DPoP key, so it signs its own
 // userinfo proofs and the Hub's key no longer works for that token. The exchange proof must still come
 // from the Hub's key (R14), and dpop_jkt must be a thumbprint.
 func TestE2E_Exchange_ChildOwnDPoPKey(t *testing.T) {
@@ -569,8 +571,19 @@ func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.tok = tok
+	// The apps' path: Health Card's token bound to the Hub key, Hub signs its userinfo proofs.
 	childTok := expectExchangeOK(t, "R27", doExchange(t, c, f.exchange(f.child)))
 	userinfoJWT(t, c, f.hubDPoP, childTok.AccessToken)
+	expectActive(t, c, f.child, childTok.AccessToken, true)
+	// The optional dpop_jkt extension: a token bound to Health Card's own key.
+	childKey, err := client.NewECKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownReq := f.exchange(f.child)
+	ownReq.DPoPJkt = childKey.Thumbprint()
+	ownTok := expectExchangeOK(t, "R27", doExchange(t, c, ownReq))
+	userinfoJWT(t, c, childKey, ownTok.AccessToken)
 
 	t.Run("other client of the vendor", func(t *testing.T) {
 		r, err := c.Revoke(f.child, f.tok.DeviceSecret, client.TokenTypeHintDeviceSecret)
@@ -592,11 +605,17 @@ func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 		record(t, "R27", r.Status, client.OAuthError{}, "device secret revoked by the Hub")
 		expectError(t, "R27", doExchange(t, c, f.exchange(f.child)), http.StatusBadRequest, "invalid_grant")
 
-		info, err := c.Userinfo(f.hubDPoP, childTok.AccessToken)
-		if err != nil {
-			t.Fatal(err)
+		for _, use := range []struct {
+			key   *client.ECKey
+			token string
+		}{{f.hubDPoP, childTok.AccessToken}, {childKey, ownTok.AccessToken}} {
+			info, err := c.Userinfo(use.key, use.token)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expectError(t, "R27", info, http.StatusUnauthorized, "invalid_token")
 		}
-		expectError(t, "R27", info, http.StatusUnauthorized, "invalid_token")
+		expectActive(t, c, f.child, childTok.AccessToken, false)
 	})
 
 	t.Run("again and unknown values are no-ops", func(t *testing.T) {
@@ -618,6 +637,23 @@ func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 		}
 		expectError(t, "R27", r, http.StatusBadRequest, "unsupported_token_type")
 	})
+}
+
+// expectActive checks the introspection answer (RFC 7662) for token, asked by reg.
+func expectActive(t *testing.T, c *client.Client, reg client.Registration, token string, want bool) {
+	t.Helper()
+	r, err := c.Introspect(reg, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Active bool `json:"active"`
+	}
+	if r.Status != http.StatusOK || r.JSON(&got) != nil || got.Active != want {
+		t.Errorf("R27: introspection HTTP %d %s, want 200 with active %v", r.Status, r.Body, want)
+		return
+	}
+	record(t, "R27", r.Status, client.OAuthError{}, fmt.Sprintf("introspection active=%v", want))
 }
 
 // Phase 2 (after an eSignet restart, which empties the in-memory runtime store).
