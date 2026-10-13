@@ -140,8 +140,15 @@ internal class CardUi {
                     screenshot("esignet-login-page")
                     fields.first().click()
                     typeText(uin)
-                    uinTyped = true
-                    step("UIN typed")
+                    // On a cold emulator the first characters can be lost: check the field and type again.
+                    val shown = device.findObject(By.pkg(CHROME).clazz("android.widget.EditText"))?.text.orEmpty()
+                    if (shown == uin) {
+                        uinTyped = true
+                        step("UIN typed")
+                    } else {
+                        step("UIN field shows \"$shown\"; clearing it to type again")
+                        device.findObject(By.pkg(CHROME).clazz("android.widget.EditText"))?.text = ""
+                    }
                     closeKeyboard()
                 }
                 else -> {
