@@ -268,6 +268,9 @@ func (tv *tokenValidator) ValidateSubjectToken(
 		if err := tv.ensureNotRevoked(ctx, revocationIdentity(claims, selfClaims.JTI, selfTokenFamilyID)); err != nil {
 			return nil, err
 		}
+		if err := tv.ensureNativeSSOSessionActive(ctx, claims); err != nil {
+			return nil, err
+		}
 		return selfClaims, nil
 	}
 

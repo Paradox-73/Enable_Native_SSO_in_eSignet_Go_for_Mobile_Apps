@@ -4,6 +4,7 @@
 package tokenservice
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -224,4 +225,26 @@ func (s *TokenValidatorNativeSSOTestSuite) TestAccessToken_NoNativeSSOSessionChe
 	s.jwtService.EXPECT().VerifyJWT(mock.Anything, withSID, "", nativeSSOTestIssuer).Return(nil)
 	_, err = s.validator.ValidateAccessToken(s.T().Context(), withSID)
 	s.NoError(err, "Native SSO off")
+}
+
+// Rule R27: a generic token exchange cannot revive or outlive a Native SSO access token whose login
+// session ended; ValidateSubjectToken applies the same session check as ValidateAccessToken.
+func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_NativeSSOSessionEnded() {
+	provider := devicesecretprovidermock.NewDeviceSecretProviderMock(suite.T())
+	suite.validator.deviceSecretProvider = provider
+	now := time.Now().Unix()
+	token := suite.createTestJWT(map[string]interface{}{
+		"sub": "user123", "iss": "https://example.com", "aud": suite.getDefaultAudience(),
+		"exp": float64(now + 3600), "scope": "openid", "sid": "session-1",
+	})
+	suite.mockJWTService.On("VerifyJWTSignature", mock.Anything, token).Return(nil)
+
+	provider.EXPECT().IsDeviceSecretSessionActive(mock.Anything, "session-1").Return(true, nil).Once()
+	_, err := suite.validator.ValidateSubjectToken(context.Background(), token, suite.oauthApp)
+	suite.NoError(err, "active session")
+
+	provider.EXPECT().IsDeviceSecretSessionActive(mock.Anything, "session-1").Return(false, nil).Once()
+	result, err := suite.validator.ValidateSubjectToken(context.Background(), token, suite.oauthApp)
+	suite.Nil(result)
+	suite.True(errors.Is(err, revocation.ErrTokenRevoked), "ended session: %v", err)
 }
