@@ -44,9 +44,9 @@ whose proof is signed by the first app's DPoP key (the key the device secret is 
 | `audience` | exactly the issuer, `http://localhost:38088` on the local stack |
 | `scope` | optional; must contain `openid`, must not contain `device_sso`, must lie within the first app's scope; default is that scope without `device_sso` |
 | `client_assertion_type`, `client_assertion` | the second app's own `private_key_jwt` (ES256, `aud` = issuer) |
-| `dpop_jkt` | optional (RFC 9449 section 10): SHA-256 thumbprint of the second app's own DPoP key; the issued access token is bound to it, so the second app signs its own proofs for userinfo and its APIs. Without it the token is bound to the first app's key. Not a 43-character base64url value: `invalid_request` |
+| `dpop_jkt` | optional eSignet profile extension, not sent by the demo apps. RFC 9449 section 10 defines `dpop_jkt` for the authorization request; at the token endpoint it is this profile's own parameter. Value: the SHA-256 thumbprint of the second app's own DPoP key; the issued access token is bound to it, so the second app signs its own proofs for userinfo and its APIs. Without it (the statement's flow) the token is bound to the first app's key, and the first app signs the second app's userinfo proofs. The named key is not proven (see the threat model, section 6). Not a 43-character base64url value: `invalid_request` |
 
-Success: `200` with `access_token` (`token_type` DPoP, `cnf.jkt` = the `dpop_jkt` key, else the first app's key, and the login's `sid`), `id_token` (`aud` = second app,
+Success: `200` with `access_token` (`token_type` DPoP, `cnf.jkt` = the first app's key, or the `dpop_jkt` key with the extension, and the login's `sid`), `id_token` (`aud` = second app,
 same `sub` and `sid`, no `ds_hash`), `issued_token_type`, `expires_in`, `scope`. No `device_secret` and no `ds_hash`.
 
 Example with the values shortened (a worked run with real tokens is the Postman folder, request "Card 01 Token exchange with the device secret"):

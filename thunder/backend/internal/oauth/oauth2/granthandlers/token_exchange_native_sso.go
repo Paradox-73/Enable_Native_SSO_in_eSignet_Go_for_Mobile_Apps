@@ -416,10 +416,9 @@ func (h *tokenExchangeGrantHandler) scopeExceeded(ctx context.Context, oauthApp 
 // 4.4, rule R23):
 //   - access token: the same user, the resolved scope, the attribute-cache id (aci) of the login so that
 //     userinfo answers with the claims the user released, and carrying the sid of the login, so that it
-//     stops working when that session ends (sign-out, rule R27). It is bound to the key the second app
-//     names in dpop_jkt (RFC 9449 section 10), so the second app signs its own proofs for every later
-//     call; without dpop_jkt, to the DPoP key of this request, which step 12 proved is the key of the
-//     device secret (statement task 8, decision D3);
+//     stops working when that session ends (sign-out, rule R27). It is bound to the DPoP key of this
+//     request, which step 12 proved is the key of the device secret (statement task 8, decision D3); with
+//     the optional dpop_jkt profile extension, to the key the second app names there instead;
 //   - id_token: aud is the second app, the same sub, sid, acr and auth_time as the login, and no ds_hash
 //     (no device secret is issued to the second app);
 //   - user attributes: only the claims both released to the first app (the device secret's claims) and
@@ -434,8 +433,8 @@ func (h *tokenExchangeGrantHandler) issueNativeSSOTokens(ctx context.Context, to
 		return nil, errResp
 	}
 
-	// The request's proof is the first app's key (step 12); the second app may name its own key to bind
-	// to. Binding to a key the requester does not hold only makes its own token unusable.
+	// The request's proof is the first app's key (step 12). With the dpop_jkt extension the second app names
+	// its own key; it is not proven here (threat model section 6).
 	boundJkt := dpop.GetJkt(ctx)
 	if tokenRequest.DPoPJkt != "" {
 		boundJkt = tokenRequest.DPoPJkt

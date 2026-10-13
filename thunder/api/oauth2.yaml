@@ -862,10 +862,12 @@ components:
           type: string
           pattern: '^[A-Za-z0-9_-]{43}$'
           description: >-
-            OpenID Connect Native SSO token exchange only, optional (RFC 9449 section 10): the SHA-256
-            JWK thumbprint of the requesting app's own DPoP key. The issued access token is bound to it,
-            while the DPoP header must still prove the key the device secret is bound to. Without it the
-            token is bound to the key of the DPoP header. Other grants ignore it.
+            OpenID Connect Native SSO token exchange only, optional profile extension. RFC 9449 section 10
+            defines dpop_jkt for the authorization request; at the token endpoint it is this profile's own.
+            The SHA-256 JWK thumbprint of the requesting app's own DPoP key: the issued access token is
+            bound to it, while the DPoP header must still prove the key the device secret is bound to. The
+            named key is not proven. Without it the token is bound to the key of the DPoP header. Other
+            grants ignore it.
         requested_token_type:
           type: string
           description: >-

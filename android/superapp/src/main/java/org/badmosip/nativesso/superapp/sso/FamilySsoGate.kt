@@ -53,10 +53,9 @@ class FamilySsoException(val code: Int, message: String) : Exception(message)
  * 3. Session: a sign-in with a device secret, that is, one the user agreed to share
  *    ("Share this sign-in with my other apps"). Otherwise [bundle] returns null and [signProof] refuses
  *    with `ERROR_NOT_SIGNED_IN`.
- * 4. Proofs only for `POST` to the token endpoint discovered at Hub's login, the one call the device
- *    secret needs Hub's key for. The family app binds the tokens it gets to its own key (`dpop_jkt`)
- *    and signs its own proofs for userinfo and other APIs. Hub builds every claim itself (fresh `jti`
- *    and `iat`) and the caller supplies only `ath` and `nonce`, both checked for shape.
+ * 4. Proofs only: `POST` to the token endpoint, `GET` or `POST` to the userinfo endpoint, both as
+ *    discovered at Hub's login; Hub builds every claim itself (fresh `jti` and `iat`) and the caller
+ *    supplies only `ath` and `nonce`, both checked for shape.
  *
  * Every successful [bundle] call is written to [accessLog] (package and time, never a token).
  */
@@ -106,7 +105,7 @@ class FamilySsoGate(
         val target = htu ?: throw IllegalArgumentException("htu is missing")
         if (!endpointAllowed(current, method, target)) {
             log("proof refused for $caller: $method to an endpoint that is not allowed")
-            throw FamilySsoException(FamilySsoContract.ERROR_HTU_NOT_ALLOWED, "Hub signs proofs only for its token endpoint")
+            throw FamilySsoException(FamilySsoContract.ERROR_HTU_NOT_ALLOWED, "Hub signs proofs only for its token and userinfo endpoints")
         }
         require(ath == null || ATH.matches(ath)) { "ath must be 43 base64url characters" }
         require(nonce == null || NONCE.matches(nonce)) { "nonce has characters or a length a DPoP nonce cannot have" }
@@ -135,7 +134,13 @@ class FamilySsoGate(
 
     private fun endpointAllowed(current: TokenBundle, htm: String, htu: String): Boolean {
         val target = exactUrl(htu) ?: return false
-        return htm == "POST" && target == current.tokenEndpoint?.let(::exactUrl)
+        val token = current.tokenEndpoint?.let(::exactUrl)
+        val userinfo = current.userinfoEndpoint?.let(::exactUrl)
+        return when (htm) {
+            "POST" -> target == token || target == userinfo
+            "GET" -> target == userinfo
+            else -> false
+        }
     }
 
     /** The URL as `htu` carries it, or null when it has a query, a fragment, user info or is not absolute http(s). */

@@ -150,9 +150,9 @@ class HubConnection(private val context: Context, private val timeoutMillis: Lon
 }
 
 /**
- * DPoP proofs from Hub, for the token exchange: the device secret is bound to Hub's key (statement
- * task 9 iii.4), so Health Card cannot sign that proof itself. Use inside [HubConnection.use]; a
- * refusal is thrown as [HubException].
+ * DPoP proofs from Hub, for the token exchange and userinfo: the device secret is bound to Hub's
+ * key (statement task 9 iii.4), so Health Card cannot sign them itself. Use inside
+ * [HubConnection.use]; a refusal is thrown as [HubException].
  */
 class HubDpopProofSource(private val service: IFamilySso) : DpopProofSource {
     override fun proof(request: DpopRequest): String =

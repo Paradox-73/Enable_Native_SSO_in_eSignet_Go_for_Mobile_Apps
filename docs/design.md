@@ -255,7 +255,7 @@ sequenceDiagram
   C->>H: signDpopProof(POST, token endpoint)
   H->>H: htm and htu allow-list, fresh jti and iat, sign with the Hub DPoP key
   H-->>C: DPoP proof
-  C->>T: POST /oauth2/token: token-exchange grant, subject_token = id_token, actor_token = device_secret, audience = issuer, scope openid email, dpop_jkt = Child App key, client_assertion, DPoP by the Hub key (task 8)
+  C->>T: POST /oauth2/token: token-exchange grant, subject_token = id_token, actor_token = device_secret, audience = issuer, scope openid email, client_assertion, DPoP by the Hub key (task 8)
   T->>T: Child App client auth, DPoP proof valid and not replayed
   T->>T: Token types, audience = issuer, no device_sso in scope, Child App allows device_sso and the grant
   T->>P: ValidateDeviceSecret(actor_token) (task 9 ii)
@@ -264,8 +264,12 @@ sequenceDiagram
   P-->>T: claims: client_id, sid, auth_id, scope, acr, claims, cnf.jkt
   T->>T: id_token: signature, iss, aud = Super App (expired is allowed), ds_hash, sid
   T->>T: Same relying party, Super App allows device_sso, cnf.jkt = DPoP key thumbprint, scope subset
-  T-->>C: 200 access_token (cnf.jkt = dpop_jkt, the Child App key, and sid), issued_token_type, token_type DPoP, id_token for Child App
+  T-->>C: 200 access_token (cnf.jkt = Hub key, and sid), issued_token_type, token_type DPoP, id_token for Child App
   C->>C: Check id_token, store tokens encrypted
+  C->>H: signDpopProof(GET, userinfo endpoint, ath)
+  H-->>C: DPoP proof signed with the Hub DPoP key
+  C->>T: GET /oauth2/userinfo with the access token and that proof
+  T-->>C: claims of the granted scope
   C->>U: Home screen: no browser, no prompt
 ```
 
@@ -283,7 +287,6 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 &actor_token_type=urn:openid:params:token-type:device-secret
 &audience=<issuer>
 &scope=openid email
-&dpop_jkt=<RFC 7638 thumbprint of the Child App's own DPoP key>
 &client_id=<Child App client id>
 &client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
 &client_assertion=<JWT signed with the Child App's own Keystore key>
@@ -293,8 +296,9 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
   (`oauth2/constants/constants.go:148`). The Native SSO example writes `id-token`; Thunder would reject it.
 - Response: `access_token`, `issued_token_type` = `urn:ietf:params:oauth:token-type:access_token`,
   `token_type` = `DPoP`, `expires_in`, `scope`, `id_token` (`aud` = Child App, same `sub`, same `sid`).
-- The access token is bound to the `dpop_jkt` key (D3), so the Child App signs its own userinfo proofs; the Super
-  App signs only the exchange proof and refuses any other endpoint.
+- The access token is bound to the Super App's key, the same `cnf.jkt` as the device secret (D3, statement sequence
+  diagram 2), so the Child App asks the Super App for a proof for each userinfo call. The Super App signs only `POST`
+  to its token endpoint and `GET` or `POST` to its userinfo endpoint, both exactly as discovered at its login.
 - The new access token carries the same attribute-cache id (`aci`, `tokenservice/builder.go:189-190`) as the Super
   App's, so `/oauth2/userinfo` returns the claims the user released, limited to the Child App's scope.
 
@@ -364,7 +368,7 @@ sequenceDiagram
   C->>H: signDpopProof(POST, token endpoint)
   C->>T: Same token exchange again
   T->>T: every binding check again, then the approval for this sid and app
-  T-->>C: 200 access token bound to the Child App key (dpop_jkt), scope includes health_card_share
+  T-->>C: 200 access token bound to the Hub key, scope includes health_card_share
 ```
 
 - When: every missing scope is allowed for the Child App, is not `openid` or `device_sso`, and releases no user
@@ -404,8 +408,8 @@ sequenceDiagram
   scopes, a hash of the `sid`; no user data,
   `sid` or ticket). eSignet's consent records are not written: `ConsentProvider.RecordConsent` reads the
   authorization request of a running flow and would replace the record of the Child App's own browser login.
-- Tokens: the same as any exchange (D3): bound to the key in `dpop_jkt` (the Child App's own), `sid` of the login,
-  claims limited as in section 12.
+- Tokens: the same as any exchange (D3): bound to the Super App's key, `sid` of the login, claims limited as in
+  section 12.
 
 ### 6.4 Sign-out
 
@@ -654,10 +658,10 @@ In the Native SSO branch of the token-exchange handler:
 12. The device secret's `cnf.jkt` equals the thumbprint of the key in this request's DPoP proof (task 9 iii.4),
     checked with Thunder's existing `dpop.VerifyProofBinding`, which answers `invalid_grant` (R14).
 13. Scope rules (task 10a): section [12](#12-scope-rules-and-re-consent).
-14. Issue tokens for the Child App: access token bound to the key the Child App names in `dpop_jkt` (RFC 9449
-    section 10; without it, to the same `cnf.jkt` as the device secret), `aud` and `client_id` of the Child App,
-    same `sub`, same attribute-cache id, the login's `sid`; id_token with `aud` = Child App, same `sub`, same `sid`
-    (R23). A `dpop_jkt` that is not a SHA-256 thumbprint is `invalid_request`.
+14. Issue tokens for the Child App: access token bound to the same `cnf.jkt` as the device secret (the key step 12
+    proved), `aud` and `client_id` of the Child App, same `sub`, same attribute-cache id, the login's `sid`; id_token
+    with `aud` = Child App, same `sub`, same `sid` (R23). With the optional `dpop_jkt` extension (D3) the access
+    token is bound to the key it names instead; a `dpop_jkt` that is not a SHA-256 thumbprint is `invalid_request`.
 
 ### 11.1 Why an expired id_token is accepted
 
@@ -772,7 +776,7 @@ The live tests also register a client of another relying party (`ps03-other-vend
 |---|---|---|---|---|
 | D1 | Build on eSignet v2.0.0 with the Thunder commit it pins (v1.0.1), not on eSignet `develop` or Thunder `main` | Released images and docs match; eSignet's `go.mod:75` pins this commit; reviewers can diff against a release | Thunder `main` already has `sid` but moves daily | 7 |
 | D2 | id_token carries `ds_hash` (at_hash construction) and `sid`; the device secret is its own response field | Native SSO 3.4.1: `ds_hash` binds and "MUST NOT leak any data"; copying the secret into the id_token would expose it to every party that sees the id_token | Put the device secret itself into an id_token claim | 1 |
-| D3 | The exchange request carries the Super App's DPoP proof (statement tasks 8 and 9 iii.4: the header key must be the device secret's `cnf.jkt`), and the Child App names its own DPoP key in `dpop_jkt`; the new tokens are bound to that key. Without `dpop_jkt` they are bound to the Super App's key, as before | With the Super App's key in the token, the Child App needed a Super App proof for every API call, so it could not call its own backend, and its tokens stopped working while the Super App was missing (review finding F2). RFC 9449 allows one DPoP header per request, so the Child App's key cannot be proven in the same request; binding to a key the requester does not hold only makes its own token unusable, and the first use at any resource server needs a proof from that key. Sign-out still ends the Child App's tokens at eSignet through the session check (R27) | Bind to the Super App's key only (the first version); a second proof in a request parameter (more code, no standard) | 2 |
+| D3 | The Child App's new tokens are bound to the Super App's DPoP key, the same `cnf.jkt` as the device secret (statement task 8 and its sequence diagram 2), and the Super App signs the Child App's userinfo proofs. Optional profile extension, off in the demo apps: a Child App may send `dpop_jkt`, the thumbprint of its own DPoP key, and the access token is bound to that key; the exchange proof is still the Super App's (tasks 8 and 9 iii.4). RFC 9449 section 10 defines `dpop_jkt` for the authorization request only; at the token endpoint it is this profile's own parameter, not standard RFC 9449 behaviour | The statement asks for it; one hardware key represents the device; signing out of the Super App ends every sibling token at once. The extension is for a Child App that must call its own backend without the Super App. Its cost: the `dpop_jkt` key is never proven (one DPoP header per request, and the Super App's proof does not cover the form body), so code running inside a family app can bind a token to a key that can leave the phone (threat model section 6) | Child App's own key by default (breaks diagram 2 for a Child App that asks the Super App for userinfo proofs); a key attestation for the `dpop_jkt` key (closes the extension's gap, more code) | 2 |
 | D4 | Device secret = JWS (ES256, `typ` `ds+jwt`, `SignRaw`) inside JWE (RSA-OAEP-256 + A256GCM, `JWTEncrypt`) with keys from eSignet's keymanager | Statement task 6; Native SSO 6.1; RFC 8725 3.11/3.12; FAPI 2.0 6.8 separate keys; no raw keys in code | Symmetric `dir` JWE with a key in a config file | - |
 | D5 | Server-side session record keyed by `sid` in the runtime store; no personal data in the device secret | A pure self-contained token cannot be ended; Native SSO 4.3 step 4 needs a session to check; same store as PAR and codes | Stateless device secret carrying user claims | 10 |
 | D6 | Scope wider than the grant: `interaction_required` by default, `invalid_scope` by setting; `device_sso` in an exchange: `invalid_scope`; narrower: allowed | Native SSO 4.4 "MUST return" `interaction_required`; it still fails the exchange (task 10a) and starts re-consent (bonus) | `invalid_scope` only | 3 |
@@ -797,7 +801,7 @@ The live tests also register a client of another relying party (`ps03-other-vend
 | `audience` | Not mentioned | Native SSO 4.1: REQUIRED, the issuer | Enforced, `invalid_target` (R18) |
 | id_token expiry | Task 9 iii: "validating the id_token" | Native SSO 6.3: may be expired | Accepted while bound checks pass (D8) |
 | Refresh token on the exchange | Not asked (access_token, id_token) | Native SSO 4.4: OPTIONAL | None, as eSignet issues none today |
-| DPoP key of the Child App's tokens | Task 8: Child App reuses the first app's key to sign its DPoP proof | RFC 9449 assumes the key belongs to the client sending the proof | The exchange proof is signed with the first app's key, as the statement asks; the issued tokens are bound to the Child App's own key when it sends `dpop_jkt` (D3) |
+| DPoP key of the Child App's tokens | Task 8: Child App reuses the first app's key | RFC 9449 assumes the key belongs to the client sending the proof | Statement followed (D3); the optional `dpop_jkt` extension binds to the Child App's own key instead (off in the demo apps) |
 | Client authentication on the phone | Apps call the token endpoint (tasks 5-9) | eSignet RP guide: client key on a backend | Non-exportable Keystore key per app (D11, section [18](#18-client-keys-on-the-phone-and-the-rp-integration-guide)) |
 
 ## 18. Client keys on the phone and the RP integration guide
@@ -871,7 +875,7 @@ the local stack and are named `TestE2E_*`. Dated results per rule: [test-report.
 | R20 | T9 iii | id_token from another signer or issuer: `invalid_request` | granthandlers | `TestE2E_Exchange_ForgedIDToken` |
 | R21 | T9 iii, Native SSO 6.3 | expired id_token accepted while device secret and session live; rejected past the optional cap | granthandlers (controlled clock) | `TestE2E_Exchange_ExpiredIDToken` (waits out the real 120 s) |
 | R22 | RFC 9449 11.1 | replayed DPoP proof: `invalid_dpop_proof` | dpop (upstream) | `TestE2E_Exchange_DPoPReplay` |
-| R23 | Native SSO 4.4 | Child App tokens: `aud` Child App, same `sid`, `cnf.jkt` = Hub key, or the Child App's key when it sends `dpop_jkt` (then userinfo needs the Child App's proof and refuses the Hub's), userinfo works, `sub` equals the Hub's and the Child App's own direct login | granthandlers | `TestE2E_Exchange_ChildTokens`, `TestE2E_Exchange_ChildOwnDPoPKey`, `TestE2E_Exchange_SubMatchesDirectLogin` |
+| R23 | Native SSO 4.4 | Child App tokens: `aud` Child App, same `sid`, `cnf.jkt` = Hub key (with the optional `dpop_jkt` extension, the named key; then userinfo needs that key's proof and refuses the Hub's), userinfo works, `sub` equals the Hub's and the Child App's own direct login | granthandlers | `TestE2E_Exchange_ChildTokens`, `TestE2E_Exchange_ChildOwnDPoPKey`, `TestE2E_Exchange_SubMatchesDirectLogin` |
 | R24 | Native SSO 5 | discovery: `native_sso_supported`, `device_sso`, token-exchange grant | discovery | `TestE2E_Discovery_NativeSSO` |
 | R25 | enablement | client registration accepts the token-exchange grant, rejects unknown grants | eSignet clientmgmt | `TestE2E_ClientRegistration_TokenExchangeGrant` |
 | R26 | D9 | other token exchanges blocked: `invalid_request` | granthandlers | `TestE2E_GenericExchangeRejected` |

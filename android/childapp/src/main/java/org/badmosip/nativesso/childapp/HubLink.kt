@@ -30,7 +30,7 @@ interface HubCalls {
     /** Hub's shared sign-in, or null when nobody is signed in or sharing is off. */
     fun share(): HubShare?
 
-    /** DPoP proofs signed by Hub's key, the key the device secret is bound to; used for the token exchange only. */
+    /** DPoP proofs signed by Hub's key, the key the device secret and the exchanged tokens are bound to. */
     val proofs: DpopProofSource
 }
 

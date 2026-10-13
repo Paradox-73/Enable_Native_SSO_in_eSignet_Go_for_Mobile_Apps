@@ -22,10 +22,9 @@ interface IFamilySso {
     /**
      * A DPoP proof (RFC 9449) signed with the Super App's device-bound key, whose thumbprint is the
      * cnf.jkt inside the device secret. The Super App builds every claim itself (fresh jti and iat)
-     * and signs only POST to its issuer's token endpoint, for the token exchange; the caller binds the
-     * tokens it gets to its own key and signs its own proofs after that.
+     * and signs only for its issuer's token and userinfo endpoints.
      *
-     * @param htm   HTTP method, "POST"
+     * @param htm   HTTP method, "POST" or "GET"
      * @param htu   target URL without query and fragment
      * @param ath   base64url SHA-256 of the access token the proof goes with, or null
      * @param nonce server-provided DPoP nonce, or null

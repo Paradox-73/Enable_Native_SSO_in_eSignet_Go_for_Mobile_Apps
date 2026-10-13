@@ -147,9 +147,10 @@ class FamilySsoGateTest {
     @Test
     fun `proof for the token endpoint is signed with Hub's DPoP key and fresh claims`() {
         val gate = gate()
+        val ath = DpopProofs.accessTokenHash("some-access-token")
         val first = verifiedJws(gate.signProof(childUid, "POST", tokenEndpoint, null, "server-nonce-1"), dpopSigner.publicJwk)
         clock.now = clock.now.plusSeconds(5)
-        val second = verifiedJws(gate.signProof(childUid, "POST", tokenEndpoint, null, null), dpopSigner.publicJwk)
+        val second = verifiedJws(gate.signProof(childUid, "GET", userinfoEndpoint, ath, null), dpopSigner.publicJwk)
 
         assertEquals("dpop+jwt", first.header.type.toString())
         assertEquals(dpopSigner.publicJwk, first.header.jwk.toJSONObject())
@@ -160,18 +161,13 @@ class FamilySsoGateTest {
         assertEquals("server-nonce-1", c1["nonce"])
         assertNull(c1["ath"])
         assertEquals(1_800_000_000L, (c1["iat"] as Number).toLong())
+        assertEquals("GET", c2["htm"])
+        assertEquals(userinfoEndpoint, c2["htu"])
+        assertEquals(ath, c2["ath"])
         assertEquals(1_800_000_005L, (c2["iat"] as Number).toLong())
-        assertNull(c2["nonce"])
         assertNotEquals(c1["jti"], c2["jti"])
-    }
-
-    @Test
-    fun `no proof for userinfo, so Hub's key never vouches for a family app's own tokens`() {
-        val gate = gate()
-        val ath = DpopProofs.accessTokenHash("some-access-token")
-        for (htm in listOf("GET", "POST")) {
-            refusedWith(FamilySsoContract.ERROR_HTU_NOT_ALLOWED) { gate.signProof(childUid, htm, userinfoEndpoint, ath, null) }
-        }
+        // A POST to userinfo is allowed too (OpenID Connect Core 5.3.1).
+        assertNotNull(gate.signProof(childUid, "POST", userinfoEndpoint, ath, null))
     }
 
     @Test

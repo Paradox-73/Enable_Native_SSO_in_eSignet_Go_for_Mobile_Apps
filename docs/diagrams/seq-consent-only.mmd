@@ -24,4 +24,4 @@ sequenceDiagram
   C->>H: signDpopProof(POST, token endpoint)
   C->>T: Same token exchange again
   T->>T: every binding check again, then the approval for this sid and app
-  T-->>C: 200 access token bound to the Child App key (dpop_jkt), scope includes health_card_share
+  T-->>C: 200 access token bound to the Hub key, scope includes health_card_share

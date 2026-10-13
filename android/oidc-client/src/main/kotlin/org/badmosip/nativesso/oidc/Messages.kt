@@ -95,9 +95,9 @@ public data class TokenResponse(
  * @property deviceSecret the Super App's device secret, sent as actor_token
  * @property scope what the Child App asks for: must hold openid, must not hold device_sso, and
  *   should be a subset of the Super App's granted scope (the server enforces that)
- * @property dpopJkt RFC 7638 thumbprint of the Child App's own DPoP key, sent as `dpop_jkt`: the
- *   issued tokens are bound to it, so the Child App signs its own proofs for every later call. Null
- *   binds them to the key of the request's proof, the Super App's.
+ * @property dpopJkt optional eSignet profile extension, off in the demo apps: RFC 7638 thumbprint of the
+ *   Child App's own DPoP key, sent as `dpop_jkt`, and the issued tokens are bound to it. Null (the
+ *   statement's flow) binds them to the key of the request's proof, the Super App's.
  */
 public data class DeviceSecretExchange(
     val idToken: String,

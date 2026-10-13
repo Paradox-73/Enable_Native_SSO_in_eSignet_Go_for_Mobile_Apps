@@ -21,9 +21,8 @@ import java.security.spec.ECGenParameterSpec
  * the private key never enters the app process):
  * - the `private_key_jwt` client key whose public half is registered with eSignet, used for every
  *   request Health Card sends, including the token exchange;
- * - the DPoP key of Health Card's tokens, from its own browser login (re-consent) and from the token
- *   exchange (sent as `dpop_jkt`); only the exchange proof itself is signed by Hub's key, because the
- *   device secret is bound to it (statement task 9 iii.4).
+ * - the DPoP key of Health Card's own browser login (re-consent). Tokens from the token exchange are
+ *   bound to Hub's key instead, because the device secret is (statement task 9 iii.4).
  */
 object CardKeys {
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
