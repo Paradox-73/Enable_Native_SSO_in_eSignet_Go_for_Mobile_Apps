@@ -15,6 +15,17 @@
 #   PS03_LOCK_DIR      folder of mkdir-style locks shared with other build jobs on the machine.
 #                      Default: /e/Projects/MOSIP/toolchain/locks when it exists, else $PS03_RUN_DIR/locks.
 #   PS03_GO_IMAGE      container image for Go work (default golang:1.26-bookworm).
+#
+# The scripts need bash 4.4 or newer (associative arrays, mapfile, ${var,,}, empty arrays under set -u).
+# macOS ships bash 3.2 as /bin/bash, so stop here with the fix instead of failing later on a syntax error.
+
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ] ||
+  { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -lt 4 ]; }; then
+  printf '%s: error: needs bash 4.4 or newer, this is bash %s (%s).\n' \
+    "$(basename "$0" .sh)" "${BASH_VERSION:-unknown}" "${BASH:-sh}" >&2
+  printf '  macOS: brew install bash, open a new terminal and check that "bash --version" shows 5.x.\n' >&2
+  exit 2
+fi
 
 PS03_SCRIPT_NAME=${PS03_SCRIPT_NAME:-$(basename "${0%.sh}")}
 PS03_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

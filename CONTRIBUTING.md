@@ -21,6 +21,7 @@ macOS has not been tried by the team.
 | Tool | Version | Needed for | Download |
 |---|---|---|---|
 | Git, with Git Bash on Windows | any recent | everything; every command here is a Bash command | <https://git-scm.com/downloads> |
+| Bash | 4.4 or newer | every script (`scripts/lib.sh` checks it) | Git Bash and Linux ship 5.x; macOS: `brew install bash` |
 | Docker Desktop (Windows, macOS) or Docker Engine with the compose plugin (Linux) | Linux containers; give the Docker VM at least 4 GB of memory (the team laptop uses 8 GB) | Go builds, tests and lint (all Go runs in the `golang:1.26-bookworm` container), the local stack | <https://docs.docker.com/get-started/get-docker/> |
 | JDK | 17 or newer (the team uses 21) | Gradle, Android build, `keytool` | <https://adoptium.net/temurin/releases/> |
 | Android SDK: platform `android-34`, `build-tools;34.0.0`, `platform-tools`; later `emulator` and `system-images;android-34;google_apis;x86_64` | as listed | Android apps, `apksigner`, `adb`, the emulator | Android Studio <https://developer.android.com/studio> or the command-line tools on the same page |
@@ -37,7 +38,9 @@ Differences by system:
   Desktop must run Linux containers.
 - **Linux**: let your user run Docker without `sudo` (<https://docs.docker.com/engine/install/linux-postinstall/>).
   `./gradlew` works directly (the file is stored executable).
-- **macOS**: untested. On Apple silicon the emulator needs the `arm64-v8a` system image instead of `x86_64`.
+- **macOS**: `/bin/bash` is 3.2, too old for the scripts: `brew install bash` and open a new terminal. With bash 5.3 the
+  lint, Go and e2e scripts passed on 2026-10-13; the Android builds were not run. On Apple silicon the emulator needs
+  the `arm64-v8a` system image instead of `x86_64`.
 
 ## One-time setup
 

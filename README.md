@@ -79,7 +79,8 @@ Sources, commits and licences: [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Quick start
 
-Tested on Windows 11 with Git Bash and Docker Desktop. Full steps, ports and fixes: [docs/setup.md](docs/setup.md).
+Tested on Windows 11 with Git Bash and Docker Desktop. The scripts need bash 4.4 or newer: on macOS, whose
+`/bin/bash` is 3.2, run `brew install bash` first. Full steps, ports and fixes: [docs/setup.md](docs/setup.md).
 
 ```bash
 git clone -c core.longpaths=true https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps.git esignet-native-sso

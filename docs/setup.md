@@ -9,13 +9,14 @@ How to install the tools, start the stack, run the tests and run both apps. Ever
 |---|---|
 | Windows 11, Git Bash, Docker Desktop (Linux containers) | the path that was run: every command in this repository's results was run here |
 | Linux (Ubuntu) | every job of `.github/workflows/ci.yml` was replayed in Linux containers on 2026-10-05 (ubuntu 24.04 for repo-lint, the Docker daemon for the Go jobs and e2e, eclipse-temurin 17 with Android SDK 34 for the Android job): all passed; the hosted GitHub Actions run of 2026-10-06 (ubuntu-24.04 runners, 2 CPUs) passed every job |
-| macOS | untested. On Apple silicon use the `arm64-v8a` emulator image |
+| macOS | on 2026-10-13 (macOS 15, Apple silicon, Docker Desktop with 4 GB, GNU bash 5.3 from Homebrew) `repo-lint`, `docs-check`, the Go unit tests, `go-lint` and the 31 live e2e tests passed; the Android builds and the emulator were not run. The default `/bin/bash` 3.2 is too old: install bash 4.4 or newer (`brew install bash`). On Apple silicon use the `arm64-v8a` emulator image |
 
 ## Prerequisites
 
 | Tool | Version | Used for |
 |---|---|---|
 | Git with Git Bash | any recent | every command here is a Bash command; on Windows do not use CMD or PowerShell |
+| Bash | 4.4 or newer (Git Bash and Linux ship 5.x; macOS needs `brew install bash`) | every script; `scripts/lib.sh` stops with exit status 2 on an older bash |
 | Docker Desktop (or Docker Engine with the compose plugin) | Linux containers, 4 GB memory or more for the Docker VM | Go builds and tests, lint, the local stack |
 | JDK | 17 or newer (team: 21) | Gradle, the Android build, `keytool` |
 | Android SDK | platform `android-34`, `build-tools;34.0.0`, `platform-tools`; for the emulator also `emulator` and `system-images;android-34;google_apis;x86_64` | apps, `apksigner`, `adb`, the emulator |
