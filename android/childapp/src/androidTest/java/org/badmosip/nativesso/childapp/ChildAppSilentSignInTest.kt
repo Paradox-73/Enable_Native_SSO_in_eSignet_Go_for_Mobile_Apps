@@ -17,8 +17,7 @@ import org.junit.runner.RunWith
 /**
  * Health Card signs in with Hub's shared sign-in on a real device, against the local stack: it
  * opens on its home screen with the user's name, no browser window ever appears, and the stored
- * tokens are Health Card's own (bound to its own DPoP key through `dpop_jkt`, same `sid` as Hub's
- * login), encrypted on disk.
+ * tokens are Health Card's own (bound to Hub's key, same `sid` as Hub's login), encrypted on disk.
  */
 @RunWith(AndroidJUnit4::class)
 class ChildAppSilentSignInTest {

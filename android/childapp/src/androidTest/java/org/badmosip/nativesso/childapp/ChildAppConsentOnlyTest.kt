@@ -21,8 +21,8 @@ import java.util.regex.Pattern
  * which Hub's login never granted and which needs no user data. eSignet answers the token exchange
  * with `interaction_required` and a `consent_uri`; Health Card's consent screen says no ID or OTP is
  * needed; eSignet's consent page opens in the browser with no login form; "Allow" sends the browser
- * back; Health Card repeats the token exchange with Hub's sign-in and holds the new scope. Its tokens
- * stay bound to its own DPoP key, as in every exchange.
+ * back; Health Card repeats the token exchange with Hub's sign-in and holds the new scope, still bound
+ * to Hub's key.
  */
 @RunWith(AndroidJUnit4::class)
 class ChildAppConsentOnlyTest {
@@ -86,7 +86,7 @@ class ChildAppConsentOnlyTest {
         val session = ui.services.authenticator.currentSession()
         assertNotNull(session)
         assertTrue("the sign-in lacks ${CardConfig.SHARE_SCOPE}: ${session!!.scope}", CardConfig.SHARE_SCOPE in session.scopes)
-        assertEquals("still Hub's sign-in (a token exchange), not a login of Health Card's own", Binding.HUB, session.binding)
+        assertEquals("still Hub's sign-in, bound to Hub's key", Binding.HUB, session.binding)
         assertEquals(ui.context.getString(R.string.sharing_allowed), sharingValue())
         ui.screenshot("health-card-after-consent-only")
         ui.step("consent-only re-consent verified (scope ${session.scope})")
