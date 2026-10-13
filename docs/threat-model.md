@@ -128,4 +128,9 @@ Why it is safe here: an expired id_token is accepted only when **all** of these 
   their `exp` (as any OAuth client does).
 - Denial of service against eSignet in general: unchanged by this feature; the exchange adds one RSA decryption,
   which runs only after client authentication and the cheap request checks.
+- Runtime store in memory (the local stack and the demo): a restart ends every login session, so every device
+  secret and every Child App token that carries a `sid` stops working. Two eSignet replicas on the in-memory
+  store would not share session records, consent tickets or DPoP `jti` entries, so a proof replayed at the other
+  replica would pass. A deployment with more than one replica must use the Redis runtime store (architecture 2.8),
+  which the code already supports through `RuntimeStoreProvider`; the local stack and the e2e suite do not use it.
 - The local demo runs over HTTP on `localhost`; every deployment beyond the laptop must use TLS (FAPI 2.0).

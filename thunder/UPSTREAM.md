@@ -241,6 +241,13 @@ bash scripts/go.sh thunder/backend run github.com/vektra/mockery/v3@v3.5.5 --con
 bash scripts/go.sh thunder/backend run github.com/vektra/mockery/v3@v3.5.5 --config .mockery.private.yml
 ```
 
+The documented test scope is `./internal/oauth/... ./pkg/...`, the packages this work changes. `./...` on the whole
+module also runs upstream tests that expect a permission error when a file or folder cannot be read
+(`internal/system/declarative_resource`: `TestGetConfigs_DirectoryReadPermissionError`,
+`TestGetConfigs_ReadPermissionError`; `internal/system/log/rollingfile`: `TestNewErrorWhenDirectoryUncreatable`,
+`TestRotateHandlesRenameFailure`). The Go container runs as root, which gets no such error, so on a macOS bind
+mount these 5 fail (review of 2026-10-13). They do not touch Native SSO code.
+
 Unit tests added for the contract:
 
 | Test file (under `backend/`) | Checks |
