@@ -68,8 +68,9 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
    - Expect: "Signed in as" with the seeded user's name, "Sign-in shared with my other apps: Yes",
      "Apps using this sign-in: None yet".
 2. **Health Card, no login.**
-   - Open Health Card (launcher). Expect "Signing you in with Hub..." for a moment, then the home screen with name
-     and email and the line "With Hub's sign-in. No password or OTP was needed." No browser opens.
+   - Open Health Card (launcher). Expect "Signing you in with Hub..." for a moment, then the home screen with the
+     name, "Email: Not shared with Health Card" (Hub's login asks only for the name) and the line "With Hub's
+     sign-in. No password or OTP was needed." No browser opens.
    - Back in Hub, "Apps using this sign-in" now lists Health Card with a time.
 3. **Re-consent.**
    - First without a login: in Health Card tap "Allow card sharing". The consent screen says no ID or OTP is
