@@ -76,7 +76,9 @@ The test and lint commands, with the line each prints when it passes, are in
 Every work package in [docs/STATUS.md](docs/STATUS.md) is DONE; new work follows the same steps.
 
 1. Branch from the latest `main`: `git switch main && git pull && git switch -c <short-name>`.
-2. Edit only the folders your change needs. Folder ownership (lanes) is listed in [docs/STATUS.md](docs/STATUS.md#all-tasks).
+2. Edit only the folders your change needs; a folder has one owner at a time (lanes in
+   [docs/STATUS.md](docs/STATUS.md#all-tasks)). A change to the Thunder provider contract
+   (`thunder/backend/pkg/thunderidengine/providers/`) breaks the eSignet build: agree it with the eSignet owner first.
 3. Work in small commits (`git commit -s`), running the module's tests as you go.
 4. Before the pull request: run the tests of every module you touched, `bash scripts/repo-lint.sh`, and
    `bash make.sh docs-check`; update the docs your change makes wrong.

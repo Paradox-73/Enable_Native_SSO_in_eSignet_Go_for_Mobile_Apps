@@ -70,7 +70,7 @@ Go always runs in the `golang:1.26-bookworm` Linux container, with the whole rep
   ```bash
   bash scripts/import-upstream.sh thunder
   bash scripts/verify-import.sh thunder        # working tree: 0 differ, 0 missing
-  git commit -s -m 'import: upstream thunder-id/thunderid@12f517c4 (Apache-2.0)' -- thunder
+  git add -A -- thunder && git commit -s -m 'import: upstream thunder-id/thunderid@12f517c4 (Apache-2.0)' -- thunder
   bash scripts/verify-import.sh thunder        # the import commit itself
   ```
 
@@ -106,6 +106,8 @@ Checks only what git would commit (ignored files are skipped):
 | `PS03_GO_IMAGE` | `golang:1.26-bookworm` | Go container image |
 | `PS03_GO_MEMORY`, `PS03_GO_LINT_MEMORY`, `PS03_GO_CPUS` | `2g`, `3g`, `6` | container limits; the CPU count is lowered to what Docker has |
 | `PS03_GO_TEST_P` | `4` | packages tested in parallel |
+| `PS03_HELD_LOCKS` | empty | colon-separated lock names this process tree already holds (for example `:docker-stack:emulator`); a script skips taking a lock named here |
+| `PS03_LOCK_STALE_MIN`, `PS03_LOCK_TIMEOUT_MIN` | `90`, `60` | a waiting script removes a lock older than the first; it gives up (exit 99) after the second |
 | `CGO_ENABLED` | `0` | passed into the container (eSignet's local builds are cgo-free) |
 | `PS03_FAMILY_KEYSTORE`, `PS03_FAMILY_KEYSTORE_PASSWORD` | `$PS03_RUN_DIR/keys/ps03-family-test.jks` and a random password in the file next to it | the test certificate that signs both Android apps |
 

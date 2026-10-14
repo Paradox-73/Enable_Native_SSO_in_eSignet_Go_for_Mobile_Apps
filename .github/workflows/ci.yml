@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Team Badmosip
 #
 # Checks for every push and pull request. Each job calls the same scripts as a local run
-# (CONTRIBUTING.md), so a red job can be reproduced on a laptop with the command it shows.
+# (docs/setup.md, tests and checks), so a red job can be reproduced on a laptop with the command it shows.
 # Go always runs in the golang:1.26-bookworm container started by scripts/go.sh; the runner only
 # needs Docker. Emulator tests (android/scripts) stay local.
 name: ci

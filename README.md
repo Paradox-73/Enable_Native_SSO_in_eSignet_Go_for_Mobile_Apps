@@ -151,7 +151,8 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 Full text with ids: [docs/test-report.md](docs/test-report.md#known-limits).
 
 - **Silent sign-in lasts as long as Hub's device secret, 8 hours by default** (L10). After that the exchange is refused
-  while Hub still says "signed in", because Hub cannot read the device secret's expiry; the user signs in to Hub again.
+  while Hub still says "signed in", because Hub cannot read the device secret's expiry; the user signs out of Hub and
+  signs in again.
 - Re-consent for new user data (the phone number) asks for the OTP again (L02); permissions that need no new user data
   are approved with no login (R28).
 - The demo stack keeps eSignet's runtime store in memory (L03); several replicas need the Redis store

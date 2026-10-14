@@ -9,7 +9,7 @@ otherwise. Dated results of every check: [test-report.md](test-report.md).
 | System | State |
 |---|---|
 | Windows 11, Git Bash, Docker Desktop (Linux containers) | the path that was run: every command in this repository's results was run here |
-| Linux (Ubuntu) | every job of `.github/workflows/ci.yml` was replayed in Linux containers on 2026-10-05 (ubuntu 24.04 for repo-lint, the Docker daemon for the Go jobs and e2e, eclipse-temurin 17 with Android SDK 34 for the Android job): all passed; the hosted GitHub Actions runs (ubuntu-24.04 runners, 2 CPUs) pass every job |
+| Linux (Ubuntu) | every job of `.github/workflows/ci.yml` was replayed in Linux containers on 2026-10-05 (ubuntu 24.04 for repo-lint, the Docker daemon for the Go jobs and e2e, eclipse-temurin 17 with Android SDK 34 for the Android job): all passed; the last hosted GitHub Actions run (ubuntu-24.04 runners, 2 CPUs) passed every job (row CI and limit L05 of [test-report.md](test-report.md)) |
 | macOS | on 2026-10-13 (macOS 15, Apple silicon, Docker Desktop with 4 GB, GNU bash 5.3 from Homebrew) `repo-lint`, `docs-check`, the Go unit tests, `go-lint` and the 31 live e2e tests of that day passed; the Android builds and the emulator were not run. The default `/bin/bash` 3.2 is too old: install bash 4.4 or newer (`brew install bash`). On Apple silicon use the `arm64-v8a` emulator image |
 
 ## Prerequisites
@@ -125,7 +125,7 @@ Setup, Go and Docker:
 
 | Symptom | Cause and fix |
 |---|---|
-| `Waiting for lock go-PS03`, `docker-stack` or `emulator` | another job on the machine holds the lock. A Go or stack lock older than 90 minutes is removed as stale; the demo scripts never remove an emulator lock. Check that nobody uses it (`docker ps`, the emulator window), then remove that one directory under `$PS03_LOCK_DIR` yourself |
+| `Waiting for lock go-PS03`, `docker-stack` or `emulator` | another job on the machine holds the lock. A waiting script removes any lock older than 90 minutes (`PS03_LOCK_STALE_MIN`) as stale; `demo.sh` instead refuses to start while the emulator lock exists. Check that nobody uses it (`docker ps`, the emulator window), then remove that one directory under `$PS03_LOCK_DIR` yourself |
 | `An Application Control policy has blocked this file` on Windows | do not run `go test` natively; `scripts/go-test.sh` runs it in Linux. eSignet's keymanager tests also fail natively on Windows ("symmetric key not found") |
 | Lint times out on a busy machine | `bash scripts/go-lint.sh thunder/backend -- --timeout=30m` |
 | Container killed for memory | raise Docker's memory or run fewer jobs at once; limits are `PS03_GO_MEMORY` and `PS03_GO_LINT_MEMORY` |

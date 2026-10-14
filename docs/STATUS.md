@@ -74,6 +74,14 @@ Facts found while building that no other document records.
 - **WP-09, userinfo signature.** The mock identity system signs userinfo with RS256 under a key whose JWKS entry says
   PS256, and FAPI 2.0 does not allow RS256. eSignet's userinfo middleware verifies that token and signs it again with
   eSignet's own key, with the `alg` and `kid` of that key's JWKS entry.
+- **WP-08, signing key rotation.** eSignet's `VerifyRaw` checks a device secret against the current signing certificate
+  only, so rotating the `EC_SECP256R1_SIGN` key ends every device secret signed with the old key (silent sign-in stops
+  until each user signs in to Hub again). The encryption key keeps working after rotation, because it is found by `kid`.
+- **WP-09, unknown userinfo key.** When userinfo arrives with a `kid` eSignet does not know, it fetches the identity
+  system's keys once more, past the mock provider's 5-minute cache. One early e2e run failed every userinfo call before
+  this.
+- **WP-14, userinfo `iss`.** The userinfo JWT's `iss` is `http://localhost:8088/v1/esignet` (a setting of the mock
+  identity system), not the issuer `http://localhost:38088`.
 - **WP-15, Hub's rate limit.** Hub allows 30 calls per caller in 60 s. One Health Card launch costs 4 calls (version,
   bundle, two proofs) because the silent sign-in reuses the connection that read the share. The UI tests wait 61 s after
   the consent-only test so the next test is not refused.
