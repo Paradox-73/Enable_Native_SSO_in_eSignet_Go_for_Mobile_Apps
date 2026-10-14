@@ -1015,8 +1015,8 @@ commit of that folder.
   - Tests: the UI test drivers now check the UIN field after typing (a cold emulator once lost the first characters and the
     login timed out after 180 s); diagrams re-rendered (a `;` in a message had stopped Mermaid from parsing one source).
 - **Results (2026-10-14, `bash scripts/evidence.sh --run` and the emulator runs, `PS03_HELD_LOCKS` set, no lock directory)**
-  - Thunder @UT@; eSignet @UE@; e2e @E2E@ passed; newman @NR@ requests, @NA@ assertions, 0 failed.
-  - Android JVM: @JVM@ tests, 0 failed (oidc-client 69, secure-store 13, Hub 64, Health Card 62), run with `--rerun-tasks`.
+  - Thunder 2466 tests (2465 passed, 1 skipped), changed lines 775/786 (98.6 %); eSignet 1599 tests, 0 failed, changed lines 347/374 (92.8 %); e2e 32 passed, 0 failed; newman 38 requests, 133 assertions, 0 failed; golangci-lint 0 issues on Thunder, eSignet and e2e; govulncheck on eSignet 0 vulnerabilities in called code.
+  - Android JVM: 208 tests, 0 failed (oidc-client 69, secure-store 13, Hub 64, Health Card 62), run with `--rerun-tasks`.
   - `run-ui-test.sh all`: `OK (6 tests)`; `run-family-tests.sh`: 5 steps PASS; `demo.sh --check`: demo ready, teardown ok, 328 s;
     `demo.sh` (full, ended at once with Enter): demo ready, teardown ok, 192 s.
 - **Still open**

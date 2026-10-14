@@ -8,29 +8,31 @@ A second Android app from the same publisher (Health Card) then signs the user i
 a second OTP: it trades Hub's device secret for its own tokens at the token endpoint (OAuth 2.0 Token Exchange,
 RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 
-## Status on 2026-10-06
+## Status on 2026-10-14
 
 - **Built and tested**: every statement task (T1-T10, P1, P2) and the bonus B1, on the server and in both Android
-  apps. Dated results of every check: [docs/test-report.md](docs/test-report.md) (73 PASS, 3 NOT RUN with a listed reason, 0 FAIL).
+  apps. Dated results of every check: [docs/test-report.md](docs/test-report.md).
   - Bonus B1 in full: when Health Card asks for a permission Hub's login did not include and that needs no new user
-    data, the user approves it on eSignet's own consent page with no ID and no OTP (rule R28); only new user data
+    data, the user approves it on eSignet's own consent page with no ID and no OTP (rule R28), and only with a cookie
+    that eSignet set in the user's own browser login, so the app cannot approve for the user. Only new user data
     (the phone number) still needs a fresh login, because eSignet's identity system releases user data only after
     an authentication.
-  - Server: 2434 Thunder (1 skipped by upstream) and 1593 eSignet unit tests, 0 failed, golangci-lint 0 findings;
-    changed-line coverage 98.8 % (Thunder) and 92.3 % (eSignet); the live end-to-end suite (31 of 31 passed,
-    including device secret revocation, R27, and consent-only re-consent, R28); the Postman folder under newman
-    (34 requests, 125 assertions, 0 failed).
-  - Apps: 207 Android JVM tests, 0 failed; on the Android emulator the UI tests (6 of 6 passed, including the
-    consent-only approval, "Not now" on the consent screen and Health Card without Hub), the family sign-in tests
-    and the full demo check (`bash scripts/demo/demo.sh --check`) passed, all on 2026-10-06 at `ef69358`.
+  - Server: 2466 Thunder (1 skipped by upstream) and 1599 eSignet unit tests, 0 failed, golangci-lint 0 findings;
+    changed-line coverage 98.6 % (Thunder) and 92.8 % (eSignet); the live end-to-end suite (32 of 32 passed, including
+    device secret revocation with Health Card's tokens refused afterwards, R27, and consent-only re-consent, R28); the
+    Postman folder under newman (38 requests, 133 assertions, 0 failed); govulncheck on eSignet: 0 vulnerabilities in called code.
+  - Apps: 208 Android JVM tests, 0 failed; on the Android emulator the UI tests (6 of 6 passed, including the
+    consent-only approval and refusal, "Not now" on the consent screen and Health Card without Hub), the family sign-in
+    tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`) passed, all on 2026-10-14 at `fd48556`.
 - **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job on the push of 2026-10-06
-  ([run 37464932756](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/37464932756): repo-lint, Go unit tests, golangci-lint, Android JVM tests and the live e2e suite, 30 of
-  30). That run predates the consent-only change; the same jobs passed locally on 2026-10-06 (test report). The
-  repository is private until submission; judges get access then.
+  ([run 37464932756](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/37464932756)),
+  and on 2026-10-07 at `7944c0d` (run 37494756432). Later pushes have not run hosted CI yet; the same checks passed
+  locally on 2026-10-14. The repository is private until submission; judges get access then.
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
 - **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
   L07-L09). Task-level state: [docs/STATUS.md](docs/STATUS.md).
+- **Video and manual checks**: [docs/video-script.md](docs/video-script.md), [docs/manual-test-checklist.md](docs/manual-test-checklist.md).
 
 ## Screens
 
@@ -88,7 +90,7 @@ cd esignet-native-sso
 bash scripts/install-hooks.sh                         # local git settings
 bash scripts/repo-lint.sh                             # repo-lint: OK
 
-bash scripts/with-stack.sh bash e2e/run.sh            # stack up, 31 live tests, stack down: "e2e: 31 passed, 0 failed"
+bash scripts/with-stack.sh bash e2e/run.sh            # stack up, 32 live tests, stack down: "e2e: 32 passed, 0 failed"
 bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh   # Postman folder under newman (needs newman)
 
 bash scripts/demo/demo.sh --no-emulator --check       # server part of the demo: "demo ready (server part only ...)", "teardown ok"
@@ -143,14 +145,22 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 
 Listed with ids in [docs/test-report.md](docs/test-report.md#known-limits):
 
+- **One-hour cap on Hub's id_token.** eSignet refuses a token exchange when Hub's id_token is older than 3600 seconds
+  (`oauth.native_sso.id_token_max_age_seconds`, default 3600; the device secret itself lives 8 hours). After that hour
+  Health Card cannot sign in silently: the exchange answers `invalid_grant` and Health Card shows "Your Hub sign-in
+  has ended. Open Hub and sign in again." Hub cannot see the cap or the device secret's expiry, so it keeps saying
+  "signed in" until the user signs out of Hub and signs in again (a "sign in again" button in Hub would fix this and is
+  not built).
 - Re-consent for new user data asks for the OTP again (L02): eSignet's identity system releases user data only
   after an authentication, so the phone number needs a fresh login with `prompt=consent`; Health Card says so
-  before the browser opens. Permissions that need no new user data are approved with no login (R28). The consent
-  page shows a permission by its scope value (`health_card_share`), not by a friendly description.
-- The server's runtime store is in memory (L03), so an eSignet restart ends every Hub session.
-- Sign-out ends the device secret's session on the server (rule R27); access tokens already issued to Health Card
-  stay valid until they expire (L04).
-- Software-backed Keystore on the emulator (L01); one emulator image (L06).
+  before the browser opens. Permissions that need no new user data are approved with no login (R28), on a page that
+  shows a plain-language description of each permission.
+- The server's runtime store is in memory (L03), so an eSignet restart ends every Hub session, and several eSignet
+  replicas would need the Redis store to share sessions.
+- Sign-out ends the device secret's session on the server (rule R27); Health Card's access tokens carry that session
+  id, so userinfo and introspection refuse them afterwards. A resource server that checks a token's signature without
+  asking eSignet still accepts it until it expires.
+- Software-backed Keystore on the emulator (L01); one emulator image (L06); no physical phone, no TalkBack pass (L08, L09).
 
 ## Licence
 

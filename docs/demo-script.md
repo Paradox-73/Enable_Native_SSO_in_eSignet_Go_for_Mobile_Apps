@@ -6,11 +6,11 @@ something fails. Written 2026-10-05, updated 2026-10-14.
 
 ## Status of this runbook
 
-- **Run on 2026-10-05 and again on 2026-10-06 with the emulator**: `bash scripts/demo/demo.sh --check` printed `demo ready` and
+- **Run on 2026-10-05, 2026-10-06 and 2026-10-14 with the emulator**: `bash scripts/demo/demo.sh --check` printed `demo ready` and
   `teardown ok` (row DEMO-FULL of [test-report.md](test-report.md), with its duration), and `docker ps` listed no
   container afterwards. The server part alone (`--no-emulator`) is row DEMO-SERVER.
 - Every screen named below, including the "Not now" fallback, was seen on the emulator by the UI tests of
-  2026-10-06 (`OK (5 tests)`); screenshots are in [screens/](screens/) and
+  2026-10-14 (`OK (6 tests)`); screenshots are in [screens/](screens/) and
   [ux.md](ux.md#screenshots). Screen texts in this file are the apps' strings.
 - Not measured yet: the live runbook by a person at presenting speed. Rehearse once and fill the last column of
   [Timings](#timings).
@@ -100,15 +100,15 @@ checks to make before recording are in [manual-test-checklist.md](manual-test-ch
 
 ## Timings
 
-| Step | Measured on 2026-10-05 | Emulator run (to fill in at the first rehearsal) |
+| Step | Measured on 2026-10-05 | Measured with the emulator |
 |---|---|---|
 | Preflight, APK build (up to date), signing check | 15 s | |
 | Stack from clean volumes | 37 s | |
 | Headless flow (4 tests) and teardown | 11 s | |
-| Whole `--no-emulator` run | 65 s | |
+| Whole `--no-emulator` run | 65 s | 81 s on 2026-10-14 |
 | Emulator boot | not run | |
 | Install, clear, register both apps | not run | |
-| Whole `demo.sh --check` | not run (acceptance: under 10 minutes) | |
+| Whole `demo.sh --check` | not run (acceptance: under 10 minutes) | 328 s on 2026-10-14 (live mode without waiting: 192 s) |
 
 ## When something fails
 
