@@ -28,9 +28,9 @@ RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
     Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
     passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
 - **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job (repo-lint, Go unit tests and
-  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-14 at 12:35 UTC at
-  `b73ac56` ([run 38565036088](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/38565036088)).
-  Commits after `b73ac56` were checked locally (test report) and run on GitHub when they are pushed.
+  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-14 at
+  `db13987` ([run 38616577934](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/38616577934)).
+  Later commits run on GitHub when they are pushed; see the repository's Actions tab.
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
 - **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
