@@ -236,6 +236,65 @@ func (_c *DeviceSecretProviderMock_IsDeviceSecretSessionActive_Call) RunAndRetur
 	return _c
 }
 
+// RecordConsentReuse provides a mock function for the type DeviceSecretProviderMock
+func (_mock *DeviceSecretProviderMock) RecordConsentReuse(ctx context.Context, reuse providers.ConsentReuse) *common.ServiceError {
+	ret := _mock.Called(ctx, reuse)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RecordConsentReuse")
+	}
+
+	var r0 *common.ServiceError
+	if returnFunc, ok := ret.Get(0).(func(context.Context, providers.ConsentReuse) *common.ServiceError); ok {
+		r0 = returnFunc(ctx, reuse)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*common.ServiceError)
+		}
+	}
+	return r0
+}
+
+// DeviceSecretProviderMock_RecordConsentReuse_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecordConsentReuse'
+type DeviceSecretProviderMock_RecordConsentReuse_Call struct {
+	*mock.Call
+}
+
+// RecordConsentReuse is a helper method to define mock.On call
+//   - ctx context.Context
+//   - reuse providers.ConsentReuse
+func (_e *DeviceSecretProviderMock_Expecter) RecordConsentReuse(ctx interface{}, reuse interface{}) *DeviceSecretProviderMock_RecordConsentReuse_Call {
+	return &DeviceSecretProviderMock_RecordConsentReuse_Call{Call: _e.mock.On("RecordConsentReuse", ctx, reuse)}
+}
+
+func (_c *DeviceSecretProviderMock_RecordConsentReuse_Call) Run(run func(ctx context.Context, reuse providers.ConsentReuse)) *DeviceSecretProviderMock_RecordConsentReuse_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 providers.ConsentReuse
+		if args[1] != nil {
+			arg1 = args[1].(providers.ConsentReuse)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *DeviceSecretProviderMock_RecordConsentReuse_Call) Return(serviceError *common.ServiceError) *DeviceSecretProviderMock_RecordConsentReuse_Call {
+	_c.Call.Return(serviceError)
+	return _c
+}
+
+func (_c *DeviceSecretProviderMock_RecordConsentReuse_Call) RunAndReturn(run func(ctx context.Context, reuse providers.ConsentReuse) *common.ServiceError) *DeviceSecretProviderMock_RecordConsentReuse_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ValidateDeviceSecret provides a mock function for the type DeviceSecretProviderMock
 func (_mock *DeviceSecretProviderMock) ValidateDeviceSecret(ctx context.Context, deviceSecret string) (*providers.DeviceSecretClaims, *common.ServiceError) {
 	ret := _mock.Called(ctx, deviceSecret)

@@ -249,6 +249,12 @@ type DeviceSecretProvider interface {
 	// access token that carries a sid, so that the tokens a token exchange issued stop working once
 	// the session ends. An unknown or ended session is false; an error is an operational failure.
 	IsDeviceSecretSessionActive(ctx context.Context, sessionID string) (bool, *common.ServiceError)
+
+	// RecordConsentReuse records, as an audit trail, that a token exchange issued tokens to a second
+	// app under consent the user already gave in this login, with no consent screen. The engine calls
+	// it after the tokens are built and before they are returned; an error makes the exchange fail
+	// with server_error, so no tokens leave the server without their record.
+	RecordConsentReuse(ctx context.Context, reuse ConsentReuse) *common.ServiceError
 }
 
 // RuntimeStoreProvider defines the interface for runtime store operations.

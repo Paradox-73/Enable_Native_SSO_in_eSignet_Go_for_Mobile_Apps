@@ -26,6 +26,7 @@ import (
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 
 	"github.com/mosip/esignet/internal/config"
+	"github.com/mosip/esignet/internal/consentmgmt"
 	"github.com/mosip/esignet/internal/engine/runtimestores/inmemory"
 	"github.com/mosip/esignet/internal/keymanager"
 	"github.com/mosip/esignet/internal/keymanager/cryptomanager"
@@ -250,9 +251,24 @@ func (s *stubRuntimeStore) Get(ctx context.Context, ns providers.RuntimeStoreNam
 
 type DeviceSecretProviderTestSuite struct {
 	suite.Suite
-	keys  deviceSecretKeys
-	store providers.RuntimeStoreProvider
-	now   time.Time
+	keys    deviceSecretKeys
+	store   providers.RuntimeStoreProvider
+	history *fakeConsentHistory
+	now     time.Time
+}
+
+// fakeConsentHistory keeps the consent_history rows a provider appends, or fails with err.
+type fakeConsentHistory struct {
+	rows []*consentmgmt.ConsentRecord
+	err  error
+}
+
+func (f *fakeConsentHistory) AppendHistory(_ context.Context, record *consentmgmt.ConsentRecord) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.rows = append(f.rows, record)
+	return nil
 }
 
 func TestDeviceSecretProviderTestSuite(t *testing.T) {
@@ -265,6 +281,7 @@ func (ts *DeviceSecretProviderTestSuite) SetupSuite() {
 
 func (ts *DeviceSecretProviderTestSuite) SetupTest() {
 	ts.store = inmemory.Initialize("device-secret-test")
+	ts.history = &fakeConsentHistory{}
 	ts.now = time.Now()
 }
 
@@ -285,7 +302,7 @@ func (ts *DeviceSecretProviderTestSuite) newProvider(cfg *config.AppConfig, sign
 	if store == nil {
 		store = ts.store
 	}
-	p, err := NewDeviceSecretProvider(cfg, signer, cipher, store, ts.clock)
+	p, err := NewDeviceSecretProvider(cfg, signer, cipher, store, ts.history, ts.clock)
 	ts.Require().NoError(err)
 	return p.(*deviceSecretProvider)
 }
@@ -371,18 +388,22 @@ func (ts *DeviceSecretProviderTestSuite) TestNewDeviceSecretProvider_RejectsBadS
 		ts.Run(name, func() {
 			cfg := deviceSecretTestConfig()
 			mutate(cfg)
-			p, err := NewDeviceSecretProvider(cfg, ts.keys.sig, ts.keys.crypto, ts.store, nil)
+			p, err := NewDeviceSecretProvider(cfg, ts.keys.sig, ts.keys.crypto, ts.store, ts.history, nil)
 			ts.Error(err)
 			ts.Nil(p)
 		})
 	}
 	ts.Run("missing services", func() {
-		p, err := NewDeviceSecretProvider(deviceSecretTestConfig(), nil, ts.keys.crypto, ts.store, nil)
+		p, err := NewDeviceSecretProvider(deviceSecretTestConfig(), nil, ts.keys.crypto, ts.store, ts.history, nil)
 		ts.ErrorContains(err, "needs the signature")
+		ts.Nil(p)
+		p, err = NewDeviceSecretProvider(deviceSecretTestConfig(), ts.keys.sig, ts.keys.crypto, ts.store, nil, nil)
+		ts.ErrorContains(err, "consent services")
 		ts.Nil(p)
 	})
 	ts.Run("nil clock means time.Now", func() {
-		p, err := NewDeviceSecretProvider(deviceSecretTestConfig(), ts.keys.sig, ts.keys.crypto, ts.store, nil)
+		p, err := NewDeviceSecretProvider(deviceSecretTestConfig(), ts.keys.sig, ts.keys.crypto, ts.store, ts.history,
+			nil)
 		ts.Require().NoError(err)
 		ts.WithinDuration(time.Now(), p.(*deviceSecretProvider).now(), time.Minute)
 	})
@@ -455,7 +476,9 @@ func (ts *DeviceSecretProviderTestSuite) TestGenerateDeviceSecret_StoresSessionR
 	ts.Require().NoError(err)
 	var session nativeSSOSession
 	ts.Require().NoError(json.Unmarshal(raw, &session))
+	ts.NotEmpty(session.JTI, "the record names its device secret")
 	ts.Equal(nativeSSOSession{
+		JTI:    session.JTI,
 		AuthID: "authz-req-1", ClientID: "hub-client", Subject: "psut-123", OUID: "ps03-vendor",
 		AttributeCacheID: "aci-1", AuthTime: 1_760_000_000, ExpiresAt: ts.now.Unix() + dsTestValidity,
 	}, session)
@@ -525,7 +548,7 @@ func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_Empty() {
 
 func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_IDTokenRejected() {
 	p := ts.newProvider(nil, nil, nil, nil)
-	ts.putSession("sid-1", nativeSSOSession{AuthID: "authz-req-1", ClientID: "hub-client",
+	ts.putSession("sid-1", nativeSSOSession{JTI: "jti-1", AuthID: "authz-req-1", ClientID: "hub-client",
 		ExpiresAt: ts.now.Unix() + 60})
 
 	ts.Run("plain signed id_token", func() {
@@ -547,7 +570,7 @@ func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_IDTokenRejecte
 
 func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_WrongTypeOrAlgorithm() {
 	p := ts.newProvider(nil, nil, nil, nil)
-	ts.putSession("sid-1", nativeSSOSession{AuthID: "authz-req-1", ClientID: "hub-client",
+	ts.putSession("sid-1", nativeSSOSession{JTI: "jti-1", AuthID: "authz-req-1", ClientID: "hub-client",
 		ExpiresAt: ts.now.Unix() + 60})
 	for name, header := range map[string]map[string]any{
 		"typ JWT":    {"alg": "ES256", "typ": "JWT"},
@@ -590,7 +613,7 @@ func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_WrongKey() {
 		ts.assertInvalid(svcErr)
 	})
 	ts.Run("signed by another server's key", func() {
-		ts.putSession("sid-1", nativeSSOSession{AuthID: "authz-req-1", ClientID: "hub-client",
+		ts.putSession("sid-1", nativeSSOSession{JTI: "jti-1", AuthID: "authz-req-1", ClientID: "hub-client",
 			ExpiresAt: ts.now.Unix() + 60})
 		// Signed with the other key set, encrypted to ours: decryption works, the signature does not.
 		ctx := context.Background()
@@ -692,7 +715,7 @@ func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_UnknownOrDelet
 	})
 	ts.Run("session record past its end", func() {
 		p := ts.newProvider(nil, nil, nil, nil)
-		ts.putSession("sid-1", nativeSSOSession{AuthID: "authz-req-1", ClientID: "hub-client",
+		ts.putSession("sid-1", nativeSSOSession{JTI: "jti-1", AuthID: "authz-req-1", ClientID: "hub-client",
 			ExpiresAt: ts.now.Unix()})
 		_, svcErr := p.ValidateDeviceSecret(context.Background(), ts.sealInner(ts.keys, ts.validHeader(),
 			ts.validClaims()))
@@ -703,8 +726,11 @@ func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_UnknownOrDelet
 func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_SessionMismatch() {
 	p := ts.newProvider(nil, nil, nil, nil)
 	for name, session := range map[string]nativeSSOSession{
-		"other login":  {AuthID: "authz-req-2", ClientID: "hub-client", ExpiresAt: ts.now.Unix() + 60},
-		"other client": {AuthID: "authz-req-1", ClientID: "child-client", ExpiresAt: ts.now.Unix() + 60},
+		"other login": {JTI: "jti-1", AuthID: "authz-req-2", ClientID: "hub-client", ExpiresAt: ts.now.Unix() + 60},
+		"other client": {JTI: "jti-1", AuthID: "authz-req-1", ClientID: "child-client",
+			ExpiresAt: ts.now.Unix() + 60},
+		// The record names one device secret: another jti under the same sid is not that device secret.
+		"other jti": {JTI: "jti-2", AuthID: "authz-req-1", ClientID: "hub-client", ExpiresAt: ts.now.Unix() + 60},
 	} {
 		ts.Run(name, func() {
 			ts.putSession("sid-1", session)
@@ -830,4 +856,46 @@ func (ts *DeviceSecretProviderTestSuite) TestIsDeviceSecretSessionActive_Failure
 		ts.False(active)
 		ts.assertServerError(svcErr)
 	})
+}
+
+// Statement diagram 2: a silent consent reuse appends one consent_history row for the second app, with the
+// issued scopes, the released claims and the device secret's expiry.
+func (ts *DeviceSecretProviderTestSuite) TestRecordConsentReuse_AppendsHistoryRow() {
+	p := ts.newProvider(nil, nil, nil, nil)
+	device := &providers.DeviceSecretClaims{
+		DeviceSecretRequest: providers.DeviceSecretRequest{ClientID: "hub-client", Subject: "psut-123"},
+		ExpiresAt:           ts.now.Unix() + 600,
+	}
+	svcErr := p.RecordConsentReuse(context.Background(), providers.ConsentReuse{
+		ClientID: "child-client", Device: device, Scopes: []string{"openid", "email"}, Claims: []string{"email"},
+	})
+	ts.Require().Nil(svcErr)
+	ts.Require().Len(ts.history.rows, 1)
+	row := ts.history.rows[0]
+	ts.Equal("child-client", row.ClientID, "the row is for the app that received the tokens")
+	ts.Equal("psut-123", row.UserID)
+	ts.Equal([]string{"openid", "email"}, row.AuthorizationScopes)
+	ts.Equal([]string{"openid", "email"}, row.PermittedScopes)
+	ts.Equal([]string{"email"}, row.AcceptedClaims)
+	ts.Equal(map[string]any{"userinfo": map[string]any{"email": nil}}, row.Claims)
+	ts.Equal(ts.now.Unix(), row.CreatedAt.Unix())
+	ts.True(row.ExpiresAt.Valid)
+	ts.Equal(device.ExpiresAt, row.ExpiresAt.Time.Unix())
+}
+
+func (ts *DeviceSecretProviderTestSuite) TestRecordConsentReuse_Failures() {
+	device := &providers.DeviceSecretClaims{DeviceSecretRequest: providers.DeviceSecretRequest{Subject: "psut-123"}}
+	ts.Run("history write fails", func() {
+		ts.history.err = errors.New("db down")
+		defer func() { ts.history.err = nil }()
+		svcErr := ts.newProvider(nil, nil, nil, nil).RecordConsentReuse(context.Background(),
+			providers.ConsentReuse{ClientID: "child-client", Device: device})
+		ts.assertServerError(svcErr)
+	})
+	ts.Run("no device secret", func() {
+		svcErr := ts.newProvider(nil, nil, nil, nil).RecordConsentReuse(context.Background(),
+			providers.ConsentReuse{ClientID: "child-client"})
+		ts.assertServerError(svcErr)
+	})
+	ts.Empty(ts.history.rows)
 }

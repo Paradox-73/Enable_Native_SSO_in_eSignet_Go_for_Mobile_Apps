@@ -48,7 +48,7 @@ Assumptions:
 | Child App | T2 (another client posing as it) | - | - | T1 (its own tokens) | - | T5 (asks for more scope) |
 | Custom Tab login | T11 | T11 (code injection) | - | T11 | - | - |
 | Network, phone to eSignet | T8 | T4 (replay) | - | T1 (without TLS) | - | - |
-| Thunder token endpoint | T2, T8 | T7 (forged or mixed tokens) | eSignet access log with correlation id; audit events are future work | error texts name no user data | client auth and cheap request checks run before any decryption | T5, T9 |
+| Thunder token endpoint | T2, T8 | T7 (forged or mixed tokens) | eSignet access log with correlation id; an accepted exchange writes the audit line `native_sso_consent_reused` and a `consent_history` row (R29); other audit events are future work | error texts name no user data | client auth and cheap request checks run before any decryption | T5, T9 |
 | eSignet DeviceSecretProvider and keymanager | T7 (token of another type) | T7 | - | T1 (claims inside the secret, prevented by JWE) | RSA decryption only after client auth | - |
 | Runtime store | - | session records written only by the provider | - | user id kept server side, not in the token | TTL on every record | T9 (stale record) |
 | The person holding the phone | T10 | - | - | T10 | - | T10 |

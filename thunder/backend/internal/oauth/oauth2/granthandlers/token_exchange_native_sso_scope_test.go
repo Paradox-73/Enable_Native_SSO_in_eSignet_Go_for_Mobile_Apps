@@ -137,6 +137,8 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_ChildAppClaimsFollowItsS
 
 	s.Require().Nil(errResp)
 	s.Equal(map[string]interface{}{"email": "asha@example.com", "name": "Asha"}, s.builtID[0].UserAttributes)
+	s.Require().Len(s.reused, 1)
+	s.ElementsMatch([]string{"email", "name"}, s.reused[0].Claims, "the consent record names the released claims")
 }
 
 // An opaque attribute token from the identity system (eSignet) is passed on unchanged.

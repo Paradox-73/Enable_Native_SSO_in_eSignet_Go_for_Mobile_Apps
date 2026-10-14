@@ -124,13 +124,15 @@ func main() {
 	if err := provisionKeyHierarchy(keyMgrSvc); err != nil {
 		logger.Fatal("failed to provision key hierarchy", applog.Error(err))
 	}
+	consentSvc := consentmgmt.NewService(pgConn)
 	// A nil provider turns OpenID Connect Native SSO off in the engine (native_sso.enabled false).
 	var deviceSecretProvider providers.DeviceSecretProvider
 	if appCfg.NativeSSO.Enabled {
 		if err := provisionDeviceSecretKey(context.Background(), keyMgrSvc, appCfg.NativeSSO); err != nil {
 			logger.Fatal("failed to provision device secret key", applog.Error(err))
 		}
-		deviceSecretProvider, err = engine.NewDeviceSecretProvider(appCfg, sigSvc, cryptoSvc, runtimeStore, nil)
+		deviceSecretProvider, err = engine.NewDeviceSecretProvider(appCfg, sigSvc, cryptoSvc, runtimeStore, consentSvc,
+			nil)
 		if err != nil {
 			logger.Fatal("native sso settings", applog.Error(err))
 		}
@@ -174,7 +176,7 @@ func main() {
 		thunderidengine.WithActorProvider(engine.NewActorProvider(clientSvc, appCfg)),
 		thunderidengine.WithDefaultAuthnProvider(authnProvider),
 		thunderidengine.WithAuthorizationProvider(engine.NewAuthorizationProvider(appCfg)),
-		thunderidengine.WithConsentProvider(engine.NewConsentProvider(consentmgmt.NewService(pgConn), clientSvc, appCfg)),
+		thunderidengine.WithConsentProvider(engine.NewConsentProvider(consentSvc, clientSvc, appCfg)),
 		thunderidengine.WithDesignResolveProvider(engine.NewDesignProvider(appCfg, runtimeStore, appCfg.DesignCacheTTLSecs)),
 		thunderidengine.WithFlowProvider(engine.NewFlowProvider(appCfg, runtimeStore, appCfg.FlowCacheTTLSecs)),
 		thunderidengine.WithI18nProvider(engine.NewI18nProvider(appCfg, clientSvc)),

@@ -174,7 +174,36 @@ func (h *tokenExchangeGrantHandler) handleNativeSSOGrant(ctx context.Context, to
 		return nil, errResp
 	}
 
-	return h.issueNativeSSOTokens(ctx, tokenRequest, oauthApp, dsClaims, scopes)
+	response, errResp := h.issueNativeSSOTokens(ctx, tokenRequest, oauthApp, dsClaims, scopes)
+	if errResp != nil {
+		return nil, errResp
+	}
+
+	// Step 15: the consent was reused with no consent screen; record it before the tokens leave
+	// (statement diagram 2, "append consent_history row").
+	if errResp := h.recordConsentReuse(ctx, oauthApp, dsClaims, scopes); errResp != nil {
+		return nil, errResp
+	}
+	return response, nil
+}
+
+// recordConsentReuse writes the audit line of a silent consent reuse and asks the DeviceSecretProvider to
+// add it to the consent history. A failure to record makes the exchange fail: no tokens without a record.
+func (h *tokenExchangeGrantHandler) recordConsentReuse(ctx context.Context, oauthApp *providers.OAuthClient,
+	dsClaims *providers.DeviceSecretClaims, scopes []string) *model.ErrorResponse {
+	nativesso.AuditConsent(ctx, nativesso.AuditConsentReused, &nativesso.ConsentTicket{
+		ClientID: oauthApp.ClientID, FirstClientID: dsClaims.ClientID, SessionID: dsClaims.SessionID, Scopes: scopes,
+	})
+	if svcErr := h.deviceSecretProvider.RecordConsentReuse(ctx, providers.ConsentReuse{
+		ClientID: oauthApp.ClientID,
+		Device:   dsClaims,
+		Scopes:   scopes,
+		Claims:   releasedClaimNames(oauthApp, dsClaims, scopes),
+	}); svcErr != nil {
+		log.GetLogger().Error(ctx, "Failed to record the Native SSO consent reuse", log.String("code", svcErr.Code))
+		return nativeSSOServerError()
+	}
+	return nil
 }
 
 // validateDeviceSecret asks the DeviceSecretProvider to validate the device secret and maps its outcome
@@ -507,20 +536,28 @@ func (h *tokenExchangeGrantHandler) nativeSSOUserAttributes(ctx context.Context,
 		return attrs, nil
 	}
 
-	allowed := make(map[string]bool)
-	for _, scope := range scopes {
-		for _, claim := range oauth2utils.ResolveScopeClaims(scope, oauthApp.ScopeClaims) {
-			if slices.Contains(dsClaims.Claims, claim) {
-				allowed[claim] = true
-			}
-		}
-	}
+	allowed := releasedClaimNames(oauthApp, dsClaims, scopes)
 	for name, value := range cache.Attributes {
-		if allowed[name] || name == providers.RawJWTAttributeKey {
+		if slices.Contains(allowed, name) || name == providers.RawJWTAttributeKey {
 			attrs[name] = value
 		}
 	}
 	return attrs, nil
+}
+
+// releasedClaimNames returns the claims the second app may receive: those both released to the first app
+// (the device secret's claims) and released by scopes under the second app's own scope-to-claims mapping.
+func releasedClaimNames(oauthApp *providers.OAuthClient, dsClaims *providers.DeviceSecretClaims,
+	scopes []string) []string {
+	var released []string
+	for _, scope := range scopes {
+		for _, claim := range oauth2utils.ResolveScopeClaims(scope, oauthApp.ScopeClaims) {
+			if slices.Contains(dsClaims.Claims, claim) && !slices.Contains(released, claim) {
+				released = append(released, claim)
+			}
+		}
+	}
+	return released
 }
 
 // grantedNativeSSOScopes returns the scope granted with a device secret without device_sso: the

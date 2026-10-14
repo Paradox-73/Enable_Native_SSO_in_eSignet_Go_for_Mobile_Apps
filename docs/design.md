@@ -484,6 +484,13 @@ type DeviceSecretProvider interface {
 	// ValidateDeviceSecret checks a device secret presented as actor_token and returns its
 	// claims when it is authentic, unexpired and its login session is still active.
 	ValidateDeviceSecret(ctx context.Context, deviceSecret string) (*DeviceSecretClaims, *common.ServiceError)
+	// EndDeviceSecretSession ends the login session of a device secret (RFC 7009 revocation, R27).
+	EndDeviceSecretSession(ctx context.Context, claims *DeviceSecretClaims) *common.ServiceError
+	// IsDeviceSecretSessionActive reports whether a sid's session is still active (tokens carrying it, R27).
+	IsDeviceSecretSessionActive(ctx context.Context, sessionID string) (bool, *common.ServiceError)
+	// RecordConsentReuse records a token exchange that reused the login's consent with no consent
+	// screen (statement diagram 2, R29); an error fails the exchange with server_error.
+	RecordConsentReuse(ctx context.Context, reuse ConsentReuse) *common.ServiceError
 }
 ```
 
@@ -492,6 +499,7 @@ type DeviceSecretProvider interface {
 | `DeviceSecretRequest` | `ClientID`, `OUID`, `Subject`, `AuthID`, `SessionID`, `Scopes`, `ACR`, `Claims`, `AuthTime`, `DPoPJkt`, `AttributeCacheID` |
 | `DeviceSecret` | `Value` (compact JWE, opaque to clients), `ExpiresAt` |
 | `DeviceSecretClaims` | the request fields plus `Issuer`, `IssuedAt`, `ExpiresAt` |
+| `ConsentReuse` | `ClientID` (the second app), `Device` (the validated device secret claims), `Scopes` (issued), `Claims` (released claim names) |
 
 Contract rules:
 - Thunder treats the device secret as an opaque string. Only the provider knows its format (Native SSO 3.2:
@@ -662,6 +670,11 @@ In the Native SSO branch of the token-exchange handler:
     proved), `aud` and `client_id` of the Child App, same `sub`, same attribute-cache id, the login's `sid`; id_token
     with `aud` = Child App, same `sub`, same `sid` (R23). With the optional `dpop_jkt` extension (D3) the access
     token is bound to the key it names instead; a `dpop_jkt` that is not a SHA-256 thumbprint is `invalid_request`.
+15. Record the silent consent reuse (statement diagram 2): one audit line `native_sso_consent_reused` (apps, scopes,
+    a hash of the session, never the user) and one `consent_history` row in eSignet's database for the Child App,
+    written by the device secret provider. The row holds the issued scopes, the released claim names and the
+    device secret's expiry; `consent_detail` is not changed, so a later browser login of the Child App still asks
+    for consent. If the row cannot be written the exchange fails with `server_error` and no token leaves (R29).
 
 ### 11.1 Why an expired id_token is accepted
 
@@ -803,6 +816,10 @@ The live tests also register a client of another relying party (`ps03-other-vend
 | Refresh token on the exchange | Not asked (access_token, id_token) | Native SSO 4.4: OPTIONAL | None, as eSignet issues none today |
 | DPoP key of the Child App's tokens | Task 8: Child App reuses the first app's key | RFC 9449 assumes the key belongs to the client sending the proof | Statement followed (D3); the optional `dpop_jkt` extension binds to the Child App's own key instead (off in the demo apps) |
 | Client authentication on the phone | Apps call the token endpoint (tasks 5-9) | eSignet RP guide: client key on a backend | Non-exportable Keystore key per app (D11, section [18](#18-client-keys-on-the-phone-and-the-rp-integration-guide)) |
+| `ds_hash` formula | Diagram 1: `ds_hash = BASE64URL(SHA-256(device_secret))` | Native SSO 3.4.1: "The exact binding between the ds_hash and device_secret is not specified by this profile" | Left-most half of SHA-256, the `at_hash` construction of OIDC Core 3.1.3.6 (section [10](#10-ds_hash-and-sid), D2). Both formulas meet the specification; the `at_hash` one is the construction OIDC client libraries already compute, and Hub and the e2e suite check it. The 22-character value carries 128 bits, more than enough for a binding check |
+| `sid` value | Diagram 1: "authID is used as sid" | Native SSO 3.4.1: `sid` is "a string that uniquely identifies this user's authentication session" | A fresh 128-bit random value per device secret (section [10](#10-ds_hash-and-sid)). `authID` travels through the browser to the login page (`authId` query parameter and form field); `sid` is the key of the session record and is minted on the server. One `sid` per device secret also makes RFC 7009 revocation end exactly that device secret's session. The login's `authID` is still in the device secret (`auth_id`) and must match the session record, so the device secret stays bound to its login as the diagram intends |
+| Device secret `jti` after an exchange | Diagram 2: "Mark device_secret jti as used" and "check jti not revoked" | Native SSO 3.2: the device secret "may be shared between mobile apps"; 3.4.3: returning a new device secret while one is still valid "is not RECOMMENDED" | Not marked as used: a one-time `jti` would stop the third family app (and Health Card's second sign-in) without rotation, which the specification advises against. Revocation is checked: the session record names the device secret's `jti` and validation requires the same value (R12), so sign-out or RFC 7009 revocation, which deletes the record, revokes that `jti`. A replayed exchange still needs a fresh DPoP proof from Hub's key; Thunder's DPoP `jti` cache refuses a replayed proof (`TestE2E_Exchange_DPoPReplay`) |
+| Consent on a silent exchange | Diagram 2: ConsentProvider checks the subset, skips consent and appends a `consent_history` row ("audit trail even though no user interaction happened") | Not covered | Subset rule in Thunder's exchange against the device secret's scope (section [12](#12-scope-rules-and-re-consent)), not through eSignet's `ConsentProvider`, whose interface works on a browser flow. Every exchange that issues tokens writes the audit line `native_sso_consent_reused` and one `consent_history` row for the Child App, through the Device Secret Provider (section [11](#11-validation-order-at-the-token-exchange) step 15, R29). `consent_detail` is not written, so a later browser login of the Child App still shows eSignet's consent screen |
 
 ## 18. Client keys on the phone and the RP integration guide
 
@@ -864,7 +881,7 @@ the local stack and are named `TestE2E_*`. Dated results per rule: [test-report.
 | R09 | T4b, T9 ii | tampered, foreign-key or expired device secret, or another token type in its place: `invalid_request` | eSignet engine, granthandlers | `TestE2E_Exchange_TamperedDeviceSecret` |
 | R10 | T9 i | device-secret URN accepted; `urn:x-oath:` and others `invalid_request` | granthandlers | `TestE2E_Exchange_OldURNRejected` |
 | R11 | T9 iii.1 | `ds_hash` mismatch: `invalid_request` | granthandlers | `TestE2E_Exchange_DSHashMismatch` |
-| R12 | T9 iii.2 | `sid` mismatch: `invalid_request`; session ended: `invalid_grant` | granthandlers, eSignet engine | `TestE2E_Exchange_SessionEnded` (the `sid`-only mismatch is a unit test: the `ds_hash` check fails first on any forged id_token) |
+| R12 | T9 iii.2 | `sid` mismatch: `invalid_request`; session ended: `invalid_grant`; a session record that names another device secret `jti`: `invalid_request` | granthandlers, eSignet engine | `TestE2E_Exchange_SessionEnded` (the `sid`-only mismatch is a unit test: the `ds_hash` check fails first on any forged id_token) |
 | R13 | T9 iii.3 | client without `device_sso`: `unauthorized_client` | granthandlers | `TestE2E_Exchange_ClientWithoutDeviceSSO` |
 | R14 | T9 iii.4 | DPoP key mismatch: `invalid_grant`; missing proof from a DPoP-bound client: `invalid_dpop_proof` | granthandlers, token | `TestE2E_Exchange_DPoPKeyMismatch`, `TestE2E_Exchange_NoDPoP` |
 | R15 | T10a, B1 | scope superset: `interaction_required` (`invalid_scope` by setting) | granthandlers | `TestE2E_Exchange_ScopeSuperset` |
@@ -881,6 +898,7 @@ the local stack and are named `TestE2E_*`. Dated results per rule: [test-report.
 | R26 | D9 | other token exchanges blocked: `invalid_request` | granthandlers | `TestE2E_GenericExchangeRejected` |
 | R27 | sign-out, RFC 7009 | the issuing client revokes its device secret: `200`, then the exchange is `invalid_grant` and the Child App's earlier access token gets `401 invalid_token` at userinfo; another client gets `invalid_grant` and nothing changes; other tokens get `unsupported_token_type` while the deny list is off; discovery lists `revocation_endpoint` | revocation, discovery, eSignet engine | `TestE2E_Revoke_DeviceSecret` |
 | R28 | B1 | consent only: `interaction_required` with `consent_uri` for a scope that needs no new user data; page without login; "Not now" changes nothing; cross-site form refused; the page and an "Allow" from a client other than the login browser refused (403), ticket kept for the user; "Allow" once, then the exchange returns the scope bound to the Super App's key; another DPoP key still `invalid_grant`; `phone` gets no `consent_uri`; a scope the app is not allowed gets none; a new login asks again; a revoked device secret is `invalid_grant` | granthandlers, nativesso, token | `TestE2E_Exchange_ConsentOnlyReconsent` |
+| R29 | diagram 2 | an exchange that issues tokens writes the audit line `native_sso_consent_reused` and one `consent_history` row for the Child App (issued scopes, released claim names, device secret expiry) and leaves `consent_detail` unchanged; a failed write is `server_error` with no tokens; a refused exchange writes nothing | granthandlers, eSignet engine, consentmgmt | unit only for the failure path; the live stack's row is checked by a database query in the test report |
 
 App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `android/*/src/androidTest` that need the emulator, or a recorded command). A rule with a JVM part and a device part has two rows in the test report (`a`, `b`):
 
@@ -904,8 +922,9 @@ App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `an
 
 - End the Super App's own code-grant tokens on sign-out as well: mint the session id before the access token is
   built, so it can carry the `sid` too.
-- Audit events for "device secret issued", "exchange accepted", "exchange rejected" (reason code, client id, no
-  personal data) through eSignet's audit plugin interface.
+- Audit events for "device secret issued" and "exchange rejected" (reason code, client id, no personal data)
+  through eSignet's audit plugin interface. An accepted exchange already writes the log line
+  `native_sso_consent_reused` and a `consent_history` row (R29).
 - Consent-only re-consent for new user data: needs an identity-system API that releases more claims for an
   existing authentication (MOSIP IDA has none; its KYC exchange follows a fresh authentication).
 - Write the consent-only approvals into eSignet's consent records next to the audit lines, once

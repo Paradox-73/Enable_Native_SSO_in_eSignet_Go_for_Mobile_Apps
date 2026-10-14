@@ -94,54 +94,12 @@ func (s *Service) FetchRecord(ctx context.Context, clientID, userID string) (*Co
 // (append-only audit trail) and inserts-or-replaces the current row in consent_detail, both within
 // a single transaction so the history snapshot and the current row commit atomically.
 func (s *Service) SaveRecord(ctx context.Context, c *ConsentRecord) error {
-	normalizedClaims := NormalizeClaims(c.Claims)
-	claimsRequestJSON, err := json.Marshal(normalizedClaims)
+	historyParams, err := historyRow(c)
 	if err != nil {
-		return fmt.Errorf("encode claims request: %w", err)
+		return err
 	}
-	normalizedScopes := NormalizeAuthorizationScopes(c.AuthorizationScopes)
-	scopesJSON, err := json.Marshal(normalizedScopes)
-	if err != nil {
-		return fmt.Errorf("encode requested scopes: %w", err)
-	}
-	hash, err := HashRequestedConsent(normalizedClaims, normalizedScopes)
-	if err != nil {
-		return fmt.Errorf("hashing request consent: %w", err)
-	}
-
-	acceptedClaimsJSON, err := json.Marshal(nonNilSlice(c.AcceptedClaims))
-	if err != nil {
-		return fmt.Errorf("encode accepted_claims: %w", err)
-	}
-	permittedScopesJSON, err := json.Marshal(nonNilSlice(c.PermittedScopes))
-	if err != nil {
-		return fmt.Errorf("encode permitted_scopes: %w", err)
-	}
-
-	historyParams := db.InsertConsentHistoryParams{
-		ID:                  uuid.NewString(),
-		ClientID:            c.ClientID,
-		PsuToken:            c.UserID,
-		Claims:              string(claimsRequestJSON),
-		AuthorizationScopes: string(scopesJSON),
-		Hash:                nullString(hash),
-		AcceptedClaims:      nullString(string(acceptedClaimsJSON)),
-		PermittedScopes:     nullString(string(permittedScopesJSON)),
-		CrDtimes:            c.CreatedAt,
-		ExpireDtimes:        c.ExpiresAt,
-	}
-	detailParams := db.UpsertConsentParams{
-		ID:                  c.ID,
-		ClientID:            c.ClientID,
-		PsuToken:            c.UserID,
-		Claims:              string(claimsRequestJSON),
-		AuthorizationScopes: string(scopesJSON),
-		Hash:                nullString(hash),
-		AcceptedClaims:      nullString(string(acceptedClaimsJSON)),
-		PermittedScopes:     nullString(string(permittedScopesJSON)),
-		CrDtimes:            c.CreatedAt,
-		ExpireDtimes:        c.ExpiresAt,
-	}
+	detailParams := db.UpsertConsentParams(historyParams)
+	detailParams.ID = c.ID
 
 	q := s.q
 	var tx *sql.Tx
@@ -167,9 +125,61 @@ func (s *Service) SaveRecord(ctx context.Context, c *ConsentRecord) error {
 	}
 	s.logger.Debug(ctx, "consent record saved",
 		applog.String("clientId", c.ClientID),
-		applog.Int("claimCount", len(normalizedClaims)),
-		applog.Int("scopeCount", len(normalizedScopes)))
+		applog.Int("claimCount", len(c.Claims)),
+		applog.Int("scopeCount", len(c.AuthorizationScopes)))
 	return nil
+}
+
+// AppendHistory adds a snapshot of c to the consent_history audit trail only. consent_detail, which
+// decides whether a later login asks for consent again, is left unchanged.
+func (s *Service) AppendHistory(ctx context.Context, c *ConsentRecord) error {
+	params, err := historyRow(c)
+	if err != nil {
+		return err
+	}
+	if err := s.q.InsertConsentHistory(ctx, params); err != nil {
+		return fmt.Errorf("insert consent history: %w", err)
+	}
+	return nil
+}
+
+// historyRow encodes c as a consent_history row with a new id: claims and scopes normalized as JSON
+// and the hash that FetchRecord's callers compare against a new request.
+func historyRow(c *ConsentRecord) (db.InsertConsentHistoryParams, error) {
+	normalizedClaims := NormalizeClaims(c.Claims)
+	claimsRequestJSON, err := json.Marshal(normalizedClaims)
+	if err != nil {
+		return db.InsertConsentHistoryParams{}, fmt.Errorf("encode claims request: %w", err)
+	}
+	normalizedScopes := NormalizeAuthorizationScopes(c.AuthorizationScopes)
+	scopesJSON, err := json.Marshal(normalizedScopes)
+	if err != nil {
+		return db.InsertConsentHistoryParams{}, fmt.Errorf("encode requested scopes: %w", err)
+	}
+	hash, err := HashRequestedConsent(normalizedClaims, normalizedScopes)
+	if err != nil {
+		return db.InsertConsentHistoryParams{}, fmt.Errorf("hashing request consent: %w", err)
+	}
+	acceptedClaimsJSON, err := json.Marshal(nonNilSlice(c.AcceptedClaims))
+	if err != nil {
+		return db.InsertConsentHistoryParams{}, fmt.Errorf("encode accepted_claims: %w", err)
+	}
+	permittedScopesJSON, err := json.Marshal(nonNilSlice(c.PermittedScopes))
+	if err != nil {
+		return db.InsertConsentHistoryParams{}, fmt.Errorf("encode permitted_scopes: %w", err)
+	}
+	return db.InsertConsentHistoryParams{
+		ID:                  uuid.NewString(),
+		ClientID:            c.ClientID,
+		PsuToken:            c.UserID,
+		Claims:              string(claimsRequestJSON),
+		AuthorizationScopes: string(scopesJSON),
+		Hash:                nullString(hash),
+		AcceptedClaims:      nullString(string(acceptedClaimsJSON)),
+		PermittedScopes:     nullString(string(permittedScopesJSON)),
+		CrDtimes:            c.CreatedAt,
+		ExpireDtimes:        c.ExpiresAt,
+	}, nil
 }
 
 // DeleteRecord removes the current consent for the (clientID, userID) pair from consent_detail. It

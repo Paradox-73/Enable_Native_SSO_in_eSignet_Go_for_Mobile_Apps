@@ -12,8 +12,9 @@ import (
 	"github.com/thunder-id/thunderid/internal/system/log"
 )
 
-// Audit events of consent-only re-consent. Each is one log line at INFO level with the component
-// name NativeSSOConsent, so the deployment's log pipeline can keep them as audit records.
+// Audit events of Native SSO consent (consent-only re-consent and silent reuse). Each is one log line at
+// INFO level with the component name NativeSSOConsent, so the deployment's log pipeline can keep them as
+// audit records.
 const (
 	// AuditConsentTicketIssued: a token exchange was refused for extra scopes and a consent_uri issued.
 	AuditConsentTicketIssued = "native_sso_consent_requested"
@@ -24,9 +25,13 @@ const (
 	// AuditConsentOtherBrowser: the consent page was opened or answered outside the browser of the login
 	// (for example by the app that asked), and nothing was shown or recorded.
 	AuditConsentOtherBrowser = "native_sso_consent_other_browser"
+	// AuditConsentReused: a token exchange issued tokens under consent the user already gave in this login,
+	// with no consent screen.
+	AuditConsentReused = "native_sso_consent_reused"
 )
 
-// AuditConsent writes one audit line for ticket. It names the apps, the scopes and a short hash of
+// AuditConsent writes one audit line for ticket (for a silent reuse, a ticket value that carries only the
+// apps, the scopes and the session). It names the apps, the scopes and a short hash of
 // the login session, never the user, the session id itself or the ticket.
 func AuditConsent(ctx context.Context, event string, ticket *ConsentTicket) {
 	if ticket == nil {

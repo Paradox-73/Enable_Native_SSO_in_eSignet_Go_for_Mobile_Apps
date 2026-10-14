@@ -85,6 +85,20 @@ type DeviceSecretClaims struct {
 	ExpiresAt int64 `json:"exp"`
 }
 
+// ConsentReuse describes a token exchange that issued tokens to a second app under the consent the
+// user gave at the first app's login (or on the consent page of this login), without asking again.
+// The statement's Child App diagram records such a silent reuse in the consent history.
+type ConsentReuse struct {
+	// ClientID is the second app the tokens were issued to.
+	ClientID string
+	// Device is the validated device secret the exchange presented.
+	Device *DeviceSecretClaims
+	// Scopes are the scopes issued to the second app.
+	Scopes []string
+	// Claims are the names of the user claims released to the second app.
+	Claims []string
+}
+
 // ErrInvalidDeviceSecretRequest is wrapped by DeviceSecretRequest.Validate.
 var ErrInvalidDeviceSecretRequest = errors.New("invalid device secret request")
 

@@ -55,6 +55,8 @@ type TokenExchangeNativeSSOTestSuite struct {
 	now            time.Time
 	builtAccess    []*tokenservice.AccessTokenBuildContext
 	builtID        []*tokenservice.IDTokenBuildContext
+	reused         []providers.ConsentReuse
+	reuseErr       *tidcommon.ServiceError
 }
 
 func TestTokenExchangeNativeSSOSuite(t *testing.T) {
@@ -75,6 +77,14 @@ func (s *TokenExchangeNativeSSOTestSuite) SetupTest() {
 	s.handler.now = func() time.Time { return s.now }
 	s.builtAccess = nil
 	s.builtID = nil
+	s.reused = nil
+	s.reuseErr = nil
+	// Every exchange that issues tokens records the consent reuse; tests read s.reused or set s.reuseErr.
+	s.dsProvider.EXPECT().RecordConsentReuse(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, reuse providers.ConsentReuse) *tidcommon.ServiceError {
+			s.reused = append(s.reused, reuse)
+			return s.reuseErr
+		}).Maybe()
 
 	s.childApp = &providers.OAuthClient{
 		ClientID:              nssoChildClientID,
@@ -293,6 +303,34 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_Success() {
 	s.Equal(string(providers.GrantTypeTokenExchange), built.GrantType)
 	s.NotContains(built.Scopes, constants.ScopeDeviceSSO)
 	s.Contains(built.Scopes, constants.ScopeOpenID)
+
+	// Statement diagram 2: the silent reuse of the login's consent is recorded for the second app.
+	s.Require().Len(s.reused, 1)
+	s.Equal(nssoChildClientID, s.reused[0].ClientID)
+	s.Same(s.dsClaims, s.reused[0].Device)
+	s.Equal(built.Scopes, s.reused[0].Scopes)
+}
+
+// Statement diagram 2: no tokens leave without the consent-history record; a failed write is a server error.
+func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_ConsentReuseRecordFails() {
+	s.reuseErr = &tidcommon.ServiceError{Code: "ESIGNET-500"}
+	s.expectChecksPass()
+	s.expectIssue()
+
+	resp, errResp := s.handle()
+
+	s.Nil(resp)
+	s.assertError(errResp, constants.ErrorServerError)
+	s.Len(s.reused, 1)
+}
+
+// Only failed exchanges skip the record: a refused request writes no consent-history row.
+func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_RefusedExchangeRecordsNothing() {
+	s.ctx = dpop.WithJkt(context.Background(), "another-key-thumbprint")
+	s.expectChecksPass()
+	_, errResp := s.handle()
+	s.assertError(errResp, constants.ErrorInvalidGrant)
+	s.Empty(s.reused)
 }
 
 // T9 iii.3: the requesting client must itself allow device_sso (rule R13).

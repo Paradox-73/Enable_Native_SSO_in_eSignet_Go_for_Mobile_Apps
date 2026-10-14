@@ -1032,6 +1032,12 @@ commit of that folder.
   - id_token age cap off by default (G2): `oauth.native_sso.id_token_max_age_seconds` is 0 (no cap) in the code and in
     `deployment.yaml`. With the 3600 s default, Health Card stopped signing in silently an hour after Hub's login while Hub
     still said "signed in". The setting stays as a documented hardening option (D8, configuration guide).
+  - Child App diagram steps (G3): every exchange that issues tokens writes the audit line `native_sso_consent_reused`
+    and one `consent_history` row for the second app (new rule R29; `consent_detail` unchanged; no tokens if the row
+    cannot be written). The session record names its device secret's `jti`, so revocation removes that `jti`. Not
+    built, with the reason in design section 17: a one-time `jti` (it would stop the third family app), the diagram's
+    full-hash `ds_hash` (Native SSO leaves the formula to the server; the `at_hash` construction stays), `sid` =
+    `authID` (`authID` passes through the browser; `sid` is minted on the server).
 
 ## Decisions that may change
 

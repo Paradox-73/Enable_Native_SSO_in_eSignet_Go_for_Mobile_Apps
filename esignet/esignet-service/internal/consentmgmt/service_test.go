@@ -194,6 +194,9 @@ func TestSaveRecord_PersistsComputedHashAndNormalizedPayload(t *testing.T) {
 	if q.upsertParams.ID != rec.ID || q.upsertParams.ClientID != rec.ClientID || q.upsertParams.PsuToken != rec.UserID {
 		t.Errorf("unexpected upsert identity fields: %#v", q.upsertParams)
 	}
+	if q.insertHistoryParams.ID == "" || q.insertHistoryParams.ID == rec.ID {
+		t.Errorf("history row id = %q, want a new id distinct from the consent id %q", q.insertHistoryParams.ID, rec.ID)
+	}
 
 	var gotClaims map[string]any
 	if err := json.Unmarshal([]byte(q.upsertParams.Claims), &gotClaims); err != nil {
@@ -210,6 +213,46 @@ func TestSaveRecord_InsertHistoryError(t *testing.T) {
 
 	err := s.SaveRecord(context.Background(), &ConsentRecord{ID: "c1", ClientID: "client-1", UserID: "user-1"})
 	if err == nil {
+		t.Fatal("expected an error when inserting consent history fails")
+	}
+}
+
+// AppendHistory writes the consent_history row only; consent_detail, which decides later consent prompts,
+// is not touched.
+func TestAppendHistory_WritesHistoryOnly(t *testing.T) {
+	q := &fakeQuerier{}
+	s := NewServiceWithQuerier(q)
+	rec := &ConsentRecord{
+		ClientID:            "client-2",
+		UserID:              "user-1",
+		Claims:              map[string]any{"userinfo": map[string]any{"email": nil}},
+		AuthorizationScopes: []string{"openid", "email"},
+		AcceptedClaims:      []string{"email"},
+		PermittedScopes:     []string{"openid", "email"},
+		CreatedAt:           time.Now().UTC(),
+		ExpiresAt:           sql.NullTime{Time: time.Now().Add(time.Hour).UTC(), Valid: true},
+	}
+	if err := s.AppendHistory(context.Background(), rec); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	got := q.insertHistoryParams
+	if got.ID == "" || got.ClientID != "client-2" || got.PsuToken != "user-1" || !got.Hash.Valid {
+		t.Errorf("unexpected history row: %#v", got)
+	}
+	if got.AcceptedClaims.String != `["email"]` || got.PermittedScopes.String != `["openid","email"]` {
+		t.Errorf("accepted %q permitted %q", got.AcceptedClaims.String, got.PermittedScopes.String)
+	}
+	if !got.ExpireDtimes.Valid || !got.ExpireDtimes.Time.Equal(rec.ExpiresAt.Time) {
+		t.Errorf("expire_dtimes = %#v, want %v", got.ExpireDtimes, rec.ExpiresAt.Time)
+	}
+	if q.upsertParams != (db.UpsertConsentParams{}) {
+		t.Errorf("consent_detail written: %#v", q.upsertParams)
+	}
+}
+
+func TestAppendHistory_InsertError(t *testing.T) {
+	q := &fakeQuerier{insertHistoryErr: errors.New("insert failed")}
+	if err := NewServiceWithQuerier(q).AppendHistory(context.Background(), &ConsentRecord{ClientID: "c"}); err == nil {
 		t.Fatal("expected an error when inserting consent history fails")
 	}
 }

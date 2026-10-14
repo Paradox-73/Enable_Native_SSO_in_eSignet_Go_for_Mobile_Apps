@@ -11,6 +11,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ import (
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 
 	"github.com/mosip/esignet/internal/config"
+	"github.com/mosip/esignet/internal/consentmgmt"
 	"github.com/mosip/esignet/internal/engine/shared"
 	"github.com/mosip/esignet/internal/keymanager"
 	"github.com/mosip/esignet/internal/keymanager/cryptomanager"
@@ -89,7 +91,9 @@ type deviceSecretClaims struct {
 // nativeSSOSession is the login-session record of a device secret, stored in the runtime store
 // under providers.NamespaceNativeSSOSession with the session id (sid) as key. Its TTL equals the
 // device secret lifetime; once it is gone the device secret is refused (Native SSO 4.3, step 4).
+// JTI names the one device secret the record belongs to, so deleting the record revokes that jti.
 type nativeSSOSession struct {
+	JTI              string `json:"jti"`
 	AuthID           string `json:"auth_id"`
 	ClientID         string `json:"client_id"`
 	Subject          string `json:"sub"`
@@ -108,7 +112,13 @@ type deviceSecretProvider struct {
 	signer          DeviceSecretSigner
 	cipher          DeviceSecretCipher
 	store           providers.RuntimeStoreProvider
+	consentHistory  ConsentHistoryAppender
 	now             func() time.Time
+}
+
+// ConsentHistoryAppender adds a row to eSignet's consent_history audit trail (consentmgmt.Service).
+type ConsentHistoryAppender interface {
+	AppendHistory(ctx context.Context, record *consentmgmt.ConsentRecord) error
 }
 
 // NewDeviceSecretProvider returns the providers.DeviceSecretProvider of OpenID Connect Native SSO
@@ -116,17 +126,19 @@ type deviceSecretProvider struct {
 // native_sso.signing_key_ref_id key (typ ds+jwt), then encrypted with RSA-OAEP-256 and A256GCM to
 // the native_sso.encryption_key_ref_id Component Encryption Key, both under OIDCServiceAppID.
 // Each device secret has a session record in runtimeStore that ends with the device secret.
-// clock may be nil, which means time.Now.
+// consentHistory receives the consent_history rows of silent consent reuse. clock may be nil, which
+// means time.Now.
 //
 // Wired into thunderidengine.New via thunderidengine.WithDeviceSecretProvider (see
 // cmd/esignet/main.go); an engine without it has Native SSO turned off.
 func NewDeviceSecretProvider(cfg *config.AppConfig, signatureSvc DeviceSecretSigner, cryptoSvc DeviceSecretCipher,
-	runtimeStore providers.RuntimeStoreProvider, clock func() time.Time) (providers.DeviceSecretProvider, error) {
+	runtimeStore providers.RuntimeStoreProvider, consentHistory ConsentHistoryAppender,
+	clock func() time.Time) (providers.DeviceSecretProvider, error) {
 	if err := cfg.NativeSSO.Validate(cfg.JWT.PreferredKeyID); err != nil {
 		return nil, err
 	}
-	if signatureSvc == nil || cryptoSvc == nil || runtimeStore == nil {
-		return nil, errors.New("device secret provider needs the signature, crypto and runtime store services")
+	if signatureSvc == nil || cryptoSvc == nil || runtimeStore == nil || consentHistory == nil {
+		return nil, errors.New("device secret provider needs the signature, crypto, runtime store and consent services")
 	}
 	if clock == nil {
 		clock = time.Now
@@ -140,6 +152,7 @@ func NewDeviceSecretProvider(cfg *config.AppConfig, signatureSvc DeviceSecretSig
 		signer:          signatureSvc,
 		cipher:          cryptoSvc,
 		store:           runtimeStore,
+		consentHistory:  consentHistory,
 		now:             clock,
 	}, nil
 }
@@ -192,6 +205,7 @@ func (p *deviceSecretProvider) GenerateDeviceSecret(ctx context.Context,
 
 	// The record is written last, so that a signing or encryption failure leaves no session behind.
 	record, err := json.Marshal(nativeSSOSession{
+		JTI:              claims.JTI,
 		AuthID:           req.AuthID,
 		ClientID:         req.ClientID,
 		Subject:          req.Subject,
@@ -407,7 +421,7 @@ func (p *deviceSecretProvider) verify(ctx context.Context, compact string) (*dev
 }
 
 // loadSession returns the session record of a verified device secret. The record must exist and
-// belong to the same login and client as the device secret.
+// belong to the same device secret (jti), login and client.
 func (p *deviceSecretProvider) loadSession(ctx context.Context, claims *deviceSecretClaims) (*nativeSSOSession,
 	*common.ServiceError) {
 	logger := applog.GetLogger()
@@ -424,7 +438,7 @@ func (p *deviceSecretProvider) loadSession(ctx context.Context, claims *deviceSe
 		logger.Error(ctx, "device secret session record is corrupt", applog.Error(err))
 		return nil, shared.InternalServerError
 	}
-	if session.AuthID != claims.AuthID || session.ClientID != claims.ClientID {
+	if session.JTI != claims.JTI || session.AuthID != claims.AuthID || session.ClientID != claims.ClientID {
 		logger.Warn(ctx, "device secret does not match its session record", applog.String("clientId", claims.ClientID))
 		return nil, invalidDeviceSecret()
 	}
@@ -432,6 +446,36 @@ func (p *deviceSecretProvider) loadSession(ctx context.Context, claims *deviceSe
 		return nil, sessionEnded()
 	}
 	return &session, nil
+}
+
+// RecordConsentReuse appends a consent_history row for the second app of a token exchange that reused
+// the login's consent without a consent screen (statement diagram 2). The row's user is the sub, as in
+// every eSignet consent record; it expires with the device secret, the reuse's limit.
+func (p *deviceSecretProvider) RecordConsentReuse(ctx context.Context,
+	reuse providers.ConsentReuse) *common.ServiceError {
+	if reuse.Device == nil || reuse.ClientID == "" {
+		return shared.InternalServerError
+	}
+	var expiresAt sql.NullTime
+	if reuse.Device.ExpiresAt > 0 {
+		expiresAt = sql.NullTime{Time: time.Unix(reuse.Device.ExpiresAt, 0).UTC(), Valid: true}
+	}
+	record := &consentmgmt.ConsentRecord{
+		ClientID:            reuse.ClientID,
+		UserID:              reuse.Device.Subject,
+		Claims:              mergeScopeClaims(map[string]any{}, reuse.Claims),
+		AuthorizationScopes: reuse.Scopes,
+		AcceptedClaims:      reuse.Claims,
+		PermittedScopes:     reuse.Scopes,
+		CreatedAt:           p.now().UTC(),
+		ExpiresAt:           expiresAt,
+	}
+	if err := p.consentHistory.AppendHistory(ctx, record); err != nil {
+		applog.GetLogger().Error(ctx, "consent history write failed", applog.String("clientId", reuse.ClientID),
+			applog.Error(err))
+		return shared.InternalServerError
+	}
+	return nil
 }
 
 // isDeviceSecretDecryptRejection reports whether a JWTDecrypt error comes from the presented

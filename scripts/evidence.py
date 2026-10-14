@@ -196,7 +196,7 @@ def cmd_report(_):
         w("| %s | %s | %s | %s | %s | %s |" % (r["id"], esc(r["task"]), ("`%s`" % esc(r["unit"])) if r["unit"] else "", r["result"], r["date"], esc(r["note"])))
     w("")
     w("## Rule matrix\n")
-    w("Rules R01-R28 are the server rules and A01-A13 the app rules of [design.md section 20](design.md#20-rules-and-tests). "
+    w("Rules R01-R29 are the server rules and A01-A13 the app rules of [design.md section 20](design.md#20-rules-and-tests). "
       "A row is PASS only when every test named in its Unit, e2e and Android columns passed in the run recorded for it. "
       "A rule that has both a JVM part and a device part has two rows (`a`, `b`); the device row is set from an emulator run.\n")
     w("| Rule | Task | Unit test | e2e test | Android test | Result | Date | Note |\n|---|---|---|---|---|---|---|---|")
