@@ -22,19 +22,20 @@ save them to `$PS03_RUN_DIR/evidence/<date>/screens/`; the files below are copie
 |---|---|---|
 | ![Health Card signed out](screens/health-card-signed-out.png) | ![Sign in to Hub first](screens/health-card-needs-hub.png) | ![Hub not installed](screens/health-card-hub-missing.png) |
 
-| Health Card: "Not now" on the consent screen |
-|---|
-| ![Consent declined](screens/health-card-consent-declined.png) |
+| Health Card: "Not now" on the consent screen | Health Card: "Not now" on eSignet's consent page | eSignet's login page (Hub sign-in, in Chrome) |
+|---|---|---|
+| ![Consent declined](screens/health-card-consent-declined.png) | ![Consent-only declined](screens/health-card-consent-only-declined.png) | ![eSignet login page](screens/esignet-login-page.png) |
 
 | Health Card: permission that needs no login | eSignet's consent page (no ID, no OTP) | Health Card: card sharing allowed |
 |---|---|---|
 | ![Consent-only screen](screens/health-card-consent-only-screen.png) | ![eSignet consent page](screens/esignet-consent-only-page.png) | ![After consent-only](screens/health-card-after-consent-only.png) |
 
-- Test that takes each screenshot: `SuperAppSignInTest` (the two Hub screens before sign-out),
-  `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest` (the three consent-only screens), `ChildAppReconsentTest`
+- Test that takes each screenshot: `SuperAppSignInTest` (the two Hub screens before sign-out and eSignet's login
+  page), `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest` (the consent-only screens and the refusal on eSignet's
+  page), `ChildAppReconsentTest`
   (consent screen, "Not now", after the extra permission), `ChildAppSignOutTest` (the three sign-out screens) and
   `ChildAppHubMissingTest` (Hub not installed), all from the UI test run of 2026-10-06 that ended at 19:34 IST at
-  `ef69358` (`run-ui-test.sh all`: `OK (6 tests)`).
+  `ef69358` (`run-ui-test.sh all`: `OK (6 tests)`); eSignet's login page and the refusal on eSignet's page come from the run of 2026-10-14.
 - "Hub signed out" and "sharing switched off in Hub" are one screen for Health Card: in both cases Hub's service
   has no sign-in to share (`FamilySsoGate.bundle` returns nothing), so Health Card shows the text "Hub has no
   sign-in it shares. Open Hub, turn on "Share this sign-in with my other apps" and sign in."
