@@ -15,8 +15,10 @@
 package e2e
 
 import (
+	"cmp"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,7 +33,7 @@ const otpACR = "mosip:idp:acr:generated-code"
 
 func newClient(t *testing.T) *client.Client {
 	t.Helper()
-	issuer := envOr("E2E_ISSUER", "http://localhost:38088")
+	issuer := cmp.Or(os.Getenv("E2E_ISSUER"), "http://localhost:38088")
 	c, err := client.New(issuer, os.Getenv("E2E_DIAL_OVERRIDE"))
 	if err != nil {
 		t.Fatal(err)
@@ -41,13 +43,6 @@ func newClient(t *testing.T) *client.Client {
 		t.Fatalf("discovery: %v", err)
 	}
 	return c
-}
-
-func envOr(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return def
 }
 
 // newRegistration makes a client id, a fresh ES256 client key and the registration request.
@@ -86,7 +81,7 @@ func login(t *testing.T, c *client.Client, reg client.Registration) (*client.Tok
 func TestE2E_FAPI2Login(t *testing.T) {
 	c := newClient(t)
 	for _, alg := range []string{"ES256"} {
-		if !contains(c.Disc.DPoPAlgs, alg) {
+		if !slices.Contains(c.Disc.DPoPAlgs, alg) {
 			t.Fatalf("discovery dpop_signing_alg_values_supported %v lacks %s", c.Disc.DPoPAlgs, alg)
 		}
 	}
@@ -199,15 +194,6 @@ func TestE2E_PSUTProbe(t *testing.T) {
 	}
 	fmt.Printf("psut-scope: %s (same relying party: sub equal=%t; other relying party: sub equal=%t)\n",
 		scope, subs[0] == subs[1], subs[0] == subs[2])
-}
-
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 
 func audHas(aud any, id string) bool {

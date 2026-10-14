@@ -6,6 +6,7 @@
 package e2e
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -223,8 +224,8 @@ func record(t *testing.T, rule string, status int, e client.OAuthError, note str
 // requirePhase skips a test that belongs to another phase of e2e/run.sh.
 func requirePhase(t *testing.T, phase string) {
 	t.Helper()
-	if envOr("E2E_PHASE", "1") != phase {
-		t.Skipf("phase %s test (E2E_PHASE=%s)", phase, envOr("E2E_PHASE", "1"))
+	if cmp.Or(os.Getenv("E2E_PHASE"), "1") != phase {
+		t.Skipf("phase %s test (E2E_PHASE=%s)", phase, cmp.Or(os.Getenv("E2E_PHASE"), "1"))
 	}
 }
 

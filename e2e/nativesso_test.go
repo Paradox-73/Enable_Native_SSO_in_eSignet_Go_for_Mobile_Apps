@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -520,10 +521,10 @@ func TestE2E_Discovery_NativeSSO(t *testing.T) {
 	if !c.Disc.NativeSSOSupported {
 		t.Error("native_sso_supported is not true")
 	}
-	if !contains(c.Disc.ScopesSupported, client.ScopeDeviceSSO) {
+	if !slices.Contains(c.Disc.ScopesSupported, client.ScopeDeviceSSO) {
 		t.Errorf("scopes_supported %v lacks device_sso", c.Disc.ScopesSupported)
 	}
-	if !contains(c.Disc.GrantTypesSupported, client.GrantTypeTokenExchange) {
+	if !slices.Contains(c.Disc.GrantTypesSupported, client.GrantTypeTokenExchange) {
 		t.Errorf("grant_types_supported %v lacks the token-exchange grant", c.Disc.GrantTypesSupported)
 	}
 	record(t, "R24", 200, client.OAuthError{}, "native_sso_supported="+strconv.FormatBool(c.Disc.NativeSSOSupported))

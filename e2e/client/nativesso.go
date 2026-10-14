@@ -4,6 +4,7 @@
 package client
 
 import (
+	"cmp"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -54,15 +55,15 @@ func (c *Client) TokenExchange(req ExchangeRequest) (*Response, error) {
 			"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 			"client_assertion":      {assertion},
 			"subject_token":         {req.SubjectToken},
-			"subject_token_type":    {orDefault(req.SubjectTokenType, TokenTypeIDToken)},
+			"subject_token_type":    {cmp.Or(req.SubjectTokenType, TokenTypeIDToken)},
 		}
 		if req.ActorToken != "" {
 			form.Set("actor_token", req.ActorToken)
 		}
-		if t := orDefault(req.ActorTokenType, TokenTypeDeviceSecret); t != "-" {
+		if t := cmp.Or(req.ActorTokenType, TokenTypeDeviceSecret); t != "-" {
 			form.Set("actor_token_type", t)
 		}
-		if a := orDefault(req.Audience, c.Issuer); a != "-" {
+		if a := cmp.Or(req.Audience, c.Issuer); a != "-" {
 			form.Set("audience", a)
 		}
 		if req.Scope != "" {
@@ -137,13 +138,6 @@ func (c *Client) Introspect(reg Registration, token string) (*Response, error) {
 		"token":                 {token},
 	}
 	return c.PostForm(c.Disc.IntrospectionEndpoint, form, nil)
-}
-
-func orDefault(v, def string) string {
-	if v == "" {
-		return def
-	}
-	return v
 }
 
 // OAuthError is the error member of an OAuth 2.0 error answer (RFC 6749 5.2).
