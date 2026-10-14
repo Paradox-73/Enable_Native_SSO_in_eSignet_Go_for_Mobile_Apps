@@ -11,8 +11,9 @@
 #   bash deploy/stack.sh restart SERVICE...  recreate services with the current environment, wait healthy
 #   bash deploy/stack.sh down     stop everything and delete the volumes (database, keystore)
 #
-# - PS03_RUNTIME_STORE=redis (for up, restart and every later command of the same stack) adds the compose
-#   profile "redis": eSignet keeps its runtime store in a Redis container instead of in memory.
+# - PS03_RUNTIME_STORE=redis at `up` adds the compose profile "redis": eSignet keeps its runtime store in a
+#   Redis container instead of in memory. `up` saves the choice in stack.env, so restart, logs, status and
+#   down use the same store without the variable.
 # - Passwords for Postgres and the eSignet keystore are generated on first use into
 #   $PS03_RUN_DIR/stack.env (outside git) and passed to compose with --env-file.
 # - Does not take the docker-stack lock; scripts/with-stack.sh does (up, command, down).
@@ -45,14 +46,21 @@ ensure_env() {
   grep -q '^PS03_REDIS_PASSWORD=' "$ENV_FILE" || echo "PS03_REDIS_PASSWORD=$(random_secret)" >> "$ENV_FILE"
 }
 
-compose() {
-  local -a profile=()
-  case ${PS03_RUNTIME_STORE:-inmemory} in
-    inmemory) ;;
-    redis) profile=(--profile redis) ;;
-    *) ps03_die "PS03_RUNTIME_STORE must be inmemory or redis, got $PS03_RUNTIME_STORE" ;;
+# runtime_store: PS03_RUNTIME_STORE from the shell, else the choice `up` saved in stack.env, else inmemory.
+runtime_store() {
+  local store=${PS03_RUNTIME_STORE:-}
+  [ -n "$store" ] || store=$(sed -n 's/^PS03_RUNTIME_STORE=//p' "$ENV_FILE" 2>/dev/null | tail -1)
+  case ${store:-inmemory} in
+    inmemory|redis) echo "${store:-inmemory}" ;;
+    *) ps03_die "PS03_RUNTIME_STORE must be inmemory or redis, got $store" ;;
   esac
-  docker compose -p "$PROJECT" -f "$(ps03_host_path "$COMPOSE_FILE")" \
+}
+
+compose() {
+  local store; store=$(runtime_store)
+  local -a profile=()
+  [ "$store" = redis ] && profile=(--profile redis)
+  PS03_RUNTIME_STORE=$store docker compose -p "$PROJECT" -f "$(ps03_host_path "$COMPOSE_FILE")" \
     --env-file "$(ps03_host_path "$ENV_FILE")" "${profile[@]}" "$@"
 }
 
@@ -73,6 +81,9 @@ wait_http() {
 
 cmd_up() {
   ensure_env
+  local store=${PS03_RUNTIME_STORE:-inmemory}
+  sed -i '/^PS03_RUNTIME_STORE=/d' "$ENV_FILE"
+  echo "PS03_RUNTIME_STORE=$store" >> "$ENV_FILE"
   local t0; t0=$(date +%s)
   ps03_log "building eSignet image and starting $PROJECT"
   compose up -d --build --wait --wait-timeout "$UP_TIMEOUT_S" >&2 \

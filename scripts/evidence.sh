@@ -28,7 +28,8 @@
 #   ANDROID_HOME for the Android steps, Docker, and python3 or python.
 # - Run details go to $PS03_RUN_DIR/evidence/<date>/ (one log per step). Prints `evidence: <n> results at <commit>`.
 # - `--run` and `--export` copy that folder's .log, .json and .txt files to docs/evidence/<date>/ (committed): Docker
-#   build lines dropped, JWTs and the stack's passwords replaced, each file cut to 300 KiB. Report rows link them.
+#   build lines dropped; JWTs, one-time values (consent tickets, PAR request URIs, codes) and the stack's passwords
+#   replaced; each file cut to 300 KiB. Report rows link them.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 PS03_SCRIPT_NAME=evidence

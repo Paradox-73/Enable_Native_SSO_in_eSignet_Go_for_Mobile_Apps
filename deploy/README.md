@@ -37,9 +37,10 @@ Run from the repository root (Git Bash on Windows).
   other projects on the machine use Docker.
 - `PS03_KEEP_STACK=1 bash scripts/with-stack.sh true` leaves the stack running after the command (for the emulator).
   Stop it with `bash deploy/stack.sh down`.
-- Runtime store: in memory by default. Set `PS03_RUNTIME_STORE=redis` for every command of one stack (for example
-  `PS03_RUNTIME_STORE=redis bash scripts/with-stack.sh bash e2e/run.sh`, and the same variable for `down`) to start
-  the compose profile `redis` and run eSignet with `MOSIP_ESIGNET_CACHE_TYPE=redis`. Login sessions, PAR requests,
+- Runtime store: in memory by default. Set `PS03_RUNTIME_STORE=redis` when the stack starts (for example
+  `PS03_RUNTIME_STORE=redis bash scripts/with-stack.sh bash e2e/run.sh`) to start the compose profile `redis` and run
+  eSignet with `MOSIP_ESIGNET_CACHE_TYPE=redis`. `up` saves the choice in `stack.env`, so `restart`, `logs`, `status`
+  and `down` use the same store. Login sessions, PAR requests,
   codes, consent tickets and DPoP `jti` entries then live in Redis, as several eSignet replicas need. Redis keeps
   no data on disk, so a restart of the Redis container ends every session, like a restart of the in-memory store.
 - Passwords: the Postgres password, the eSignet keystore password and the Redis password are random values written on first use to

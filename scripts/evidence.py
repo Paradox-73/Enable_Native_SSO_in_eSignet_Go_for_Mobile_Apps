@@ -22,6 +22,9 @@ EXPORT_MAX_BYTES = 300 * 1024
 # Lines that carry no result: Docker build steps and compose progress.
 NOISE = re.compile(r"^(#\d+ |\s*(Image|Container|Network|Volume) \S+ (Building|Built|Creat|Start|Stopp|Remov|Waiting|Healthy|Running))")
 JWT = re.compile(r"eyJ[A-Za-z0-9_-]{8,}(\.[A-Za-z0-9_-]*){1,4}")
+# One-time protocol values in URLs and form bodies: consent tickets, PAR request URIs, codes, PKCE verifiers.
+ONE_TIME = re.compile(r"\b(ticket|request_uri|code_verifier|code)=[A-Za-z0-9._~%:-]{16,}")
+REQUEST_URI = re.compile(r"(urn:ietf:params:oauth:request_uri:)[A-Za-z0-9_-]{16,}")
 TODAY, COMMIT = os.environ["EV_TODAY"], os.environ["EV_COMMIT"]
 COLS = ["section", "id", "task", "unit", "e2e", "android", "result", "date", "note"]
 
@@ -124,8 +127,8 @@ def evidence_link(date, name):
     return "[%s](evidence/%s/%s)" % (name, date, name)
 
 def cmd_export(args):
-    # export <run dir> <dest dir>: copies the text logs of a run, without build noise, tokens or the stack's
-    # passwords, each cut to EXPORT_MAX_BYTES (head and tail kept).
+    # export <run dir> <dest dir>: copies the text logs of a run without build noise, JWTs, one-time protocol
+    # values (tickets, request URIs, codes) or the stack's passwords, each cut to EXPORT_MAX_BYTES (head and tail kept).
     src, dest = args[0], args[1]
     secrets = []
     env_file = os.path.join(os.environ.get("PS03_RUN_DIR", ""), "stack.env")
@@ -142,6 +145,8 @@ def cmd_export(args):
         text = open(path, encoding="utf-8", errors="replace").read()
         text = "\n".join(l.rstrip() for l in text.splitlines() if not NOISE.match(l)) + "\n"
         text = JWT.sub("<jwt removed>", text)
+        text = ONE_TIME.sub(lambda m: m.group(1) + "=<removed>", text)
+        text = REQUEST_URI.sub(lambda m: m.group(1) + "<removed>", text)
         for v in secrets: text = text.replace(v, "<secret removed>")
         data = text.encode("utf-8")
         if len(data) > EXPORT_MAX_BYTES:

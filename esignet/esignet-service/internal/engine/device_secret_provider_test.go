@@ -713,6 +713,14 @@ func (ts *DeviceSecretProviderTestSuite) TestValidateDeviceSecret_UnknownOrDelet
 		_, svcErr := restarted.ValidateDeviceSecret(context.Background(), value)
 		ts.assertSessionEnded(svcErr)
 	})
+	ts.Run("session record from before records named their jti", func() {
+		p := ts.newProvider(nil, nil, nil, nil)
+		ts.putSession("sid-1", nativeSSOSession{AuthID: "authz-req-1", ClientID: "hub-client",
+			ExpiresAt: ts.now.Unix() + 60})
+		_, svcErr := p.ValidateDeviceSecret(context.Background(), ts.sealInner(ts.keys, ts.validHeader(),
+			ts.validClaims()))
+		ts.assertSessionEnded(svcErr)
+	})
 	ts.Run("session record past its end", func() {
 		p := ts.newProvider(nil, nil, nil, nil)
 		ts.putSession("sid-1", nativeSSOSession{JTI: "jti-1", AuthID: "authz-req-1", ClientID: "hub-client",

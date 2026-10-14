@@ -438,6 +438,11 @@ func (p *deviceSecretProvider) loadSession(ctx context.Context, claims *deviceSe
 		logger.Error(ctx, "device secret session record is corrupt", applog.Error(err))
 		return nil, shared.InternalServerError
 	}
+	if session.JTI == "" {
+		// Written by a build before records named their jti (a Redis store kept across an upgrade): the
+		// user signs in again, as for an ended session.
+		return nil, sessionEnded()
+	}
 	if session.JTI != claims.JTI || session.AuthID != claims.AuthID || session.ClientID != claims.ClientID {
 		logger.Warn(ctx, "device secret does not match its session record", applog.String("clientId", claims.ClientID))
 		return nil, invalidDeviceSecret()

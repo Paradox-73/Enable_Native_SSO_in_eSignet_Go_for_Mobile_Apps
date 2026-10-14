@@ -191,9 +191,6 @@ func (h *tokenExchangeGrantHandler) handleNativeSSOGrant(ctx context.Context, to
 // add it to the consent history. A failure to record makes the exchange fail: no tokens without a record.
 func (h *tokenExchangeGrantHandler) recordConsentReuse(ctx context.Context, oauthApp *providers.OAuthClient,
 	dsClaims *providers.DeviceSecretClaims, scopes []string) *model.ErrorResponse {
-	nativesso.AuditConsent(ctx, nativesso.AuditConsentReused, &nativesso.ConsentTicket{
-		ClientID: oauthApp.ClientID, FirstClientID: dsClaims.ClientID, SessionID: dsClaims.SessionID, Scopes: scopes,
-	})
 	if svcErr := h.deviceSecretProvider.RecordConsentReuse(ctx, providers.ConsentReuse{
 		ClientID: oauthApp.ClientID,
 		Device:   dsClaims,
@@ -203,6 +200,9 @@ func (h *tokenExchangeGrantHandler) recordConsentReuse(ctx context.Context, oaut
 		log.GetLogger().Error(ctx, "Failed to record the Native SSO consent reuse", log.String("code", svcErr.Code))
 		return nativeSSOServerError()
 	}
+	nativesso.AuditConsent(ctx, nativesso.AuditConsentReused, &nativesso.ConsentTicket{
+		ClientID: oauthApp.ClientID, FirstClientID: dsClaims.ClientID, SessionID: dsClaims.SessionID, Scopes: scopes,
+	})
 	return nil
 }
 

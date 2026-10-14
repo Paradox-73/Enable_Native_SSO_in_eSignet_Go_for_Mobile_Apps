@@ -675,6 +675,10 @@ In the Native SSO branch of the token-exchange handler:
     written by the device secret provider. The row holds the issued scopes, the released claim names and the
     device secret's expiry; `consent_detail` is not changed, so a later browser login of the Child App still asks
     for consent. If the row cannot be written the exchange fails with `server_error` and no token leaves (R29).
+    The row is written per issued exchange, not per consent decision: a Child App that renews its 120 s access
+    token by exchange adds one row each time, up to about 240 rows per app and login over the device secret's
+    8 hours. Upstream eSignet writes `consent_history` only when a consent changes; a deployment that keeps these
+    rows sets a retention rule for them (future work, section 21).
 
 ### 11.1 Why an expired id_token is accepted
 
@@ -925,6 +929,8 @@ App rules (Android; JVM tests in `android/*/src/test`, instrumented tests in `an
 - Audit events for "device secret issued" and "exchange rejected" (reason code, client id, no personal data)
   through eSignet's audit plugin interface. An accepted exchange already writes the log line
   `native_sso_consent_reused` and a `consent_history` row (R29).
+- A retention rule for the `consent_history` rows of silent exchanges (one per issued exchange), or one row per app
+  and login session.
 - Consent-only re-consent for new user data: needs an identity-system API that releases more claims for an
   existing authentication (MOSIP IDA has none; its KYC exchange follows a fresh authentication).
 - Write the consent-only approvals into eSignet's consent records next to the audit lines, once
