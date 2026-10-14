@@ -81,7 +81,6 @@ step() {
   [ $rc -eq 0 ] || { FAILS=$((FAILS + 1)); ps03_warn "$id exited $rc; see $OUT/$name.log"; }
   return 0
 }
-STEP_RC() { :; }
 last() { grep -E "$1" "$OUT/$2.log" | tail -1 || true; }
 
 # environment

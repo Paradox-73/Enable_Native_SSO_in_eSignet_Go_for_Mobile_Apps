@@ -15,6 +15,7 @@
 #   PS03_LOCK_DIR      folder of mkdir-style locks shared with other build jobs on the machine.
 #                      Default: /e/Projects/MOSIP/toolchain/locks when it exists, else $PS03_RUN_DIR/locks.
 #   PS03_GO_IMAGE      container image for Go work (default golang:1.26-bookworm).
+#   PS03_SDK           Android SDK folder: ANDROID_HOME, else ANDROID_SDK_ROOT (may be empty).
 #
 # The scripts need bash 4.4 or newer (associative arrays, mapfile, ${var,,}, empty arrays under set -u).
 # macOS ships bash 3.2 as /bin/bash, so stop here with the fix instead of failing later on a syntax error.
@@ -57,6 +58,38 @@ ps03_usage() { awk 'NR >= 5 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$
 # unchanged on Linux and macOS.
 ps03_host_path() {
   if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s\n' "$1"; fi
+}
+
+# Android: the SDK folder (empty when unset) and adb from it, else from PATH, on $ANDROID_SERIAL when set.
+PS03_SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
+ps03_adb() { MSYS_NO_PATHCONV=1 "${PS03_SDK:+$PS03_SDK/platform-tools/}adb" ${ANDROID_SERIAL:+-s "$ANDROID_SERIAL"} "$@"; }
+
+# ps03_emulator_prepare: on a booted emulator, wake the screen, turn animations off, forward the stack
+# ports 38088 and 38300 (adb reverse) and turn Chrome's first-run screens off.
+ps03_emulator_prepare() {
+  local s
+  ps03_adb shell input keyevent 82 >/dev/null 2>&1 || true
+  for s in window_animation_scale transition_animation_scale animator_duration_scale; do
+    ps03_adb shell settings put global "$s" 0 >/dev/null 2>&1 || true
+  done
+  ps03_adb reverse tcp:38088 tcp:38088 >/dev/null
+  ps03_adb reverse tcp:38300 tcp:38300 >/dev/null
+  ps03_adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+  ps03_adb shell am set-debug-app --persistent com.android.chrome >/dev/null
+}
+
+# ps03_install_apk FILE PACKAGE: installs FILE; when PACKAGE is installed with another certificate,
+# uninstalls it and installs again. Stops the script when the install fails.
+ps03_install_apk() {
+  local file=$1 pkg=$2 result
+  [ -f "$file" ] || ps03_die "missing $file: build the apps first"
+  result=$(ps03_adb install -r -t "$(ps03_host_path "$file")" 2>&1 || true)
+  if printf '%s' "$result" | grep -q 'INSTALL_FAILED_UPDATE_INCOMPATIBLE\|INSTALL_FAILED_DUPLICATE_PERMISSION'; then
+    ps03_warn "$pkg is installed with another certificate; uninstalling it first"
+    ps03_adb uninstall "$pkg" >/dev/null 2>&1 || true
+    result=$(ps03_adb install -r -t "$(ps03_host_path "$file")" 2>&1 || true)
+  fi
+  printf '%s' "$result" | grep -q Success || ps03_die "install of $file failed: $result"
 }
 
 # ---------------------------------------------------------------------------------------------

@@ -13,7 +13,7 @@
 #   test-go       unit tests of Thunder and eSignet with changed-line coverage
 #   test-android  Android JVM tests of all four modules
 #   stack-up      start the local stack and check it; stack-down stops it and deletes its volumes
-#   e2e           stack up, the 29 live tests, stack down
+#   e2e           stack up, the live e2e tests, stack down
 #   newman        stack up, the Postman folder "Native SSO" under newman, stack down
 #   demo          full demo with an emulator (needs the emulator lock to be free)
 #   demo-check    server part of the demo, verified and torn down

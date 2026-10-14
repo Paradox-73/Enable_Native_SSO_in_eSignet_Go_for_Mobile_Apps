@@ -27,9 +27,6 @@ PS03_SCRIPT_NAME=run-ui-test
 
 case ${1:-} in -h|--help|"") ps03_usage ;; esac
 ANDROID_DIR=$PS03_ROOT/android
-SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
-ADB=${SDK:+$SDK/platform-tools/}adb
-adb_() { MSYS_NO_PATHCONV=1 "$ADB" ${ANDROID_SERIAL:+-s "$ANDROID_SERIAL"} "$@"; }
 screens=$PS03_RUN_DIR/evidence/$(date +%Y-%m-%d)/screens
 
 build() {
@@ -38,17 +35,6 @@ build() {
   for app in "$@"; do tasks+=(":$app:assembleDebug" ":$app:assembleDebugAndroidTest"); done
   ps03_log "building $* and the test APKs"
   (cd "$ANDROID_DIR" && bash gradlew --no-daemon -q "${tasks[@]}") >&2
-}
-
-install_apk() {
-  local file=$1 pkg=$2 result
-  result=$(adb_ install -r -t "$(ps03_host_path "$file")" 2>&1 || true)
-  if printf '%s' "$result" | grep -q 'INSTALL_FAILED_UPDATE_INCOMPATIBLE\|INSTALL_FAILED_DUPLICATE_PERMISSION'; then
-    ps03_warn "$pkg is installed with another certificate; uninstalling it first"
-    adb_ uninstall "$pkg" >/dev/null 2>&1 || true
-    result=$(adb_ install -r -t "$(ps03_host_path "$file")" 2>&1 || true)
-  fi
-  printf '%s' "$result" | grep -q Success || ps03_die "install of $file failed: $result"
 }
 
 # run_one <app> <TestClass>: install, register, run; returns 0 only when the output has `OK (`.
@@ -60,8 +46,8 @@ run_one() {
   apk=$ANDROID_DIR/$app/build/outputs/apk/debug/$app-debug.apk
   test_apk=$ANDROID_DIR/$app/build/outputs/apk/androidTest/debug/$app-debug-androidTest.apk
   [ -f "$apk" ] && [ -f "$test_apk" ] || ps03_die "APKs missing; build first"
-  install_apk "$apk" "$package"
-  install_apk "$test_apk" "$package.test"
+  ps03_install_apk "$apk" "$package"
+  ps03_install_apk "$test_apk" "$package.test"
   ps03_log "installed $package and $package.test"
 
   bash "$PS03_ROOT/android/scripts/register-client.sh" "$app"
@@ -72,16 +58,16 @@ run_one() {
   # adb shell joins its arguments into one device command line: quote values with spaces.
   [ -n "${PS03_TEST_NAME:-}" ] && args+=(-e expectedName "'$PS03_TEST_NAME'")
 
-  adb_ logcat -c || true
+  ps03_adb logcat -c || true
   # A busy emulator may show a system "isn't responding" dialog over the app; close it before the test.
-  adb_ shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
-  adb_ shell rm -rf "/sdcard/Android/data/$package/files/ui-test" >/dev/null 2>&1 || true
+  ps03_adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
+  ps03_adb shell rm -rf "/sdcard/Android/data/$package/files/ui-test" >/dev/null 2>&1 || true
   ps03_log "running $package.$class"
-  result=$(adb_ shell am instrument -w "${args[@]}" "$package.test/androidx.test.runner.AndroidJUnitRunner" 2>&1 | tr -d '\r' || true)
+  result=$(ps03_adb shell am instrument -w "${args[@]}" "$package.test/androidx.test.runner.AndroidJUnitRunner" 2>&1 | tr -d '\r' || true)
   printf '%s\n' "$result"
 
-  adb_ logcat -d -v time >"$out/logcat.txt" 2>/dev/null || true
-  adb_ pull "/sdcard/Android/data/$package/files/ui-test" "$(ps03_host_path "$out")" >/dev/null 2>&1 || true
+  ps03_adb logcat -d -v time >"$out/logcat.txt" 2>/dev/null || true
+  ps03_adb pull "/sdcard/Android/data/$package/files/ui-test" "$(ps03_host_path "$out")" >/dev/null 2>&1 || true
   if [ -d "$out/ui-test/screens" ]; then
     mkdir -p "$screens"
     cp "$out/ui-test/screens/"*.png "$screens/" 2>/dev/null || true
@@ -107,7 +93,7 @@ if [ "$1" = all ]; then
     fi
   done
   # ChildAppHubMissingTest uninstalled Hub: put it back, signed out, for the next run.
-  install_apk "$ANDROID_DIR/superapp/build/outputs/apk/debug/superapp-debug.apk" org.badmosip.nativesso.superapp
+  ps03_install_apk "$ANDROID_DIR/superapp/build/outputs/apk/debug/superapp-debug.apk" org.badmosip.nativesso.superapp
   ps03_log "screenshots: $screens"
   if [ ${#failed[@]} -eq 0 ]; then
     echo "OK ($passed tests)"

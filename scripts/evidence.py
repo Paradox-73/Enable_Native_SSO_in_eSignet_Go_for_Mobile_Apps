@@ -57,12 +57,10 @@ def names(cell):
     return [x.strip() for x in cell.split(";") if x.strip()]
 
 def cmd_set(args):
-    rid, result, note = args[0], args[1], args[2]
-    task = args[3] if len(args) > 3 else None
+    rid, result, note = args
     rows = load()
     r = find(rows, rid)
     r["result"], r["date"], r["note"] = result, TODAY, note
-    if task: r["task"] = task
     save(rows)
 
 def cmd_env(args):
@@ -243,7 +241,7 @@ def cmd_report(_):
     for r in env: w("| %s | %s |" % (esc(r["id"]), esc(r["note"])))
     w("")
     w("## How to reproduce\n")
-    w("Run from the repository root in Git Bash; details of each command: [../CONTRIBUTING.md](../CONTRIBUTING.md) and [../scripts/README.md](../scripts/README.md).\n")
+    w("Run from the repository root in Git Bash; details of each command: [setup.md](setup.md#tests-and-checks) and [../scripts/README.md](../scripts/README.md).\n")
     w("```bash")
     w("bash scripts/evidence.sh --run             # runs the checks below and rewrites this report")
     w("bash scripts/evidence.sh --check           # exit 0 when every row is PASS or a listed NOT RUN")

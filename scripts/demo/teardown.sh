@@ -30,17 +30,16 @@ if [ $STACK -eq 1 ]; then
   [ -z "$running" ] || left+=("containers of ps03-native-sso still run")
 fi
 if [ $DEVICE -eq 1 ]; then
-  SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
-  if [ -n "$SDK" ] && [ -x "$SDK/platform-tools/adb" ]; then
-    ADB=$SDK/platform-tools/adb
-    serial=emulator-${PS03_EMULATOR_PORT:-5584}
-    if "$ADB" devices | grep -q "^$serial"; then
-      MSYS_NO_PATHCONV=1 "$ADB" -s "$serial" reverse --remove-all >/dev/null 2>&1 || true
-      MSYS_NO_PATHCONV=1 "$ADB" -s "$serial" shell am clear-debug-app >/dev/null 2>&1 || true
-      "$ADB" -s "$serial" emu kill >/dev/null 2>&1 || true
+  if [ -n "$PS03_SDK" ] && [ -x "$PS03_SDK/platform-tools/adb" ]; then
+    export ANDROID_SERIAL=emulator-${PS03_EMULATOR_PORT:-5584}
+    serial=$ANDROID_SERIAL
+    if ps03_adb devices | grep -q "^$serial"; then
+      ps03_adb reverse --remove-all >/dev/null 2>&1 || true
+      ps03_adb shell am clear-debug-app >/dev/null 2>&1 || true
+      ps03_adb emu kill >/dev/null 2>&1 || true
       i=0
-      while [ $i -lt 30 ] && "$ADB" devices | grep -q "^$serial"; do sleep 2; i=$((i + 1)); done
-      ! "$ADB" devices | grep -q "^$serial" || left+=("emulator $serial still listed")
+      while [ $i -lt 30 ] && ps03_adb devices | grep -q "^$serial"; do sleep 2; i=$((i + 1)); done
+      ! ps03_adb devices | grep -q "^$serial" || left+=("emulator $serial still listed")
     fi
   fi
 fi

@@ -41,15 +41,11 @@ done
 DEMO_DIR=$PS03_ROOT/scripts/demo
 SERVER_TESTS='^(TestE2E_SuperAppLogin_IssuesDeviceSecret|TestE2E_Exchange_ChildTokens|TestE2E_Exchange_NarrowerScope|TestE2E_Exchange_ScopeSuperset)$'
 SERIAL=emulator-${PS03_EMULATOR_PORT:-5584}
-SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 t_start=$(date +%s)
 step() { ps03_log "step $1: $2 ($(( $(date +%s) - t_start )) s since start)"; }
 run() { if [ $DRY -eq 1 ]; then echo "  would run: $*" >&2; else "$@"; fi; }
 
-if [ $DRY -eq 1 ]; then
-  ps03_log "dry run: nothing is built, started or changed"
-  PS03_DRY_PLAN=1
-fi
+[ $DRY -eq 1 ] && ps03_log "dry run: nothing is built, started or changed"
 
 preflight() {
   [ $DRY -eq 1 ] && return 0
@@ -57,7 +53,7 @@ preflight() {
   docker info >/dev/null 2>&1 || ps03_die "Docker is not running"
   [ -n "${JAVA_HOME:-}" ] || ps03_die "set JAVA_HOME to a JDK 17 or newer"
   if [ $BUILD -eq 1 ] || [ $EMU -eq 1 ]; then
-    [ -n "$SDK" ] && [ -d "$SDK" ] || ps03_die "set ANDROID_HOME to the Android SDK"
+    [ -n "$PS03_SDK" ] && [ -d "$PS03_SDK" ] || ps03_die "set ANDROID_HOME to the Android SDK"
   fi
   if [ $EMU -eq 1 ] && ! ps03_lock_held emulator && [ -d "$PS03_LOCK_DIR/emulator" ]; then
     ps03_die "the emulator lock $PS03_LOCK_DIR/emulator exists (created $(date -r "$PS03_LOCK_DIR/emulator" '+%F %T')). Another job may be using the emulator. If none is, remove that one directory yourself (rmdir) and run this again; this script never removes it. Use --no-emulator to run the server part meanwhile."
@@ -108,7 +104,7 @@ live_emulator() {
   trap 'stop_live; exit 130' INT TERM
   log=$PS03_RUN_DIR/logs/demo-emulator-$(date +%Y%m%d-%H%M%S).log
   mkdir -p "$PS03_RUN_DIR/logs"
-  "$SDK/emulator/emulator" -avd "${PS03_AVD:-ps03_api34}" -port "${PS03_EMULATOR_PORT:-5584}" -no-audio -gpu host \
+  "$PS03_SDK/emulator/emulator" -avd "${PS03_AVD:-ps03_api34}" -port "${PS03_EMULATOR_PORT:-5584}" -no-audio -gpu host \
     -memory 2048 -no-snapshot-save >"$log" 2>&1 &
   emu_pid=$!
   ANDROID_SERIAL=$SERIAL bash "$DEMO_DIR/prepare-device.sh" --boot || rc=$?

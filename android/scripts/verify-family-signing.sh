@@ -7,14 +7,14 @@
 #
 #   bash android/scripts/verify-family-signing.sh [debug|release]
 #
-# Needs ANDROID_HOME (build-tools 34.0.0) and java on PATH; build the APKs first
+# Needs ANDROID_HOME or ANDROID_SDK_ROOT (build-tools 34.0.0) and java on PATH; build the APKs first
 # (bash gradlew assembleDebug). Prints each APK's certificate SHA-256 digest, then
 # "family-signing: OK <digest>" or "family-signing: FAILED ..." (exit status 1).
 set -euo pipefail
 
 variant=${1:-debug}
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-apksigner_jar=${ANDROID_HOME:?ANDROID_HOME is not set}/build-tools/34.0.0/lib/apksigner.jar
+apksigner_jar=${ANDROID_HOME:-${ANDROID_SDK_ROOT:?set ANDROID_HOME to the Android SDK}}/build-tools/34.0.0/lib/apksigner.jar
 [ -f "$apksigner_jar" ] || { echo "family-signing: FAILED (no $apksigner_jar)"; exit 1; }
 
 digests=()

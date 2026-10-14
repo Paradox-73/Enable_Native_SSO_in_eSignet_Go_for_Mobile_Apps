@@ -34,18 +34,15 @@ case $APP in
   superapp) APP_NAME=Hub APP_SCOPES=device_sso ;;
   childapp) APP_NAME="Health Card" APP_SCOPES="device_sso health_card_share" ;;
 esac
-SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
-ADB=${SDK:+$SDK/platform-tools/}adb
-adb_() { MSYS_NO_PATHCONV=1 "$ADB" ${ANDROID_SERIAL:+-s "$ANDROID_SERIAL"} "$@"; }
 PY=python3
 "$PY" -c 'import json' >/dev/null 2>&1 || PY=python
 
-read_info() { adb_ exec-out run-as "$PACKAGE" cat files/client-registration.json 2>/dev/null || true; }
+read_info() { ps03_adb exec-out run-as "$PACKAGE" cat files/client-registration.json 2>/dev/null || true; }
 
 info=$(read_info)
 if ! printf '%s' "$info" | grep -q '"client_id"'; then
   ps03_log "starting $PACKAGE once so it creates its keys"
-  adb_ shell am start -n "$PACKAGE/.MainActivity" >/dev/null
+  ps03_adb shell am start -n "$PACKAGE/.MainActivity" >/dev/null
   for _ in $(seq 1 30); do
     sleep 2
     info=$(read_info)

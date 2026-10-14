@@ -23,9 +23,6 @@ set -euo pipefail
 PS03_SCRIPT_NAME=run-family-tests
 
 case ${1:-} in -h|--help) ps03_usage ;; esac
-SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
-ADB=${SDK:+$SDK/platform-tools/}adb
-adb_() { MSYS_NO_PATHCONV=1 "$ADB" ${ANDROID_SERIAL:+-s "$ANDROID_SERIAL"} "$@"; }
 APKS=$PS03_RUN_DIR/apks
 HUB=org.badmosip.nativesso.superapp
 CHILD=org.badmosip.nativesso.childapp
@@ -38,18 +35,18 @@ out=$PS03_RUN_DIR/evidence/family-$(date +%Y%m%d-%H%M%S)
 mkdir -p "$out"
 failed=0
 
-install() { adb_ install -r -t "$(ps03_host_path "$APKS/$1")" 2>&1 | tr -d '\r'; }
+install() { ps03_adb install -r -t "$(ps03_host_path "$APKS/$1")" 2>&1 | tr -d '\r'; }
 must_install() { local r; r=$(install "$1"); printf '%s' "$r" | grep -q Success || ps03_die "install of $1 failed: $r"; }
-uninstall_all() { adb_ uninstall "$CHILD.test" >/dev/null 2>&1 || true; adb_ uninstall "$CHILD" >/dev/null 2>&1 || true; adb_ uninstall "$HUB" >/dev/null 2>&1 || true; }
+uninstall_all() { ps03_adb uninstall "$CHILD.test" >/dev/null 2>&1 || true; ps03_adb uninstall "$CHILD" >/dev/null 2>&1 || true; ps03_adb uninstall "$HUB" >/dev/null 2>&1 || true; }
 seed() {
   local r
-  r=$(adb_ shell am broadcast -f 32 -n "$HUB/.sso.DebugSessionSeeder" -e op "$1" 2>&1 | tr -d '\r')
+  r=$(ps03_adb shell am broadcast -f 32 -n "$HUB/.sso.DebugSessionSeeder" -e op "$1" 2>&1 | tr -d '\r')
   printf '%s' "$r" | grep -q 'result=1' || ps03_die "Hub seeder ($1) failed: $r"
 }
 # run_step <label> <test method> <pass text>
 run_step() {
   local label=$1 method=$2 pass=$3 result
-  result=$(adb_ shell am instrument -w -e class "$CHILD.FamilySsoBindTest#$method" \
+  result=$(ps03_adb shell am instrument -w -e class "$CHILD.FamilySsoBindTest#$method" \
     "$CHILD.test/androidx.test.runner.AndroidJUnitRunner" 2>&1 | tr -d '\r' || true)
   printf '%s\n' "$result" >"$out/$label.txt"
   if printf '%s\n' "$result" | grep -q '^OK ('; then
@@ -72,8 +69,8 @@ seed clear
 run_step signed-out signedOut " (ERROR_NOT_SIGNED_IN)"
 
 ps03_log "intruder set"
-adb_ uninstall "$CHILD.test" >/dev/null 2>&1 || true
-adb_ uninstall "$CHILD" >/dev/null 2>&1 || true
+ps03_adb uninstall "$CHILD.test" >/dev/null 2>&1 || true
+ps03_adb uninstall "$CHILD" >/dev/null 2>&1 || true
 must_install intruder/child.apk
 must_install intruder/child-test.apk
 seed seed
@@ -98,7 +95,7 @@ ps03_log "restoring the family set"
 uninstall_all
 must_install family/hub.apk
 must_install family/child.apk
-adb_ logcat -d -v time >"$out/logcat.txt" 2>/dev/null || true
+ps03_adb logcat -d -v time >"$out/logcat.txt" 2>/dev/null || true
 grep -E 'PS03Hub|AndroidRuntime' "$out/logcat.txt" >"$out/app-log.txt" 2>/dev/null || true
 ps03_log "evidence: $out"
 exit $failed
