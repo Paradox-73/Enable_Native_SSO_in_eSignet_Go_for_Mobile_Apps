@@ -11,7 +11,7 @@ import org.junit.Test
 import java.time.Duration
 
 class DpopProofFactoryTest {
-    private val signer = SoftwareEcSigner.generate(keyId = "client-key")
+    private val signer = EcKeyJwsSigner.generate(keyId = "client-key")
     private val factory = DpopProofFactory(signer, FIXED_CLOCK)
 
     @Test
@@ -66,7 +66,7 @@ class DpopProofFactoryTest {
 }
 
 class ClientAssertionFactoryTest {
-    private val signer = SoftwareEcSigner.generate(keyId = "hub-key-1")
+    private val signer = EcKeyJwsSigner.generate(keyId = "hub-key-1")
     private val issuer = "http://localhost:38088"
     private val endpoint = "http://localhost:38088/oauth2/token"
 

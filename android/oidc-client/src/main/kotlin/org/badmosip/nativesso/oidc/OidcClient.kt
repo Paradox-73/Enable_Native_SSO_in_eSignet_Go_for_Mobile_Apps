@@ -51,7 +51,6 @@ public class OidcClient(
         request.acrValues?.let { params["acr_values"] = it }
         request.claims?.let { params["claims"] = it }
         request.prompt?.let { params["prompt"] = it }
-        request.uiLocales?.let { params["ui_locales"] = it }
 
         val body = postForm(endpoint, params, dpop)
         val what = "PAR response"

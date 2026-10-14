@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Team Badmosip
-package org.badmosip.nativesso.superapp.keys
+package org.badmosip.nativesso.oidc
 
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.ECDSAVerifier
 import com.nimbusds.jose.jwk.ECKey
 import com.nimbusds.jose.util.Base64URL
-import org.badmosip.nativesso.oidc.EcSignatures
-import org.badmosip.nativesso.oidc.JwkThumbprint
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows

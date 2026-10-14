@@ -104,7 +104,7 @@ Keys (`superapp/.../keys/`):
 | store key, AES-256-GCM | `secure-store-aes` | encrypts the store (module `secure-store`) |
 
 - All three are Android Keystore keys: created on first use, never exportable, in StrongBox when the
-  device has one (else TEE; software on an emulator). `EcKeyJwsSigner` turns Keystore's DER ECDSA
+  device has one (else TEE; software on an emulator). `EcKeyJwsSigner` (in `oidc-client`) turns Keystore's DER ECDSA
   signatures into the 64-byte `R || S` form JWS needs.
 - Debug builds derive the client_id from the client key: `ps03-hub-` + 12 hex characters of SHA-256
   over its thumbprint. Each install has its own key and so its own registration; eSignet's client
@@ -149,15 +149,14 @@ What the JVM tests cover:
 - `secure-store` (13): round trip, ciphertext only on disk, new IV per write, atomic replace, a
   changed ciphertext or IV byte, a file copied under another name, wrong magic or version, truncation,
   another key, delete, empty blob, name rules.
-- `superapp` (43 of its 64; the other 21 are listed under [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
+- `superapp` (40 of its 61; the other 21 are listed under [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
   PKCE pairing, client assertion audience and `kid`, DPoP proofs at PAR, token and userinfo with the
   right `htu`); `device_sso` on with the device secret kept after the `ds_hash` check; wrong `ds_hash`,
   wrong `nonce`, an unasked device secret, error redirects: nothing stored; `state` mismatch keeps the
   login pending; replay, expiry, another redirect URI; finishing in a new process from the same store;
   userinfo failing or about another `sub`; sign-out (which deletes the DPoP key, and a new key at the
   next use: `ReplaceableSignerTest`); text contrast of both color schemes (`HubThemeTest`); tokens unreadable in the encrypted file; records,
-  name rules, redirect matching, client_id rule; ES256 signatures from `EcKeyJwsSigner` verified by
-  Nimbus and by `java.security`.
+  name rules, redirect matching, client_id rule.
 
 ## The binder contract (`sso-contract`)
 
@@ -387,7 +386,7 @@ is an `OidcException` subtype; `toString()` of every token-holding type hides th
 | `OidcClient.userInfo` | `Authorization: DPoP <token>` with a proof carrying `ath`; JSON or signed JWT answers | RFC 9449 7.1, OpenID Connect Core 5.3 |
 | `DpopProofFactory` / `DpopProofSource` | builds proofs over a `JwsSigner`; the source interface lets Health Card forward proof requests to Hub | RFC 9449 4.2 |
 | `ClientAssertionFactory` | `private_key_jwt` assertion, new `jti` per request | RFC 7523 3, FAPI 2.0 5.3.2.1 |
-| `JwsSigner`, `EcSignatures`, `SoftwareEcSigner` | signing interface for Keystore-held keys; DER to `R || S` conversion; in-memory signer for tests | RFC 7518 3.4 |
+| `JwsSigner`, `EcSignatures`, `EcKeyJwsSigner` | signing interface for Keystore-held keys; DER to `R || S` conversion; the ES256 signer both apps put their Keystore keys behind (`generate()` gives tests an in-memory key) | RFC 7518 3.4 |
 | `JwkThumbprint` | RFC 7638 SHA-256 thumbprint, the `cnf.jkt` value | RFC 7638, RFC 9449 6.1 |
 | `IdTokenValidator`, `IssuerSignatureVerifier`, `HttpJwksSource` | id_token checks (below); one JWKS refresh on an unknown key | OpenID Connect Core 3.1.3.7 |
 | `OAuthErrorException` and siblings | typed errors (below) | RFC 6749 5.2 |
@@ -440,8 +439,8 @@ Typed errors:
 | `InvalidResponseException` | a broken answer: missing fields, wrong `token_type`, wrong issuer in discovery, `state` mismatch | stop; do not keep any token |
 | `IdTokenValidationException` (`reason`) | an id_token check failed | stop; do not keep any token |
 
-What the 69 tests cover (`oidc-client/src/test`): the RFC 7638, RFC 7636 and RFC 9449 example
-vectors; DER/JWS signature conversion including short values; every proof and assertion claim; every
+What the 72 tests cover (`oidc-client/src/test`): the RFC 7638, RFC 7636 and RFC 9449 example
+vectors; ES256 signatures of `EcKeyJwsSigner` verified by Nimbus and by `java.security`; DER/JWS signature conversion including short values; every proof and assertion claim; every
 id_token check above with a passing and a failing case; PAR, code exchange, token exchange and
 userinfo requests field by field against MockWebServer; nonce retry once and only once; error mapping
 from JSON bodies and from `WWW-Authenticate`; discovery issuer mismatch, missing fields, HTTP 500 and

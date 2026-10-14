@@ -3,6 +3,7 @@
 package org.badmosip.nativesso.superapp.auth
 
 import okhttp3.OkHttpClient
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import org.badmosip.nativesso.oidc.IdTokenFailure
 import org.badmosip.nativesso.oidc.IdTokenValidationException
 import org.badmosip.nativesso.oidc.InvalidResponseException
@@ -11,7 +12,6 @@ import org.badmosip.nativesso.oidc.OAuthErrorException
 import org.badmosip.nativesso.oidc.Pkce
 import org.badmosip.nativesso.securestore.AesGcmAead
 import org.badmosip.nativesso.securestore.EncryptedFileStore
-import org.badmosip.nativesso.superapp.keys.EcKeyJwsSigner
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

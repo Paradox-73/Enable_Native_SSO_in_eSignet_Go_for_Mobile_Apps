@@ -17,7 +17,7 @@ import org.badmosip.nativesso.contract.IFamilySso
 import org.badmosip.nativesso.contract.SigningCertificates
 import org.badmosip.nativesso.oidc.DpopProofFactory
 import org.badmosip.nativesso.oidc.JwkThumbprint
-import org.badmosip.nativesso.oidc.SoftwareEcSigner
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import org.badmosip.nativesso.superapp.auth.MemoryBlobStore
 import org.badmosip.nativesso.superapp.auth.TokenBundle
 import org.badmosip.nativesso.superapp.auth.verifiedJws
@@ -52,7 +52,7 @@ class FamilySsoServiceTest {
     /** Stands in for HubApp: same gate, but an in-memory store and a software DPoP key (no Keystore in Robolectric). */
     class TestApp : Application(), FamilySsoHost {
         var session: TokenBundle? = null
-        val dpopSigner = SoftwareEcSigner.generate()
+        val dpopSigner = EcKeyJwsSigner.generate()
         internal val store = MemoryBlobStore()
         override val familySsoGate: FamilySsoGate by lazy {
             FamilySsoGate(

@@ -113,7 +113,7 @@ class EcSignaturesTest {
 
     @Test
     fun `software signer publishes a public JWK only`() {
-        val signer = SoftwareEcSigner.generate()
+        val signer = EcKeyJwsSigner.generate()
         assertEquals(setOf("kty", "crv", "x", "y"), signer.publicJwk.keys)
         assertEquals(43, signer.publicJwk.getValue("x").length)
     }

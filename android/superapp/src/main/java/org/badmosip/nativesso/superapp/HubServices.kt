@@ -9,13 +9,13 @@ import com.nimbusds.jose.util.JSONObjectUtils
 import okhttp3.OkHttpClient
 import org.badmosip.nativesso.contract.SigningCertificates
 import org.badmosip.nativesso.oidc.DpopProofFactory
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import org.badmosip.nativesso.securestore.EncryptedFileStore
 import org.badmosip.nativesso.securestore.KeystoreSecureStore
 import org.badmosip.nativesso.superapp.auth.ClientIdentity
 import org.badmosip.nativesso.superapp.auth.HubAuthenticator
 import org.badmosip.nativesso.superapp.auth.HubConfig
 import org.badmosip.nativesso.superapp.keys.AndroidKeystoreKeys
-import org.badmosip.nativesso.superapp.keys.EcKeyJwsSigner
 import org.badmosip.nativesso.superapp.keys.ReplaceableSigner
 import org.badmosip.nativesso.superapp.sso.AndroidCallerLookup
 import org.badmosip.nativesso.superapp.sso.FamilyAccessLog

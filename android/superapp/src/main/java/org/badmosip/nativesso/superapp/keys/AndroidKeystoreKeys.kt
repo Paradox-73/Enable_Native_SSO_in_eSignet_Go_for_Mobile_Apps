@@ -5,6 +5,7 @@ package org.badmosip.nativesso.superapp.keys
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.PrivateKey

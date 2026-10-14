@@ -6,7 +6,7 @@ import org.badmosip.nativesso.contract.FamilySsoContract
 import org.badmosip.nativesso.oidc.DpopProofFactory
 import org.badmosip.nativesso.oidc.DpopProofs
 import org.badmosip.nativesso.oidc.JwkThumbprint
-import org.badmosip.nativesso.oidc.SoftwareEcSigner
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import org.badmosip.nativesso.superapp.auth.HubAuthenticator
 import org.badmosip.nativesso.superapp.auth.MemoryBlobStore
 import org.badmosip.nativesso.superapp.auth.MutableClock
@@ -48,7 +48,7 @@ class FamilySsoGateTest {
 
     private val clock = MutableClock(Instant.ofEpochSecond(1_800_000_000))
     private val store = MemoryBlobStore()
-    private val dpopSigner = SoftwareEcSigner.generate()
+    private val dpopSigner = EcKeyJwsSigner.generate()
     private val logLines = mutableListOf<String>()
     private var current: TokenBundle? = session()
     private var hubCerts = listOf(familyCert)

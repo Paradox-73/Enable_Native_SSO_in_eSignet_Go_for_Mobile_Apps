@@ -30,7 +30,7 @@ import org.badmosip.nativesso.contract.SsoBundle
 import org.badmosip.nativesso.oidc.DpopProofFactory
 import org.badmosip.nativesso.oidc.DpopRequest
 import org.badmosip.nativesso.oidc.GrantTypes
-import org.badmosip.nativesso.oidc.SoftwareEcSigner
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import org.badmosip.nativesso.oidc.TokenHashes
 import org.badmosip.nativesso.securestore.BlobStore
 import org.robolectric.Shadows.shadowOf
@@ -52,7 +52,7 @@ internal object IssuerKey {
  * "Hub's key" ([key]), and Hub's coded refusals.
  */
 internal class FakeHub : IFamilySso.Stub() {
-    val key: SoftwareEcSigner = SoftwareEcSigner.generate()
+    val key: EcKeyJwsSigner = EcKeyJwsSigner.generate()
     private val proofs = DpopProofFactory(key)
 
     @Volatile var bundle: SsoBundle? = null
@@ -289,8 +289,8 @@ internal class CardFixture(val app: Application) {
     val esignet = FakeEsignet(clientId).start()
     val hub = FakeHub().also { it.install(app) }
     val store = MemoryBlobStore()
-    val ownDpop: SoftwareEcSigner = SoftwareEcSigner.generate()
-    val clientKey: SoftwareEcSigner = SoftwareEcSigner.generate("client-kid")
+    val ownDpop: EcKeyJwsSigner = EcKeyJwsSigner.generate()
+    val clientKey: EcKeyJwsSigner = EcKeyJwsSigner.generate("client-kid")
     val logs = CopyOnWriteArrayList<String>()
     val config = CardConfig(issuer = esignet.issuer, clientId = clientId, redirectUri = redirectUri)
     val link = HubConnectionLink(HubConnection(app, timeoutMillis = 500))

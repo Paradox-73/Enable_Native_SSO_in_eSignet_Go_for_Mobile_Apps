@@ -3,8 +3,8 @@
 package org.badmosip.nativesso.oidc
 
 import java.math.BigInteger
-import java.security.KeyPair
 import java.security.KeyPairGenerator
+import java.security.PrivateKey
 import java.security.Signature
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
@@ -13,7 +13,7 @@ import java.security.spec.ECGenParameterSpec
  * Signs JWS signing inputs with a private key the client never sees.
  *
  * The apps implement it over an Android Keystore key, so the DPoP key and the client-authentication
- * key never enter the app process; the tests use [SoftwareEcSigner]. Only ES256 on P-256 is used:
+ * key never enter the app process; the tests use [EcKeyJwsSigner.generate]. Only ES256 on P-256 is used:
  * eSignet accepts it for DPoP and for client keys, and Android Keystore supports it on every device.
  */
 public interface JwsSigner {
@@ -105,30 +105,45 @@ public fun ecP256PublicJwk(key: ECPublicKey): Map<String, String> {
 }
 
 /**
- * ES256 signer over an in-memory key pair. For tests and tools only: on a phone the private key
- * belongs in Android Keystore, behind its own [JwsSigner].
+ * ES256 [JwsSigner] over a `java.security` private key. On the phone the key is an Android Keystore
+ * handle: `Signature` passes the bytes to Keystore and only the signature comes back, in ASN.1 DER.
+ * JWS needs the fixed 64-byte `R || S` form (RFC 7518 section 3.4), so every signature goes through
+ * [EcSignatures.derToJose]. Tests use [generate] for an in-memory key.
+ *
+ * @param keyId the JWS `kid`; null leaves it out (DPoP proofs carry the public `jwk` instead)
  */
-public class SoftwareEcSigner(
-    private val keyPair: KeyPair,
+public class EcKeyJwsSigner(
+    private val privateKey: PrivateKey,
+    private val publicKey: ECPublicKey,
     override val keyId: String? = null,
 ) : JwsSigner {
+    init {
+        require(publicKey.params.curve.field.fieldSize == 256) { "ES256 needs a P-256 key" }
+    }
+
     override val algorithm: String = "ES256"
-    override val publicJwk: Map<String, String> = ecP256PublicJwk(keyPair.public as ECPublicKey)
+    override val publicJwk: Map<String, String> = ecP256PublicJwk(publicKey)
+
+    /** RFC 7638 thumbprint of [publicJwk]: the DPoP `jkt`, and the client key's `kid` in this project. */
+    public val thumbprint: String = JwkThumbprint.compute(publicJwk)
 
     override fun sign(signingInput: ByteArray): ByteArray {
         val der = Signature.getInstance("SHA256withECDSA").run {
-            initSign(keyPair.private)
+            initSign(privateKey)
             update(signingInput)
             sign()
         }
         return EcSignatures.derToJose(der)
     }
 
+    /** The same key with another `kid`. */
+    public fun withKeyId(keyId: String?): EcKeyJwsSigner = EcKeyJwsSigner(privateKey, publicKey, keyId)
+
     public companion object {
-        /** A signer with a fresh P-256 key pair. */
-        public fun generate(keyId: String? = null): SoftwareEcSigner {
-            val generator = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }
-            return SoftwareEcSigner(generator.generateKeyPair(), keyId)
+        /** A signer with a fresh in-memory P-256 key pair, for tests and tools. */
+        public fun generate(keyId: String? = null): EcKeyJwsSigner {
+            val pair = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
+            return EcKeyJwsSigner(pair.private, pair.public as ECPublicKey, keyId)
         }
     }
 }

@@ -22,9 +22,9 @@ import java.util.concurrent.TimeUnit
 class OidcClientTest {
     private val server = MockWebServer()
     private val http = OkHttpClient.Builder().readTimeout(2, TimeUnit.SECONDS).build()
-    private val dpopSigner = SoftwareEcSigner.generate()
+    private val dpopSigner = EcKeyJwsSigner.generate()
     private val dpop = DpopProofFactory(dpopSigner, FIXED_CLOCK)
-    private val clientSigner = SoftwareEcSigner.generate(keyId = "hub-key")
+    private val clientSigner = EcKeyJwsSigner.generate(keyId = "hub-key")
     private val redirectUri = "org.badmosip.nativesso.superapp://oauth/callback"
     private lateinit var client: OidcClient
 

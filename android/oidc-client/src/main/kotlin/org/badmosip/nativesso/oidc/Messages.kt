@@ -41,7 +41,6 @@ public data class AuthorizationRequest(
     val acrValues: String? = null,
     val claims: String? = null,
     val prompt: String? = null,
-    val uiLocales: String? = null,
 ) {
     init {
         require(Scopes.OPENID in scope) { "an OpenID Connect request needs the openid scope" }

@@ -16,8 +16,8 @@ import okhttp3.OkHttpClient
 import org.badmosip.nativesso.childapp.auth.CardAuthenticator
 import org.badmosip.nativesso.childapp.auth.CardConfig
 import org.badmosip.nativesso.childapp.auth.ClientIdentity
-import org.badmosip.nativesso.childapp.keys.CardKeySigner
 import org.badmosip.nativesso.childapp.keys.CardKeys
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import org.badmosip.nativesso.securestore.EncryptedFileStore
 import org.badmosip.nativesso.securestore.KeystoreSecureStore
 import java.io.File
@@ -39,10 +39,10 @@ class CardServices(context: Context) {
     val store: EncryptedFileStore = KeystoreSecureStore.create(context)
 
     /** DPoP key of Health Card's own (re-consent) login. */
-    val dpopSigner: CardKeySigner = CardKeys.signer(CardKeys.DPOP_ALIAS)
+    val dpopSigner: EcKeyJwsSigner = CardKeys.signer(CardKeys.DPOP_ALIAS)
 
     /** The client key; its `kid` is its RFC 7638 thumbprint, the same `kid` that is registered. */
-    val clientSigner: CardKeySigner = CardKeys.signer(CardKeys.CLIENT_AUTH_ALIAS).let { it.withKeyId(it.thumbprint) }
+    val clientSigner: EcKeyJwsSigner = CardKeys.signer(CardKeys.CLIENT_AUTH_ALIAS).let { it.withKeyId(it.thumbprint) }
 
     val config = CardConfig(
         issuer = BuildConfig.ISSUER,

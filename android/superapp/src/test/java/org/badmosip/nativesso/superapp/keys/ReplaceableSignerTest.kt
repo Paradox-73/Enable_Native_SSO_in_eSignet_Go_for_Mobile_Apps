@@ -5,7 +5,7 @@ package org.badmosip.nativesso.superapp.keys
 import org.badmosip.nativesso.oidc.DpopProofFactory
 import org.badmosip.nativesso.oidc.DpopRequest
 import org.badmosip.nativesso.oidc.JwkThumbprint
-import org.badmosip.nativesso.oidc.SoftwareEcSigner
+import org.badmosip.nativesso.oidc.EcKeyJwsSigner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
@@ -14,7 +14,7 @@ import org.junit.Test
 class ReplaceableSignerTest {
     private var made = 0
     private var deleted = 0
-    private val signer = ReplaceableSigner(load = { made++; SoftwareEcSigner.generate() }, delete = { deleted++ })
+    private val signer = ReplaceableSigner(load = { made++; EcKeyJwsSigner.generate() }, delete = { deleted++ })
 
     @Test
     fun `the key is made on first use and kept`() {
