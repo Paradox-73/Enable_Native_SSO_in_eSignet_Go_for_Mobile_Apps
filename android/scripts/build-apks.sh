@@ -12,7 +12,9 @@
 # - takeover: the same with -Pps03.intruder=takeover (Android debug certificate, permission declared).
 # - Each set is copied to $PS03_RUN_DIR/apks/<set>/ (hub.apk, child.apk, child-test.apk), because the
 #   three builds write to the same Gradle output folder. Prints Gradle's BUILD SUCCESSFUL per set.
-# - Needs JAVA_HOME 17+ and ANDROID_HOME. Exit status: the first failing build's.
+# - The family set is built last and checked with verify-family-signing.sh (`family-signing: OK`), so the
+#   Gradle output folder that the other scripts install from ends with the family-signed apps.
+# - Needs JAVA_HOME 17+ and ANDROID_HOME. Exit status: the first failing build's or the signing check's.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib.sh"
 PS03_SCRIPT_NAME=build-apks
@@ -33,8 +35,9 @@ build_set() {
   cp "$outputs/androidTest/debug/childapp-debug-androidTest.apk" "$OUT/$set/child-test.apk"
 }
 
-build_set family false :superapp:assembleDebug :childapp:assembleDebug :childapp:assembleDebugAndroidTest
-cp "$ANDROID_DIR/superapp/build/outputs/apk/debug/superapp-debug.apk" "$OUT/family/hub.apk"
 build_set intruder true :childapp:assembleDebug :childapp:assembleDebugAndroidTest
 build_set takeover takeover :childapp:assembleDebug :childapp:assembleDebugAndroidTest
+build_set family false :superapp:assembleDebug :childapp:assembleDebug :childapp:assembleDebugAndroidTest
+cp "$ANDROID_DIR/superapp/build/outputs/apk/debug/superapp-debug.apk" "$OUT/family/hub.apk"
+bash "$ANDROID_DIR/scripts/verify-family-signing.sh" debug
 ps03_log "APK sets in $OUT: family, intruder, takeover"
