@@ -1041,6 +1041,22 @@ commit of that folder.
   - Runtime store (G8): the compose profile `redis` (`PS03_RUNTIME_STORE=redis`) runs eSignet's existing Redis store; the
     live suite passed 32 of 32 against it. e2e phase 2 recreates Redis together with eSignet, so the ended-session test
     still starts from an empty store.
+  - Evidence (G6): `scripts/evidence.sh --run` and `--export` commit trimmed logs to `docs/evidence/<date>/` (JWTs, one-time
+    values and stack passwords replaced); every row of the test report links its log, rule rows link `tests-passed.txt`.
+  - Postman and consent page (G10): Card 05 to Card 09 run consent-only re-consent (Postman keeps the login browser's
+    cookie); the consent page looks like eSignet's login pages (mark, card, orange buttons at 5:1 contrast).
+  - Docs (G7): README CI line, `docs/api.md` counts, the submission checklist, the manual test checklist (MT01-MT43) and
+    a results template for the team.
+  - Review fixes: a session record without a `jti` is an ended session; the reuse audit line follows the stored row; the
+    runtime-store choice is kept in `stack.env`; Postgres health is checked over TCP (a stack start failed on the
+    first-start restart); the workflow uses the Node.js 24 releases of its actions.
+- **Results (2026-10-14, `bash scripts/evidence.sh --run --with-lint` at `4c6e6cd`, then e2e and emulator runs at `b580a4f`)**
+  - Thunder 2468 tests (2467 passed, 1 skipped), changed lines 787/798 (98.6 %); eSignet 1607 tests, 0 failed, changed lines
+    385/420 (91.7 %); golangci-lint 0 issues in Thunder, eSignet and e2e; newman 43 requests, 152 assertions, 0 failed;
+    Android JVM 208 tests, 0 failed (`--rerun-tasks`); e2e 32 passed in memory and 32 passed on Redis.
+  - Emulator: `run-ui-test.sh all` `OK (6 tests)` on the second run (the first stopped at the Hub browser login, limit L06);
+    `run-family-tests.sh` 5 steps PASS; `demo.sh --check` demo ready, teardown ok, 266 s.
+  - Hosted CI: run 38565036088 at `b73ac56` passed every job; the commits above are not pushed yet.
 
 ## Decisions that may change
 

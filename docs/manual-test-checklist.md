@@ -28,7 +28,7 @@ key store, a TalkBack pass, the captcha on the login page, and a video dry run. 
 
 Do MT01 to MT04 once on each of macOS, Linux and Windows. Use a new folder each time. Write the OS in the results.
 
-**MT01. Clone and check the repository.** The repository is private until submission, so log in to GitHub first.
+**MT01. Clone and check the repository.** The repository is public; no GitHub login is needed.
 
 ```bash
 git clone -c core.longpaths=true https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps.git esignet-native-sso

@@ -17,20 +17,20 @@ RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
     that eSignet set in the user's own browser login, so the app cannot approve for the user. Only new user data
     (the phone number) still needs a fresh login, because eSignet's identity system releases user data only after
     an authentication.
-  - Server: 2466 Thunder (1 skipped by upstream) and 1599 eSignet unit tests, 0 failed, golangci-lint 0 findings;
-    changed-line coverage 98.6 % (Thunder) and 92.8 % (eSignet); the live end-to-end suite (32 of 32 passed, including
-    device secret revocation with Health Card's tokens refused afterwards, R27, and consent-only re-consent, R28); the
-    Postman folder under newman (38 requests, 133 assertions, 0 failed); govulncheck on eSignet: 0 vulnerabilities in called code.
+  - Server: 2468 Thunder (1 skipped by upstream) and 1607 eSignet unit tests, 0 failed, golangci-lint 0 findings in
+    Thunder, eSignet and e2e; changed-line coverage 98.6 % (Thunder) and 91.7 % (eSignet); the live end-to-end suite
+    (32 of 32 passed with the in-memory store and 32 of 32 with the Redis store, including device secret revocation
+    with Health Card's tokens refused afterwards, R27, and consent-only re-consent, R28); the Postman folder under
+    newman (43 requests, 152 assertions, 0 failed, including consent-only re-consent); govulncheck on eSignet: 0
+    vulnerabilities in called code (2026-10-14 at `fd48556`).
   - Apps: 208 Android JVM tests, 0 failed; on the Android emulator the UI tests (6 of 6 passed, including the
-    consent-only approval and refusal, "Not now" on the consent screen and Health Card without Hub), the family sign-in
-    tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`) passed, all on 2026-10-14 at `fd48556`.
-- **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job on the push of 2026-10-06
-  ([run 37464932756](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/37464932756)),
-  and on 2026-10-06 at 16:19 UTC at `7944c0d` (run 37494756432). The pushes of 2026-10-13 20:34 UTC (`314e9d2`, run
-  38463861197) and 2026-10-14 00:14 UTC (`b73ac56`, run 38489035225) show as failed: GitHub refused to start any job
-  because of the account's billing ("recent account payments have failed or your spending limit needs to be
-  increased"), so no check ran there. The same checks passed locally on 2026-10-14 ([test report](docs/test-report.md)).
-  The repository is private until submission; judges get access then.
+    consent-only approval and refusal on eSignet's branded consent page, "Not now" on the consent screen and Health
+    Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
+    passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
+- **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job (repo-lint, Go unit tests and
+  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-14 at 12:35 UTC at
+  `b73ac56` ([run 38565036088](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/38565036088)).
+  Commits after `b73ac56` were checked locally (test report) and run on GitHub when they are pushed.
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
 - **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits

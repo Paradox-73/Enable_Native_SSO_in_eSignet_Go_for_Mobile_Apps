@@ -166,17 +166,17 @@ Native SSO works on the server side and is tested live; the apps are tested on t
 2026-10-06, in order (full detail: [docs/test-report.md](docs/test-report.md)):
 
 1. `bash scripts/repo-lint.sh` -> `repo-lint: OK`.
-2. `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover` -> 2379 tests, 0 failed.
-3. `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover` -> 1592 tests, 0 failed.
-4. `bash scripts/with-stack.sh bash e2e/run.sh` -> `e2e: 31 passed, 0 failed` (includes R27, device secret revocation, and R28, consent-only re-consent).
-5. `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` -> 38 requests, 133 assertions, 0 failed.
-6. Android JVM tests (`oidc-client` 67, `secure-store` 13, `superapp` 64, `childapp` 54, 0 failed) and
+2. `bash scripts/go-test.sh thunder/backend ./internal/oauth/... ./pkg/... --changed-cover` -> 2468 tests, 0 failed.
+3. `bash scripts/go-test.sh esignet/esignet-service ./... --changed-cover` -> 1607 tests, 0 failed.
+4. `bash scripts/with-stack.sh bash e2e/run.sh` -> `e2e: 32 passed, 0 failed` (includes R27, device secret revocation, and R28, consent-only re-consent).
+5. `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` -> 43 requests, 152 assertions, 0 failed.
+6. Android JVM tests (`oidc-client` 69, `secure-store` 13, `superapp` 64, `childapp` 62, 0 failed) and
    `verify-family-signing.sh` -> `family-signing: OK`.
 7. `bash scripts/demo/demo.sh --no-emulator` -> `demo ready (server part only; emulator steps NOT RUN)`, `teardown ok`.
-8. On the emulator: `bash android/scripts/run-ui-test.sh all` -> `OK (5 tests)`; `run-family-tests.sh` -> every step PASS;
+8. On the emulator: `bash android/scripts/run-ui-test.sh all` -> `OK (6 tests)`; `run-family-tests.sh` -> every step PASS;
    `bash scripts/demo/demo.sh --check` -> `demo ready`, `teardown ok`.
 9. Every job of `.github/workflows/ci.yml` replayed in Linux containers: all passed (row CI-LINUX). On GitHub
-   the same workflow passed every job on 2026-10-06 (row CI, run 37464932756).
+   the same workflow passed every job on 2026-10-14 at `b73ac56` (row CI, run 38565036088).
 
 Short names for these: `bash make.sh help`.
 
