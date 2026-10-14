@@ -143,6 +143,8 @@ HUB_REDIRECT = "org.badmosip.nativesso.hub://oauth/callback"
 CARD_REDIRECT = "org.badmosip.nativesso.card://oauth/callback"
 EX_GRANTS = ["authorization_code", GRANT_EX]
 SSO_SCOPES = ["openid", "profile", "email", "phone", "device_sso"]
+# A permission scope (no user claims) that only the Health Card may ask for: consent-only re-consent (bonus B1).
+PERMISSION_SCOPE = "health_card_share"
 
 setup = [
     item("00 Discovery shows Native SSO", "GET", ISS + "/.well-known/openid-configuration",
@@ -154,7 +156,8 @@ setup = [
          description="Makes four ES256 key pairs and the Hub's DPoP key in the script, then registers the Hub: grantTypes with token-exchange and allowed_authorization_scopes with device_sso."),
     item("02 Register the Health Card (second app, same relying party)", "POST", ISS + "/client-mgmt/client",
          pre=OTHER_PRE, test=CREATE_TEST % "ns_card_id", headers=JSON_HDR,
-         body=client_body("ns_card_id", "Native SSO Health Card", "ns_rp_id", CARD_REDIRECT, "ns_card_pub", EX_GRANTS, SSO_SCOPES)),
+         body=client_body("ns_card_id", "Native SSO Health Card", "ns_rp_id", CARD_REDIRECT, "ns_card_pub", EX_GRANTS,
+                          SSO_SCOPES + [PERMISSION_SCOPE])),
     item("03 Register a client that does not allow device_sso", "POST", ISS + "/client-mgmt/client",
          pre=OTHER_PRE, test=CREATE_TEST % "ns_plain_id", headers=JSON_HDR,
          body=client_body("ns_plain_id", "Native SSO Plain", "ns_rp_id", "org.badmosip.nativesso.plain://oauth/callback", "ns_plain_pub", ["authorization_code"], ["openid", "profile", "email"])),
@@ -485,6 +488,80 @@ userinfo_own_key = item(
     test=USERINFO_TEST % {"subvar": "ns_hub_sub", "extra": ""},
     description="The token from Card 03 is bound to the Health Card's key, so the proof is signed with that key.")
 
+# ----------------------------------------------------------------------------------------------
+# Consent-only re-consent (bonus B1). Postman plays the user's browser: it kept the HttpOnly cookie that
+# /oauth2/authorize set at "Hub 02", so it may see and answer the consent page. The Health Card itself
+# never has that cookie (403, e2e TestE2E_Exchange_ConsentOnlyReconsent, "the app cannot answer").
+# ----------------------------------------------------------------------------------------------
+
+consent_ask = exchange(
+    "Card 05 Exchange for a permission beyond the Hub grant -> interaction_required with consent_uri",
+    "f.scope = 'openid email %s';" % PERMISSION_SCOPE,
+    expect_error(400, "interaction_required") + r"""
+const a = pm.response.json();
+pm.test('consent_uri is the issuer consent page', () =>
+  pm.expect(a.consent_uri.indexOf(pm.environment.get('ns_issuer') + '/oauth2/native-sso/consent?ticket=')).to.eql(0));
+pm.test('consent_expires_in is 1..600 s', () => pm.expect(a.consent_expires_in).to.be.within(1, 600));
+pm.test('error_description names only the new permission', () => {
+  pm.expect(a.error_description).to.include('PERMISSION');
+  pm.expect(a.error_description).to.not.include('email');
+});
+pm.environment.set('ns_consent_uri', a.consent_uri);
+pm.environment.set('ns_consent_ticket', a.consent_uri.split('ticket=')[1]);
+""".replace("PERMISSION", PERMISSION_SCOPE),
+    "The scope `%s` needs no new user data, so eSignet answers with a one-time `consent_uri` instead of asking for a new login. Health Card opens it in the browser." % PERMISSION_SCOPE)
+
+consent_page = item(
+    "Card 06 Consent page in the browser of the Hub login -> 200", "GET", "{{ns_consent_uri}}",
+    test=r"""
+pm.test('page answers 200', () => pm.response.to.have.status(200));
+const html = pm.response.text();
+pm.test('page asks "Allow more access?" for the permission', () => {
+  pm.expect(html).to.include('Allow more access?');
+  pm.expect(html).to.include('PERMISSION');
+  pm.expect(html).to.include('No new login and no OTP');
+});
+pm.test('page has Allow and Not now', () => { pm.expect(html).to.include('id="consent-allow"'); pm.expect(html).to.include('id="consent-deny"'); });
+pm.test('page carries eSignet branding', () => pm.expect(html).to.include('<span>eSignet</span>'));
+pm.test('page is not cached and cannot be framed', () => {
+  pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store');
+  pm.expect(pm.response.headers.get('X-Frame-Options')).to.eql('DENY');
+  pm.expect(pm.response.headers.get('Content-Security-Policy')).to.include("frame-ancestors 'none'");
+});
+""".replace("PERMISSION", PERMISSION_SCOPE),
+    description="Postman sends the HttpOnly cookie that `/oauth2/authorize` set at Hub 02, as the user's browser would. Without it the page answers 403 and shows no buttons.")
+
+consent_allow = item(
+    "Card 07 Allow on the consent page -> 303 to the Health Card", "POST", ISS + "/oauth2/native-sso/consent",
+    headers=[{"key": "Origin", "value": ISS}],
+    body=form([("ticket", "{{ns_consent_ticket}}"), ("decision", "allow")]),
+    test=r"""
+pm.test('answers 303', () => pm.response.to.have.status(303));
+pm.test('redirects to the Health Card with native_sso_consent=granted', () =>
+  pm.expect(pm.response.headers.get('Location')).to.eql('REDIRECT?native_sso_consent=granted'));
+""".replace("REDIRECT", CARD_REDIRECT),
+    description="What the page's form sends when the user taps Allow. The `Origin` header must be the issuer; a form from another site is refused (403).",
+    follow=False)
+
+consent_used = item(
+    "Card 08 The same ticket again -> 400 (answered once)", "POST", ISS + "/oauth2/native-sso/consent",
+    headers=[{"key": "Origin", "value": ISS}],
+    body=form([("ticket", "{{ns_consent_ticket}}"), ("decision", "allow")]),
+    test="pm.test('a used ticket answers 400', () => pm.response.to.have.status(400));",
+    follow=False)
+
+consent_exchange = exchange(
+    "Card 09 Exchange for the permission after Allow -> 200", "f.scope = 'openid email %s';" % PERMISSION_SCOPE,
+    PRE + r"""
+pm.test('exchange answers 200', () => pm.response.to.have.status(200));
+const t = pm.response.json();
+pm.test('scope includes the approved permission', () => pm.expect(t.scope.split(' ').sort()).to.eql(['email', 'PERMISSION', 'openid']));
+pm.test('access token is bound to the Hub key', () =>
+  pm.expect(L.decodeJwt(t.access_token).payload.cnf.jkt).to.eql(L.thumbprint(L.getKey('ns_hub_dpop_key'))));
+pm.test('no new device_secret is issued', () => pm.expect(t.device_secret).to.be.undefined);
+""".replace("PERMISSION", PERMISSION_SCOPE),
+    "The approval counts for this app, this user and this login session, and only inside an exchange that passes every binding check again.")
+
 USERINFO_REVOKED_TEST = r"""
 pm.test('userinfo answers 401 after the sign-out', () => pm.response.to.have.status(401));
 pm.test('the answer names invalid_token', () =>
@@ -590,17 +667,20 @@ cleanup = item(
 ['hub', 'card', 'plain', 'other'].forEach((n) => ['key', 'pub', 'id'].forEach((s) => pm.environment.unset('ns_' + n + '_' + s)));
 ['ns_hub_dpop_key', 'ns_card_dpop_key', 'ns_card_own_access_token', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',
  'ns_card_id_token', 'ns_code', 'ns_code_verifier', 'ns_assertion', 'ns_challenge_token', 'ns_request_uri',
- 'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt'].forEach((k) => pm.environment.unset(k));
+ 'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt', 'ns_consent_uri',
+ 'ns_consent_ticket'].forEach((k) => pm.environment.unset(k));
 """,
     test="pm.test('JWKS answers 200', () => pm.response.to.have.status(200));")
 
 FOLDER = {
     "name": "Native SSO",
-    "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, re-consent error, negative cases, revocation of the device secret. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
+    "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, consent-only re-consent on eSignet's consent page, re-consent error, negative cases, revocation of the device secret. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
     "item": [
         {"name": "Setup", "item": setup},
         {"name": "Hub sign-in (first app)", "item": hub},
         {"name": "Health Card sign-in (second app)", "item": [exchange_ok, userinfo_card, exchange_own_key, userinfo_own_key]},
+        {"name": "Consent-only re-consent (bonus)", "item": [consent_ask, consent_page, consent_allow, consent_used,
+                                                             consent_exchange]},
         {"name": "Negative cases", "item": negatives},
         {"name": "Revocation", "item": revocation},
         {"name": "Cleanup", "item": [cleanup]},

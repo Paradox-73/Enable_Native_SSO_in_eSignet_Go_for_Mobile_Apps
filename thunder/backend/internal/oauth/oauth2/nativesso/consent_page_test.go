@@ -176,6 +176,11 @@ func TestConsentPage_GetShowsAppsAndScopes(t *testing.T) {
 	assert.Contains(t, body, `name="ticket" value="`+value+`"`)
 	assert.NotContains(t, body, "psut-1", "no user data on the page")
 	assert.NotContains(t, body, "<script")
+	// eSignet branding is drawn inline: the CSP (default-src 'none') would block any loaded logo or font.
+	assert.Contains(t, body, `<span>eSignet</span>`)
+	assert.Contains(t, body, `<svg viewBox="0 0 32 32" aria-hidden="true"`)
+	assert.NotContains(t, body, "src=", "nothing is loaded from elsewhere")
+	assert.NotContains(t, body, "url(")
 
 	// Showing the page does not use the ticket up.
 	assert.Equal(t, http.StatusOK, f.get(value).Code)

@@ -353,26 +353,41 @@ const (
 	msgDeniedNoRedirect  = "Nothing changed. Go back to {app}."
 )
 
+// consentPageStyle follows eSignet's login pages (oidc-ui): white header with the eSignet mark, a white card
+// on a pale background, a full-width primary button. The buttons use a darker shade of eSignet's orange
+// (#eb6f2d) so that white text keeps a 4.5:1 contrast (WCAG 2.2, 1.4.3).
 const consentPageStyle = `
-body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;background:#f6f7f9;color:#1b1f24}
-main{max-width:30rem;margin:0 auto;padding:1.5rem 1rem}
-h1{font-size:1.4rem;margin:0 0 1rem}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;background:#f7f9fd;color:#1b1f24}
+header{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12);padding:.75rem 1rem}
+.brand{display:flex;align-items:center;gap:.5rem;font-size:1.6rem;font-weight:700;color:#2b2b2b}
+.brand svg{width:2.2rem;height:2.2rem}
+main{box-sizing:border-box;max-width:30rem;margin:1rem max(.75rem,calc((100% - 30rem)/2));padding:1.5rem 1.25rem;
+background:#fff;border:1px solid #e4e7ec;border-radius:.75rem;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+h1{font-size:1.4rem;margin:0 0 1rem;text-align:center}
 p{line-height:1.5}
-ul{background:#fff;border:1px solid #d5d9de;border-radius:.5rem;padding:.75rem 1rem .75rem 2rem}
+ul{background:#fdf3ee;border:1px solid #f3c4a8;border-radius:.5rem;padding:.75rem 1rem .75rem 2rem}
 li{margin:.4rem 0}
 .claims{color:#4a535d}
 .actions{display:flex;flex-direction:column;gap:.75rem;margin-top:1.5rem}
-button{font-size:1.05rem;padding:.85rem;border-radius:.5rem;border:1px solid #0b5cad;min-height:48px}
-.allow{background:#0b5cad;color:#fff}
-.deny{background:#fff;color:#0b5cad}
+button{font-size:1.05rem;font-weight:600;padding:.85rem;border-radius:.5rem;border:1px solid #b84e17;min-height:48px}
+.allow{background:#b84e17;color:#fff}
+.deny{background:#fff;color:#b84e17}
+button:focus-visible{outline:3px solid #1b1f24;outline-offset:2px}
 .note{font-size:.9rem;color:#4a535d}
 `
+
+// consentPageHeader is eSignet's mark (drawn inline: the page's CSP loads nothing) and its name.
+const consentPageHeader = `<header><div class="brand">` +
+	`<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">` +
+	`<path fill="#eb6f2d" d="M16 2a14 14 0 1 0 0 28h12.5a1.5 1.5 0 0 0 1.5-1.5V16A14 14 0 0 0 16 2z"/>` +
+	`<path fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" ` +
+	`d="M24 17.5H10.5M22.5 10.5A8 8 0 1 0 22 22.5"/></svg><span>eSignet</span></div></header>`
 
 var consentPageTemplate = template.Must(template.New("consent").Parse(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Allow more access?</title><style>` + consentPageStyle + `</style></head>
-<body><main>
+<body>` + consentPageHeader + `<main>
 <h1 id="title">Allow more access?</h1>
 <p><b>{{.AppName}}</b> asks for more than you allowed when you signed in to <b>{{.FirstAppName}}</b>.</p>
 <p>You stay signed in. No new login and no OTP are needed.</p>
@@ -397,5 +412,5 @@ var consentMessageTemplate = template.Must(template.New("message").Parse(`<!doct
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}}</title><style>` + consentPageStyle + `</style></head>
-<body><main><h1>{{.Title}}</h1><p id="message">{{.Message}}</p></main></body></html>
+<body>` + consentPageHeader + `<main><h1>{{.Title}}</h1><p id="message">{{.Message}}</p></main></body></html>
 `))

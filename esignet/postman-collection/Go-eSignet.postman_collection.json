@@ -1770,7 +1770,7 @@
     },
     {
       "name": "Native SSO",
-      "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, re-consent error, negative cases, revocation of the device secret. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
+      "description": "OpenID Connect Native SSO for Mobile Apps 1.0 on eSignet Go: Hub sign-in with device_sso, device_secret, token exchange for the Health Card, consent-only re-consent on eSignet's consent page, re-consent error, negative cases, revocation of the device secret. Run top to bottom with the environment `Go-eSignet Native SSO (local stack)`. See README.md, section Native SSO.",
       "item": [
         {
           "name": "00 Discovery shows Native SSO",
@@ -1881,7 +1881,7 @@
             "url": "{{ns_issuer}}/client-mgmt/client",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"requestTime\": \"{{ns_request_time}}\",\n  \"request\": {\n    \"clientId\": \"{{ns_card_id}}\",\n    \"clientName\": \"Native SSO Health Card\",\n    \"clientNameLangMap\": { \"eng\": \"Native SSO Health Card\" },\n    \"relyingPartyId\": \"{{ns_rp_id}}\",\n    \"logoUri\": \"https://example.com/logo.png\",\n    \"redirectUris\": [\"org.badmosip.nativesso.card://oauth/callback\"],\n    \"userClaims\": [\"name\", \"email\", \"phone_number\"],\n    \"authContextRefs\": [\"mosip:idp:acr:generated-code\"],\n    \"publicKey\": {{ns_card_pub}},\n    \"grantTypes\": [\"authorization_code\", \"urn:ietf:params:oauth:grant-type:token-exchange\"],\n    \"clientAuthMethods\": [\"private_key_jwt\"],\n    \"additionalConfig\": {\"require_pushed_authorization_requests\": true, \"dpop_bound_access_tokens\": true, \"require_pkce\": true, \"allowed_authorization_scopes\": [\"openid\", \"profile\", \"email\", \"phone\", \"device_sso\"]}\n  }\n}",
+              "raw": "{\n  \"requestTime\": \"{{ns_request_time}}\",\n  \"request\": {\n    \"clientId\": \"{{ns_card_id}}\",\n    \"clientName\": \"Native SSO Health Card\",\n    \"clientNameLangMap\": { \"eng\": \"Native SSO Health Card\" },\n    \"relyingPartyId\": \"{{ns_rp_id}}\",\n    \"logoUri\": \"https://example.com/logo.png\",\n    \"redirectUris\": [\"org.badmosip.nativesso.card://oauth/callback\"],\n    \"userClaims\": [\"name\", \"email\", \"phone_number\"],\n    \"authContextRefs\": [\"mosip:idp:acr:generated-code\"],\n    \"publicKey\": {{ns_card_pub}},\n    \"grantTypes\": [\"authorization_code\", \"urn:ietf:params:oauth:grant-type:token-exchange\"],\n    \"clientAuthMethods\": [\"private_key_jwt\"],\n    \"additionalConfig\": {\"require_pushed_authorization_requests\": true, \"dpop_bound_access_tokens\": true, \"require_pkce\": true, \"allowed_authorization_scopes\": [\"openid\", \"profile\", \"email\", \"phone\", \"device_sso\", \"health_card_share\"]}\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2920,6 +2920,373 @@
                   "const body = pm.response.text().trim();",
                   "const claims = body.split('.').length === 3 ? L.decodeJwt(body).payload : JSON.parse(body);",
                   "pm.test('userinfo sub equals the sub of the id_token', () => pm.expect(claims.sub).to.eql(pm.environment.get('ns_hub_sub')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Card 05 Exchange for a permission beyond the Hub grant -> interaction_required with consent_uri",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "The scope `health_card_share` needs no new user data, so eSignet answers with a one-time `consent_uri` instead of asking for a new login. Health Card opens it in the browser."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.scope = 'openid email health_card_share';",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 400', () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test('error is interaction_required', () => pm.expect(e.error).to.be.oneOf([\"interaction_required\"]));",
+                  "pm.test('no token is issued', () => pm.expect(e.access_token).to.be.undefined);",
+                  "pm.test('error_description is present', () => pm.expect(e.error_description).to.be.a('string').and.not.empty);",
+                  "",
+                  "const a = pm.response.json();",
+                  "pm.test('consent_uri is the issuer consent page', () =>",
+                  "  pm.expect(a.consent_uri.indexOf(pm.environment.get('ns_issuer') + '/oauth2/native-sso/consent?ticket=')).to.eql(0));",
+                  "pm.test('consent_expires_in is 1..600 s', () => pm.expect(a.consent_expires_in).to.be.within(1, 600));",
+                  "pm.test('error_description names only the new permission', () => {",
+                  "  pm.expect(a.error_description).to.include('health_card_share');",
+                  "  pm.expect(a.error_description).to.not.include('email');",
+                  "});",
+                  "pm.environment.set('ns_consent_uri', a.consent_uri);",
+                  "pm.environment.set('ns_consent_ticket', a.consent_uri.split('ticket=')[1]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Card 06 Consent page in the browser of the Hub login -> 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{ns_consent_uri}}",
+            "description": "Postman sends the HttpOnly cookie that `/oauth2/authorize` set at Hub 02, as the user's browser would. Without it the page answers 403 and shows no buttons."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('page answers 200', () => pm.response.to.have.status(200));",
+                  "const html = pm.response.text();",
+                  "pm.test('page asks \"Allow more access?\" for the permission', () => {",
+                  "  pm.expect(html).to.include('Allow more access?');",
+                  "  pm.expect(html).to.include('health_card_share');",
+                  "  pm.expect(html).to.include('No new login and no OTP');",
+                  "});",
+                  "pm.test('page has Allow and Not now', () => { pm.expect(html).to.include('id=\"consent-allow\"'); pm.expect(html).to.include('id=\"consent-deny\"'); });",
+                  "pm.test('page carries eSignet branding', () => pm.expect(html).to.include('<span>eSignet</span>'));",
+                  "pm.test('page is not cached and cannot be framed', () => {",
+                  "  pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store');",
+                  "  pm.expect(pm.response.headers.get('X-Frame-Options')).to.eql('DENY');",
+                  "  pm.expect(pm.response.headers.get('Content-Security-Policy')).to.include(\"frame-ancestors 'none'\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Card 07 Allow on the consent page -> 303 to the Health Card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{ns_issuer}}"
+              }
+            ],
+            "url": "{{ns_issuer}}/oauth2/native-sso/consent",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "ticket",
+                  "value": "{{ns_consent_ticket}}",
+                  "type": "text"
+                },
+                {
+                  "key": "decision",
+                  "value": "allow",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "What the page's form sends when the user taps Allow. The `Origin` header must be the issuer; a form from another site is refused (403)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 303', () => pm.response.to.have.status(303));",
+                  "pm.test('redirects to the Health Card with native_sso_consent=granted', () =>",
+                  "  pm.expect(pm.response.headers.get('Location')).to.eql('org.badmosip.nativesso.card://oauth/callback?native_sso_consent=granted'));"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Card 08 The same ticket again -> 400 (answered once)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{ns_issuer}}"
+              }
+            ],
+            "url": "{{ns_issuer}}/oauth2/native-sso/consent",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "ticket",
+                  "value": "{{ns_consent_ticket}}",
+                  "type": "text"
+                },
+                {
+                  "key": "decision",
+                  "value": "allow",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('a used ticket answers 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Card 09 Exchange for the permission after Allow -> 200",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{ns_issuer}}/oauth2/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "{{ns_ex_grant_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token",
+                  "value": "{{ns_ex_subject_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "subject_token_type",
+                  "value": "{{ns_ex_subject_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token",
+                  "value": "{{ns_ex_actor_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "actor_token_type",
+                  "value": "{{ns_ex_actor_token_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{ns_ex_audience}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{ns_ex_scope}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{ns_ex_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion_type",
+                  "value": "{{ns_ex_client_assertion_type}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_assertion",
+                  "value": "{{ns_ex_client_assertion}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "The approval counts for this app, this user and this login session, and only inside an exchange that passes every binding check again."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "const issuer = pm.environment.get('ns_issuer');",
+                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
+                  "const dpop = (keyVar, htm, path, ath) => {",
+                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
+                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
+                  "};",
+                  "",
+                  "const f = {",
+                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
+                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
+                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
+                  "  actor_token: pm.environment.get('ns_device_secret'),",
+                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
+                  "  audience: issuer,",
+                  "  scope: 'openid email',",
+                  "  client_id: pm.environment.get('ns_card_id'),",
+                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
+                  "  client_assertion: sign('card'),",
+                  "};",
+                  "let dpopKey = 'ns_hub_dpop_key';",
+                  "let sendDpop = true;",
+                  "f.scope = 'openid email health_card_share';",
+                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
+                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
+                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
+                  "",
+                  "pm.test('exchange answers 200', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json();",
+                  "pm.test('scope includes the approved permission', () => pm.expect(t.scope.split(' ').sort()).to.eql(['email', 'health_card_share', 'openid']));",
+                  "pm.test('access token is bound to the Hub key', () =>",
+                  "  pm.expect(L.decodeJwt(t.access_token).payload.cnf.jkt).to.eql(L.thumbprint(L.getKey('ns_hub_dpop_key'))));",
+                  "pm.test('no new device_secret is issued', () => pm.expect(t.device_secret).to.be.undefined);"
                 ]
               }
             }
@@ -4604,7 +4971,8 @@
                   "['hub', 'card', 'plain', 'other'].forEach((n) => ['key', 'pub', 'id'].forEach((s) => pm.environment.unset('ns_' + n + '_' + s)));",
                   "['ns_hub_dpop_key', 'ns_card_dpop_key', 'ns_card_own_access_token', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',",
                   " 'ns_card_id_token', 'ns_code', 'ns_code_verifier', 'ns_assertion', 'ns_challenge_token', 'ns_request_uri',",
-                  " 'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt'].forEach((k) => pm.environment.unset(k));"
+                  " 'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt', 'ns_consent_uri',",
+                  " 'ns_consent_ticket'].forEach((k) => pm.environment.unset(k));"
                 ]
               }
             },
