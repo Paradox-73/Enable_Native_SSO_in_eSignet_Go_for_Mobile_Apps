@@ -8,10 +8,11 @@ repository claims a result that was not run, and every measured result carries i
 | Document | Answers | State |
 |---|---|---|
 | [../README.md](../README.md) | What this is, status, architecture, quick start, how each statement task is met | final (2026-10-05) |
-| [setup.md](setup.md) | How to install and run the stack and both apps, step by step | final (2026-10-05) |
-| [demo-script.md](demo-script.md) | The demo, click by click, and the 4 min 30 s video storyboard | run with the emulator (2026-10-05); live timings not measured |
-| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Tools, build and test commands, conventions, how to pick up a task | updated 2026-10-05 |
-| [STATUS.md](STATUS.md) | Every task, its state and results | updated with every task |
+| [setup.md](setup.md) | How to install and run the stack and both apps, step by step, and troubleshooting | final (2026-10-14) |
+| [demo-script.md](demo-script.md) | The demo, click by click, with fallbacks | run with the emulator (2026-10-14); live timings not measured |
+| [video-script.md](video-script.md) | The demo video, shot by shot, with narration | planned; not recorded |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Developer commands, conventions, how a change reaches `main` | updated 2026-10-14 |
+| [STATUS.md](STATUS.md) | Every work package, its state and commits; open decisions | all DONE (2026-10-14) |
 
 ## Design
 
@@ -29,7 +30,8 @@ repository claims a result that was not run, and every measured result carries i
 |---|---|---|
 | [api.md](api.md) | Endpoints, parameters and responses added or changed; error table; links to the OpenAPI files | final (2026-10-05) |
 | [test-data.md](test-data.md) | Test identities, clients and keys, and how they are created | final (2026-10-05) |
-| [test-report.md](test-report.md) | Test cases and dated results: unit, integration, Android JVM, emulator, CI replayed on Linux; hosted CI and manual runs listed as not run | written by `scripts/evidence.sh` |
+| [test-report.md](test-report.md) | Test cases and dated results: unit, integration, Android JVM, emulator, hosted CI; each row links its trimmed log in [evidence/](evidence/2026-10-14); manual runs listed as not run | written by `scripts/evidence.sh` |
+| [manual-test-checklist.md](manual-test-checklist.md), [manual-test-results-template.md](manual-test-results-template.md) | Steps only a person can run (fresh clones, a real phone, TalkBack, a video dry run) and the form to send results back | ready; not run |
 
 ## Project
 
@@ -39,4 +41,4 @@ repository claims a result that was not run, and every measured result carries i
 | [../scripts/README.md](../scripts/README.md) | Build, test, lint and import-check commands | done |
 | [ppt-outline.md](ppt-outline.md) | Slide outline for the pitch | final; slide file not made |
 | [upstream-prs/thunder.md](upstream-prs/thunder.md), [upstream-prs/esignet.md](upstream-prs/esignet.md) | Notes for offering the changes to Thunder and eSignet | final (2026-10-05) |
-| [submission-checklist.md](submission-checklist.md) | Every submission item and where it is | final (2026-10-05) |
+| [submission-checklist.md](submission-checklist.md) | Every submission item and where it is | updated 2026-10-14 |

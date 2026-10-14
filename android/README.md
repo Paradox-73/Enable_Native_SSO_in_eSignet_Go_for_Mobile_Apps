@@ -7,16 +7,9 @@ Two Kotlin apps from one publisher, signed with one certificate, and the client 
 - **Health Card** (Child App, `org.badmosip.nativesso.childapp`): signs the same user in without a
   password or OTP, by sending Hub's id_token and device secret to eSignet in a token exchange.
 
-> **State on 2026-10-14.** Built and tested: the Gradle project, shared signing, the binder contract,
-> the `oidc-client` library (69 JVM tests), the `secure-store` module (13 JVM tests), Hub (sign-in
-> with eSignet, the family single sign-on service, "Sign out of all apps" that deletes the DPoP key and
-> revokes the device secret on eSignet: 64 JVM and Robolectric tests) and Health Card (silent sign-in by
-> token exchange, re-consent with and without a new login, sign-out, accessibility: 62 Robolectric and
-> JVM tests). On the emulator `bash android/scripts/run-ui-test.sh all` passed (`SuperAppSignInTest`,
-> `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest`, `ChildAppReconsentTest` with its "Not now"
-> step, `ChildAppSignOutTest`, `ChildAppHubMissingTest`: `OK (6 tests)` on 2026-10-14, see [Health Card](#health-card-silent-sign-in-re-consent-sign-out)), and so did the family steps (see
-> [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)). Dated results:
-> [../docs/test-report.md](../docs/test-report.md); screenshots: [../docs/ux.md](../docs/ux.md#screenshots).
+Both apps and their libraries are built and tested on the JVM and on the emulator (UI tests, family steps and the
+full demo check). Dated results: rows JVM-*, UI-*, APK-SIGN and DEMO-FULL of
+[../docs/test-report.md](../docs/test-report.md); screenshots: [../docs/ux.md](../docs/ux.md#screenshots).
 
 ## Modules
 
@@ -36,8 +29,7 @@ newer; the team uses JDK 21. Versions live in [`gradle/libs.versions.toml`](grad
 ## Build and test
 
 ```bash
-# Git Bash on the team laptops; elsewhere set JAVA_HOME (17+) and ANDROID_HOME yourself.
-source /e/Projects/MOSIP/toolchain/env.sh && use_java21
+# JAVA_HOME (17+) and ANDROID_HOME set, see ../docs/setup.md
 cd android
 bash gradlew --no-daemon :oidc-client:test assembleDebug   # BUILD SUCCESSFUL
 bash gradlew --no-daemon :secure-store:testDebugUnitTest :superapp:testDebugUnitTest :childapp:testDebugUnitTest
@@ -53,15 +45,6 @@ bash scripts/verify-family-signing.sh                      # family-signing: OK 
   `childapp/build/outputs/apk/debug/childapp-debug.apk`.
 - The issuer URL compiled into the apps is the Gradle property `ps03.issuer` (default
   `http://localhost:38088`, see `gradle.properties`); override with `-Pps03.issuer=...`.
-
-Measured on 2026-10-04 (Windows 11 laptop shared with other builds, `--no-daemon`):
-
-| Run | Result | Wall time |
-| --- | --- | --- |
-| Acceptance command, first run after source changes (98 of 109 tasks executed, test results up to date) | `BUILD SUCCESSFUL` | 6 min 57 s |
-| Acceptance command again, `:oidc-client:cleanTest` first (test results come from the Gradle build cache) | `BUILD SUCCESSFUL` | 1 min 7 s |
-| `--no-build-cache :oidc-client:cleanTest :oidc-client:test` (all tests really run) | 64 tests, 0 failures, 0 errors | 51 s |
-| `verify-family-signing.sh` | both APKs `CN=PS03 App Family (test only)`, SHA-256 `a787b1f3...1e200de0` | under 5 s |
 
 ## One signing certificate for the family
 
@@ -141,9 +124,8 @@ builds allow it for `localhost` and `127.0.0.1` only (`src/debug/res/...`), for 
 ### On the emulator
 
 ```bash
-source /e/Projects/MOSIP/toolchain/env.sh && use_java21
 bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all
-# ... OK (3 tests)
+# ... OK (6 tests)
 ```
 
 | Script | What it does |
@@ -167,7 +149,7 @@ What the JVM tests cover:
 - `secure-store` (13): round trip, ciphertext only on disk, new IV per write, atomic replace, a
   changed ciphertext or IV byte, a file copied under another name, wrong magic or version, truncation,
   another key, delete, empty blob, name rules.
-- `superapp` (33 of its 54; the other 21 are listed under [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
+- `superapp` (43 of its 64; the other 21 are listed under [Family single sign-on](#family-single-sign-on-hub-service-and-health-card)): the whole sign-in against a fake eSignet on MockWebServer (PAR and token fields,
   PKCE pairing, client assertion audience and `kid`, DPoP proofs at PAR, token and userinfo with the
   right `htu`); `device_sso` on with the device secret kept after the `ds_hash` check; wrong `ds_hash`,
   wrong `nonce`, an unasked device secret, error redirects: nothing stored; `state` mismatch keeps the
@@ -342,7 +324,7 @@ every screen scrolls, so 200 % font size cuts nothing off; reading order is titl
 then details; text colors reach at least 4.5:1 on their backgrounds in light and dark mode
 (`CardTheme.kt`, `HubTheme.kt`).
 
-What the Robolectric and JVM tests cover (`childapp`, 50 with `HubConnectionTest`):
+What the Robolectric and JVM tests cover (`childapp`, 62 with `HubConnectionTest`):
 
 - `CardAuthenticatorTest` (15): the exchange form field by field, Health Card's client assertion,
   both proofs verified with Hub's key (`htu`, `ath`), the stored session; a nonce challenge; ten
@@ -382,12 +364,12 @@ UI Automator tests (need the stack and the emulator; `run-ui-test.sh all` runs t
   `health-card-consent-screen.png`), "Continue to eSignet", UIN, a new OTP and "Allow" in Chrome,
   then Health Card's own session with `phone` in its scope (screenshot `health-card-after-consent.png`).
   Before continuing it taps "Not now" once: Health Card stays signed in with Hub and says that nothing
-  changed (screenshot `health-card-consent-declined.png`). Passed on the emulator on 2026-10-06.
+  changed (screenshot `health-card-consent-declined.png`).
 - `ChildAppSignOutTest`: "Sign out of Health Card" (Hub stays signed in), then Hub's "Sign out of all
   apps", then Health Card shows "Sign in to Hub first" with no tokens kept (screenshots
   `health-card-signed-out.png`, `hub-signed-out.png`, `health-card-needs-hub.png`).
 - `ChildAppHubMissingTest` (last): uninstalls Hub; Health Card says Hub is not installed and keeps no
-  tokens (screenshot `health-card-hub-missing.png`). `run-ui-test.sh all` installs Hub again afterwards. Not run on the emulator yet.
+  tokens (screenshot `health-card-hub-missing.png`). `run-ui-test.sh all` installs Hub again afterwards.
 
 ## The client library (`oidc-client`)
 
@@ -458,7 +440,7 @@ Typed errors:
 | `InvalidResponseException` | a broken answer: missing fields, wrong `token_type`, wrong issuer in discovery, `state` mismatch | stop; do not keep any token |
 | `IdTokenValidationException` (`reason`) | an id_token check failed | stop; do not keep any token |
 
-What the 64 tests cover (`oidc-client/src/test`): the RFC 7638, RFC 7636 and RFC 9449 example
+What the 69 tests cover (`oidc-client/src/test`): the RFC 7638, RFC 7636 and RFC 9449 example
 vectors; DER/JWS signature conversion including short values; every proof and assertion claim; every
 id_token check above with a passing and a failing case; PAR, code exchange, token exchange and
 userinfo requests field by field against MockWebServer; nonce retry once and only once; error mapping

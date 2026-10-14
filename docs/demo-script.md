@@ -1,8 +1,8 @@
-# Demo script and video storyboard
+# Demo script
 
 How to run the Native SSO demo (Hub and Health Card on an Android emulator against the local eSignet stack) the same
-way every time, what to say and show for each of the 4 minutes 30 seconds of the video, and what to do when
-something fails. Written 2026-10-05, updated 2026-10-14.
+way every time, and what to do when something fails. The video's shot list is [video-script.md](video-script.md).
+Written 2026-10-05, updated 2026-10-14.
 
 ## Status of this runbook
 
@@ -12,16 +12,13 @@ something fails. Written 2026-10-05, updated 2026-10-14.
 - Every screen named below, including the "Not now" fallback, was seen on the emulator by the UI tests of
   2026-10-14 (`OK (6 tests)`); screenshots are in [screens/](screens/) and
   [ux.md](ux.md#screenshots). Screen texts in this file are the apps' strings.
-- Not measured yet: the live runbook by a person at presenting speed. Rehearse once and fill the last column of
+- Not measured yet: the live runbook by a person at presenting speed. Rehearse once and fill the last row of
   [Timings](#timings).
 
 ## Prerequisites
 
-- Windows 11 with Git Bash and Docker Desktop (Linux containers, at least 4 GB), JDK 17 or newer, Android SDK with
-  platform 34, build-tools 34.0.0, `emulator` and the system image `system-images;android-34;google_apis;x86_64`,
-  and the AVD `ps03_api34`. Details: [../CONTRIBUTING.md](../CONTRIBUTING.md).
-- `JAVA_HOME` and `ANDROID_HOME` set in the shell.
-- Free ports 38088, 38300, 38082, 38455 and the emulator ports 5584/5585.
+The tools of [setup.md](setup.md#prerequisites), including the emulator image and the AVD `ps03_api34`, with
+`JAVA_HOME` and `ANDROID_HOME` set and the ports of [setup.md](setup.md#ports) free.
 
 ## One command
 
@@ -92,22 +89,16 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
    accepts an expired id_token while the device secret and its login session live (8 hours, decision D8). No id_token age cap
    is set by default, so the demo flow above works at any pace within those 8 hours.
 
-## Video storyboard
-
-The shot-by-shot script (times, screens, narration, the rubric criterion each shot proves) is [video-script.md](video-script.md). The
-checks to make before recording are in [manual-test-checklist.md](manual-test-checklist.md).
-
 ## Timings
 
-| Step | Measured on 2026-10-05 | Measured with the emulator |
-|---|---|---|
-| Preflight, APK build (up to date), signing check | 15 s | |
-| Stack from clean volumes | 37 s | |
-| Headless flow (4 tests) and teardown | 11 s | |
-| Whole `--no-emulator` run | 65 s | 81 s on 2026-10-14 |
-| Emulator boot | not run | |
-| Install, clear, register both apps | not run | |
-| Whole `demo.sh --check` | not run (acceptance: under 10 minutes) | 328 s on 2026-10-14 (live mode without waiting: 192 s) |
+| Step | Measured |
+|---|---|
+| Preflight, APK build (up to date), signing check | 15 s on 2026-10-05 |
+| Stack from clean volumes | 37 s on 2026-10-05 |
+| Headless flow (4 tests) and teardown | 11 s on 2026-10-05 |
+| Whole `--no-emulator` run | 65 s on 2026-10-05; current value in row DEMO-SERVER of [test-report.md](test-report.md) |
+| Whole `demo.sh --check` (acceptance: under 10 minutes) | row DEMO-FULL of [test-report.md](test-report.md) |
+| Live runbook by a person at presenting speed | not measured; rehearse once and fill this row |
 
 ## When something fails
 

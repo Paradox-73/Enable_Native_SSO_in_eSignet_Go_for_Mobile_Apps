@@ -85,7 +85,7 @@ Findings while writing it (2026-10-05):
 - The login page's hCaptcha box loads its script from `https://js.hcaptcha.com` (the only hCaptcha origin in the
   oidc-ui 2.0.0 bundle, `assets/index-Zy1Cptt7.js`, checked 2026-10-05). Without internet that script cannot
   load, so the box cannot work offline. Whether the page still lets you continue without it: NOT RUN (needs a
-  browser with the network cut; to check on the emulator in WP-09).
+  browser with the network cut).
 
 ## Resource use
 

@@ -148,26 +148,16 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 
 ## Known limits
 
-Listed with ids in [docs/test-report.md](docs/test-report.md#known-limits):
+Full text with ids: [docs/test-report.md](docs/test-report.md#known-limits).
 
-- **Silent sign-in lasts as long as Hub's device secret** (L10). Health Card signs in without a password for 8 hours
-  after Hub's login (`native_sso.device_secret_validity_seconds`). After that the exchange is refused and Health Card
-  shows an error, while Hub still says "signed in": Hub cannot read the device secret's expiry. The user signs out of
-  Hub and in again (a "sign in again" button in Hub would fix this and is not built). eSignet accepts an expired
-  id_token, as Native SSO 6.3 allows (decision D8). An operator can cap the id_token's age with
-  `oauth.native_sso.id_token_max_age_seconds` (off by default): a stolen id_token then stops working sooner, but Health
-  Card also stops signing in silently that many seconds after Hub's login.
-- Re-consent for new user data asks for the OTP again (L02): eSignet's identity system releases user data only
-  after an authentication, so the phone number needs a fresh login with `prompt=consent`; Health Card says so
-  before the browser opens. Permissions that need no new user data are approved with no login (R28), on a page that
-  shows a plain-language description of each permission.
-- The demo stack keeps eSignet's runtime store in memory (L03), so an eSignet restart ends every Hub session. Several
-  eSignet replicas need eSignet's Redis store: `PS03_RUNTIME_STORE=redis` starts the stack with it, and the live suite
-  passed 32 of 32 that way on 2026-10-14 ([deploy/README.md](deploy/README.md)). Several replicas behind a load
-  balancer were not run.
-- Sign-out ends the device secret's session on the server (rule R27); Health Card's access tokens carry that session
-  id, so userinfo and introspection refuse them afterwards. A resource server that checks a token's signature without
-  asking eSignet still accepts it until it expires.
+- **Silent sign-in lasts as long as Hub's device secret, 8 hours by default** (L10). After that the exchange is refused
+  while Hub still says "signed in", because Hub cannot read the device secret's expiry; the user signs in to Hub again.
+- Re-consent for new user data (the phone number) asks for the OTP again (L02); permissions that need no new user data
+  are approved with no login (R28).
+- The demo stack keeps eSignet's runtime store in memory (L03); several replicas need the Redis store
+  (`PS03_RUNTIME_STORE=redis`, [deploy/README.md](deploy/README.md)), which passed the live suite.
+- After sign-out (R27), a resource server that checks a token's signature without asking eSignet accepts it until it
+  expires (L04).
 - Software-backed Keystore on the emulator (L01); one emulator image (L06); no physical phone, no TalkBack pass (L08, L09).
 
 ## Licence
