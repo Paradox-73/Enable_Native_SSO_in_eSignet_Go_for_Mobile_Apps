@@ -32,7 +32,9 @@ RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
   behaves as upstream.
 - **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
   L07-L09). Task-level state: [docs/STATUS.md](docs/STATUS.md).
-- **Video and manual checks**: [docs/video-script.md](docs/video-script.md), [docs/manual-test-checklist.md](docs/manual-test-checklist.md).
+- **Video and manual checks**: [docs/video-script.md](docs/video-script.md), [docs/manual-test-checklist.md](docs/manual-test-checklist.md)
+  (steps only a person can run: fresh clones on macOS, Linux and Windows, a real phone, TalkBack, a video dry run) and
+  [docs/manual-test-results-template.md](docs/manual-test-results-template.md) to send the results back.
 
 ## Screens
 
