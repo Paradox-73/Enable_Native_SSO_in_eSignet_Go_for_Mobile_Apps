@@ -12,8 +12,8 @@
 #   bash deploy/stack.sh down     stop everything and delete the volumes (database, keystore)
 #
 # - PS03_RUNTIME_STORE=redis at `up` adds the compose profile "redis": eSignet keeps its runtime store in a
-#   Redis container instead of in memory. `up` saves the choice in stack.env, so restart, logs, status and
-#   down use the same store without the variable.
+#   Redis container instead of in memory. `up` saves the choice in stack.env; restart, logs, status and down
+#   read it from there and ignore the variable.
 # - Passwords for Postgres and the eSignet keystore are generated on first use into
 #   $PS03_RUN_DIR/stack.env (outside git) and passed to compose with --env-file.
 # - Does not take the docker-stack lock; scripts/with-stack.sh does (up, command, down).
@@ -46,18 +46,23 @@ ensure_env() {
   grep -q '^PS03_REDIS_PASSWORD=' "$ENV_FILE" || echo "PS03_REDIS_PASSWORD=$(random_secret)" >> "$ENV_FILE"
 }
 
-# runtime_store: PS03_RUNTIME_STORE from the shell, else the choice `up` saved in stack.env, else inmemory.
+# runtime_store: the store `up` saved in stack.env (inmemory when the file has none). Only `up` reads the
+# shell's PS03_RUNTIME_STORE, so every later command of a stack, e2e/run.sh included, uses the same store.
 runtime_store() {
-  local store=${PS03_RUNTIME_STORE:-}
-  [ -n "$store" ] || store=$(sed -n 's/^PS03_RUNTIME_STORE=//p' "$ENV_FILE" 2>/dev/null | tail -1)
-  case ${store:-inmemory} in
-    inmemory|redis) echo "${store:-inmemory}" ;;
-    *) ps03_die "PS03_RUNTIME_STORE must be inmemory or redis, got $store" ;;
+  local store
+  store=$(sed -n 's/^PS03_RUNTIME_STORE=//p' "$ENV_FILE" 2>/dev/null | tail -1)
+  check_store "${store:-inmemory}" && echo "${store:-inmemory}"
+}
+
+check_store() {
+  case $1 in
+    inmemory|redis) ;;
+    *) ps03_die "PS03_RUNTIME_STORE must be inmemory or redis, got $1" ;;
   esac
 }
 
 compose() {
-  local store; store=$(runtime_store)
+  local store; store=$(runtime_store) || exit 1
   local -a profile=()
   [ "$store" = redis ] && profile=(--profile redis)
   PS03_RUNTIME_STORE=$store docker compose -p "$PROJECT" -f "$(ps03_host_path "$COMPOSE_FILE")" \
@@ -82,8 +87,10 @@ wait_http() {
 cmd_up() {
   ensure_env
   local store=${PS03_RUNTIME_STORE:-inmemory}
-  sed -i '/^PS03_RUNTIME_STORE=/d' "$ENV_FILE"
-  echo "PS03_RUNTIME_STORE=$store" >> "$ENV_FILE"
+  check_store "$store"
+  # grep and mv, not sed -i: BSD sed on macOS needs a different -i syntax.
+  (umask 077; { grep -v '^PS03_RUNTIME_STORE=' "$ENV_FILE" || true; echo "PS03_RUNTIME_STORE=$store"; } > "$ENV_FILE.tmp")
+  mv "$ENV_FILE.tmp" "$ENV_FILE"
   local t0; t0=$(date +%s)
   ps03_log "building eSignet image and starting $PROJECT"
   compose up -d --build --wait --wait-timeout "$UP_TIMEOUT_S" >&2 \
