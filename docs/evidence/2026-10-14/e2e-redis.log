@@ -1,6 +1,6 @@
 stack: building eSignet image and starting ps03-native-sso
-stack: mock identity ready after 27 s
-stack up: ps03-native-sso ready in 110 s (issuer http://localhost:38088)
+stack: mock identity ready after 24 s
+stack up: ps03-native-sso ready in 69 s (issuer http://localhost:38088)
 stack: ok   eSignet /health
 stack: ok   discovery issuer http://localhost:38088
 stack: ok   discovery PAR endpoint
@@ -10,40 +10,40 @@ stack: ok   mock identity health
 stack: ok   oidc-ui login pages
 stack: ok   oidc-ui proxy to eSignet
 stack smoke: PASS
---- PASS: TestE2E_FAPI2Login (0.77s)
---- PASS: TestE2E_PSUTProbe (0.51s)
---- PASS: TestE2E_Exchange_ConsentOnlyReconsent (2.58s)
---- PASS: TestE2E_SuperAppLogin_IssuesDeviceSecret (0.27s)
---- PASS: TestE2E_DeviceSSO_ClientNotAllowed (0.05s)
---- PASS: TestE2E_DeviceSecret_IsNestedJWE (0.04s)
---- PASS: TestE2E_IDToken_HasSIDAndDSHash (0.06s)
---- PASS: TestE2E_TokenResponse_Fields (0.05s)
---- PASS: TestE2E_DeviceSSO_RequiresDPoP (0.32s)
---- PASS: TestE2E_Exchange_TamperedDeviceSecret (0.15s)
---- PASS: TestE2E_Exchange_OldURNRejected (0.12s)
+--- PASS: TestE2E_FAPI2Login (0.48s)
+--- PASS: TestE2E_PSUTProbe (0.36s)
+--- PASS: TestE2E_Exchange_ConsentOnlyReconsent (0.60s)
+--- PASS: TestE2E_SuperAppLogin_IssuesDeviceSecret (0.15s)
+--- PASS: TestE2E_DeviceSSO_ClientNotAllowed (0.01s)
+--- PASS: TestE2E_DeviceSecret_IsNestedJWE (0.00s)
+--- PASS: TestE2E_IDToken_HasSIDAndDSHash (0.01s)
+--- PASS: TestE2E_TokenResponse_Fields (0.00s)
+--- PASS: TestE2E_DeviceSSO_RequiresDPoP (0.22s)
+--- PASS: TestE2E_Exchange_TamperedDeviceSecret (0.03s)
+--- PASS: TestE2E_Exchange_OldURNRejected (0.02s)
 --- PASS: TestE2E_Exchange_DSHashMismatch (0.14s)
---- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO (0.09s)
---- PASS: TestE2E_Exchange_DPoPKeyMismatch (0.06s)
---- PASS: TestE2E_Exchange_NoDPoP (0.02s)
---- PASS: TestE2E_Exchange_ScopeSuperset (0.04s)
+--- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO (0.03s)
+--- PASS: TestE2E_Exchange_DPoPKeyMismatch (0.03s)
+--- PASS: TestE2E_Exchange_NoDPoP (0.01s)
+--- PASS: TestE2E_Exchange_ScopeSuperset (0.02s)
 --- PASS: TestE2E_Exchange_DeviceSSOInScope (0.01s)
---- PASS: TestE2E_Exchange_NarrowerScope (0.14s)
---- PASS: TestE2E_Exchange_WrongAudience (0.03s)
---- PASS: TestE2E_Exchange_OtherVendor (0.07s)
---- PASS: TestE2E_Exchange_ForgedIDToken (0.09s)
---- PASS: TestE2E_Exchange_DPoPReplay (0.10s)
---- PASS: TestE2E_Exchange_ChildTokens (0.07s)
---- PASS: TestE2E_Exchange_ChildOwnDPoPKey (0.21s)
---- PASS: TestE2E_Exchange_SubMatchesDirectLogin (0.23s)
---- PASS: TestE2E_Discovery_NativeSSO (0.07s)
---- PASS: TestE2E_ClientRegistration_TokenExchangeGrant (0.11s)
---- PASS: TestE2E_GenericExchangeRejected (0.08s)
---- PASS: TestE2E_Revoke_DeviceSecret (1.58s)
---- PASS: TestE2E_Exchange_ExpiredIDToken (128.72s)
+--- PASS: TestE2E_Exchange_NarrowerScope (0.06s)
+--- PASS: TestE2E_Exchange_WrongAudience (0.01s)
+--- PASS: TestE2E_Exchange_OtherVendor (0.04s)
+--- PASS: TestE2E_Exchange_ForgedIDToken (0.06s)
+--- PASS: TestE2E_Exchange_DPoPReplay (0.03s)
+--- PASS: TestE2E_Exchange_ChildTokens (0.03s)
+--- PASS: TestE2E_Exchange_ChildOwnDPoPKey (0.07s)
+--- PASS: TestE2E_Exchange_SubMatchesDirectLogin (0.12s)
+--- PASS: TestE2E_Discovery_NativeSSO (0.01s)
+--- PASS: TestE2E_ClientRegistration_TokenExchangeGrant (0.01s)
+--- PASS: TestE2E_GenericExchangeRejected (0.01s)
+--- PASS: TestE2E_Revoke_DeviceSecret (0.48s)
+--- PASS: TestE2E_Exchange_ExpiredIDToken (130.81s)
 e2e: phase 2: recreating eSignet with a device secret lifetime of 20 s
-stack restart: redis esignet ready in 21 s
---- PASS: TestE2E_Exchange_SessionEnded (0.16s)
---- PASS: TestE2E_Exchange_ExpiredDeviceSecret (33.71s)
-e2e: evidence: /e/Projects/MOSIP/PS03/run/evidence/e2e-20261014-135451/evidence.jsonl
+stack restart: redis esignet ready in 15 s
+--- PASS: TestE2E_Exchange_SessionEnded (0.03s)
+--- PASS: TestE2E_Exchange_ExpiredDeviceSecret (33.36s)
+e2e: evidence: /e/Projects/MOSIP/PS03/run/evidence/e2e-20261014-184426/evidence.jsonl
 e2e: 32 passed, 0 failed
-e2e: logs: /e/Projects/MOSIP/PS03/run/logs/e2e-20261014-135451-phase1.log /e/Projects/MOSIP/PS03/run/logs/e2e-20261014-135451-phase2.log
+e2e: logs: /e/Projects/MOSIP/PS03/run/logs/e2e-20261014-184426-phase1.log /e/Projects/MOSIP/PS03/run/logs/e2e-20261014-184426-phase2.log

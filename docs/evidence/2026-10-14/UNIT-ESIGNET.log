@@ -1,13 +1,14 @@
 go-test: changed lines are measured against import commit 4eac1cc57372
-go-test: esignet/esignet-service: 29 packages (0 failed, 0 without tests), 1599 tests: 1599 passed, 0 skipped, 0 failed
-changed-cover: cmd/esignet/main.go: 7/26 statements (26.9%)
+go-test: esignet/esignet-service: 29 packages (0 failed, 0 without tests), 1607 tests: 1607 passed, 0 skipped, 0 failed
+changed-cover: cmd/esignet/main.go: 7/27 statements (25.9%)
 changed-cover: internal/clientmgmt/validate.go: 2/2 statements (100.0%)
 changed-cover: internal/config/app.go: 8/8 statements (100.0%)
 changed-cover: internal/config/native_sso.go: 29/29 statements (100.0%)
+changed-cover: internal/consentmgmt/service.go: 26/33 statements (78.8%)
 changed-cover: internal/engine/actor_provider.go: 8/8 statements (100.0%)
-changed-cover: internal/engine/device_secret_provider.go: 148/152 statements (97.4%)
+changed-cover: internal/engine/device_secret_provider.go: 160/164 statements (97.6%)
 changed-cover: internal/engine/mock/authenticator.go: 8/8 statements (100.0%)
 changed-cover: internal/engine/runtime_crypto_provider.go: 11/11 statements (100.0%)
 changed-cover: internal/engine/shared/interface.go: no coverage data (its package was not tested)
 changed-cover: internal/httpmiddleware/userinfo_scope.go: 126/130 statements (96.9%)
-changed-cover: total 347/374 statements on changed lines (92.8%) in 10 files
+changed-cover: total 385/420 statements on changed lines (91.7%) in 11 files

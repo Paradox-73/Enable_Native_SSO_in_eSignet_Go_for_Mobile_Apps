@@ -1,5 +1,5 @@
 go-test: changed lines are measured against import commit c4c54439d7aa
-go-test: thunder/backend: 32 packages (0 failed, 0 without tests), 2466 tests: 2465 passed, 1 skipped, 0 failed
+go-test: thunder/backend: 32 packages (0 failed, 0 without tests), 2468 tests: 2467 passed, 1 skipped, 0 failed
 changed-cover: cmd/server/servicemanager.go: no coverage data (its package was not tested)
 changed-cover: internal/oauth/config/config.go: no statements on changed lines
 changed-cover: internal/oauth/init.go: 33/33 statements (100.0%)
@@ -16,7 +16,7 @@ changed-cover: internal/oauth/oauth2/granthandlers/authorization_code_native_sso
 changed-cover: internal/oauth/oauth2/granthandlers/init.go: 0/1 statements (0.0%)
 changed-cover: internal/oauth/oauth2/granthandlers/provider.go: 2/2 statements (100.0%)
 changed-cover: internal/oauth/oauth2/granthandlers/token_exchange.go: 6/6 statements (100.0%)
-changed-cover: internal/oauth/oauth2/granthandlers/token_exchange_native_sso.go: 199/201 statements (99.0%)
+changed-cover: internal/oauth/oauth2/granthandlers/token_exchange_native_sso.go: 211/213 statements (99.1%)
 changed-cover: internal/oauth/oauth2/model/error.go: no coverage data (its package was not tested)
 changed-cover: internal/oauth/oauth2/model/token.go: no coverage data (its package was not tested)
 changed-cover: internal/oauth/oauth2/nativesso/consent_audit.go: 7/7 statements (100.0%)
@@ -42,4 +42,4 @@ changed-cover: pkg/thunderidengine/engine.go: 7/7 statements (100.0%)
 changed-cover: pkg/thunderidengine/providers/constants.go: no statements on changed lines
 changed-cover: pkg/thunderidengine/providers/device_secret.go: 7/7 statements (100.0%)
 changed-cover: pkg/thunderidengine/providers/interface.go: no coverage data (its package was not tested)
-changed-cover: total 775/786 statements on changed lines (98.6%) in 42 files
+changed-cover: total 787/798 statements on changed lines (98.6%) in 42 files

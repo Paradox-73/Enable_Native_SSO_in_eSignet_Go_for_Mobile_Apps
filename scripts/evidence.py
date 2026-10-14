@@ -182,6 +182,9 @@ def cmd_rules(args):
         if r["result"] != res or r["date"] != TODAY: changed += 1
         r["result"], r["date"] = res, TODAY
     save(rows)
+    if not (have_go and have_e2e and have_cls):
+        print("rules updated: %d rows (partial run: tests-passed.txt kept)" % changed)
+        return
     with open(os.path.join(os.path.dirname(os.environ["EV_JUNIT_OUT"]), "tests-passed.txt"), "w",
               encoding="utf-8", newline="\n") as f:
         f.write("# Tests that passed in the run of %s at %s (scripts/evidence.sh --run)\n" % (TODAY, COMMIT))

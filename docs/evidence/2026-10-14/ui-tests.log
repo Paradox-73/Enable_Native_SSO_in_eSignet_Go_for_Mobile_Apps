@@ -1,0 +1,128 @@
+stack: building eSignet image and starting ps03-native-sso
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+stack: mock identity ready after 64 s
+stack up: ps03-native-sso ready in 110 s (issuer http://localhost:38088)
+stack: ok   eSignet /health
+stack: ok   discovery issuer http://localhost:38088
+stack: ok   discovery PAR endpoint
+stack: ok   discovery DPoP ES256
+stack: ok   JWKS has a key
+stack: ok   mock identity health
+stack: ok   oidc-ui login pages
+stack: ok   oidc-ui proxy to eSignet
+stack smoke: PASS
+with-emulator: starting AVD ps03_api34 on port 5584 (log: /e/Projects/MOSIP/PS03/run/logs/emulator-20261014-192028.log)
+with-emulator: booted in 45 s
+with-emulator: emulator-5584 ready: adb reverse 38088 and 38300, Chrome first-run off
+run-ui-test: building superapp childapp and the test APKs
+run-ui-test: installed org.badmosip.nativesso.superapp and org.badmosip.nativesso.superapp.test
+register-client: ps03-hub-0b6b5c6d18b1 ACTIVE
+run-ui-test: running org.badmosip.nativesso.superapp.SuperAppSignInTest
+
+org.badmosip.nativesso.superapp.SuperAppSignInTest:s_glBindAttribLocation: bind attrib 0 name position
+s_glBindAttribLocation: bind attrib 1 name color
+s_glBindAttribLocation: bind attrib 2 name localCoord
+.
+
+Time: 63.236
+
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-superapp-20261014-192232
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: starting org.badmosip.nativesso.childapp once so it creates its keys
+register-client: ps03-card-c9280bace38d ACTIVE
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppSilentSignInTest
+
+org.badmosip.nativesso.childapp.ChildAppSilentSignInTest:s_glBindAttribLocation: bind attrib 0 name position
+s_glBindAttribLocation: bind attrib 1 name color
+s_glBindAttribLocation: bind attrib 2 name localCoord
+.
+
+Time: 4.463
+
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261014-192344
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-c9280bace38d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppConsentOnlyTest
+
+org.badmosip.nativesso.childapp.ChildAppConsentOnlyTest:s_glBindAttribLocation: bind attrib 0 name position
+s_glBindAttribLocation: bind attrib 1 name color
+s_glBindAttribLocation: bind attrib 2 name localCoord
+.
+
+Time: 81.15
+
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261014-192401
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-c9280bace38d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppReconsentTest
+
+org.badmosip.nativesso.childapp.ChildAppReconsentTest:s_glBindAttribLocation: bind attrib 0 name position
+s_glBindAttribLocation: bind attrib 1 name color
+s_glBindAttribLocation: bind attrib 2 name localCoord
+.
+
+Time: 47.723
+
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261014-192533
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-c9280bace38d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppSignOutTest
+
+org.badmosip.nativesso.childapp.ChildAppSignOutTest:s_glBindAttribLocation: bind attrib 0 name position
+s_glBindAttribLocation: bind attrib 1 name color
+s_glBindAttribLocation: bind attrib 2 name localCoord
+.
+
+Time: 12.073
+
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261014-192629
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-c9280bace38d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppHubMissingTest
+
+org.badmosip.nativesso.childapp.ChildAppHubMissingTest:s_glBindAttribLocation: bind attrib 0 name position
+s_glBindAttribLocation: bind attrib 1 name color
+s_glBindAttribLocation: bind attrib 2 name localCoord
+.
+
+Time: 8.938
+
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261014-192650
+run-ui-test: screenshots: /e/Projects/MOSIP/PS03/run/evidence/2026-10-14/screens
+OK (6 tests)
+with-emulator: stopping emulator-5584
+with-stack: PS03_KEEP_STACK=1: leaving the stack running

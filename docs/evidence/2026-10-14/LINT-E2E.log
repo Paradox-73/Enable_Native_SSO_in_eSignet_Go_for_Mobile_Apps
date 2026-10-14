@@ -1,0 +1,3 @@
+go-lint: e2e: golangci-lint v2.14.0, config none, every line: not inside an imported folder
+0 issues.
+go-lint: e2e: OK (every line: not inside an imported folder)
