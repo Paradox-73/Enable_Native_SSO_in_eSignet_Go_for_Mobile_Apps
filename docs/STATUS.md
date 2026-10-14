@@ -1020,11 +1020,18 @@ commit of that folder.
   - `run-ui-test.sh all`: `OK (6 tests)`; `run-family-tests.sh`: 5 steps PASS; `demo.sh --check`: demo ready, teardown ok, 328 s;
     `demo.sh` (full, ended at once with Enter): demo ready, teardown ok, 192 s.
 - **Still open**
-  - Hub keeps saying "signed in" after the one-hour cap (it cannot see the cap).
+  - Hub keeps saying "signed in" after the one-hour cap (it cannot see the cap). Since WP-21 the cap is off by default.
   - Each `device_sso` authorize request stores a small record for 8 hours before the user logs in (threat model, T12); a client
     registered with `require_pushed_authorization_requests: true` (the demo Hub is) closes the path.
   - One consent cookie per browser: a second `device_sso` login in the same browser invalidates the first login's consent page.
   - The optional `dpop_jkt` key is not proven by the second app (the apps do not use it).
+
+### WP-21 Audit gaps of 2026-10-14 (DONE)
+
+- **Done 2026-10-14**. Source: the audit of 2026-10-14 (score 88, gap list G2, G3, G6, G7, G8, G10).
+  - id_token age cap off by default (G2): `oauth.native_sso.id_token_max_age_seconds` is 0 (no cap) in the code and in
+    `deployment.yaml`. With the 3600 s default, Health Card stopped signing in silently an hour after Hub's login while Hub
+    still said "signed in". The setting stays as a documented hardening option (D8, configuration guide).
 
 ## Decisions that may change
 
@@ -1038,7 +1045,7 @@ Open questions for the mentor call on Wed 2026-10-07, 16:00 IST. Each answer is 
 | "Same vendor" = same eSignet relying party, both clients allow `device_sso`? | yes | WP-10; D7 |
 | Meaning of `auth_id` and `claims` in the device secret | authorization request id; names of released claims | WP-07, WP-08 |
 | Client key held in Android Keystore instead of a backend? | Keystore key, not exportable | WP-09; design.md section 18 |
-| Expired id_token accepted while the device secret lives; default device-secret lifetime? | accepted for the device secret's lifetime (28800 s) until 2026-10-14; since WP-20 an id_token older than 3600 s is refused with `invalid_grant` | `id_token_max_age_seconds` (default 3600), `device_secret_validity_seconds`; D8 |
+| Expired id_token accepted while the device secret lives; default device-secret lifetime? | accepted for the device secret's lifetime (28800 s); WP-20 added a 3600 s default cap, and WP-21 turned it off by default again (it broke silent sign-in an hour after Hub's login while Hub said "signed in") | `id_token_max_age_seconds` (default 0, no cap; hardening option), `device_secret_validity_seconds`; D8 |
 | Server-side sign-out cascade needed? | done on 2026-10-05: Hub's sign-out deletes its DPoP key, then revokes the device secret (RFC 7009), which ends the session record (rule R27); since WP-20 Health Card's access tokens carry the session id (`sid`) and userinfo and introspection refuse them once the session has ended | Thunder `revocation/`, eSignet `EndDeviceSecretSession`, `HubAuthenticator.signOut` |
 
 Record each answer and the date in the notes of the affected task card.

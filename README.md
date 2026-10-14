@@ -145,12 +145,13 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 
 Listed with ids in [docs/test-report.md](docs/test-report.md#known-limits):
 
-- **One-hour cap on Hub's id_token.** eSignet refuses a token exchange when Hub's id_token is older than 3600 seconds
-  (`oauth.native_sso.id_token_max_age_seconds`, default 3600; the device secret itself lives 8 hours). After that hour
-  Health Card cannot sign in silently: the exchange answers `invalid_grant` and Health Card shows "Your Hub sign-in
-  has ended. Open Hub and sign in again." Hub cannot see the cap or the device secret's expiry, so it keeps saying
-  "signed in" until the user signs out of Hub and signs in again (a "sign in again" button in Hub would fix this and is
-  not built).
+- **Silent sign-in lasts as long as Hub's device secret** (L10). Health Card signs in without a password for 8 hours
+  after Hub's login (`native_sso.device_secret_validity_seconds`). After that the exchange is refused and Health Card
+  shows an error, while Hub still says "signed in": Hub cannot read the device secret's expiry. The user signs out of
+  Hub and in again (a "sign in again" button in Hub would fix this and is not built). eSignet accepts an expired
+  id_token, as Native SSO 6.3 allows (decision D8). An operator can cap the id_token's age with
+  `oauth.native_sso.id_token_max_age_seconds` (off by default): a stolen id_token then stops working sooner, but Health
+  Card also stops signing in silently that many seconds after Hub's login.
 - Re-consent for new user data asks for the OTP again (L02): eSignet's identity system releases user data only
   after an authentication, so the phone number needs a fresh login with `prompt=consent`; Health Card says so
   before the browser opens. Permissions that need no new user data are approved with no login (R28), on a page that

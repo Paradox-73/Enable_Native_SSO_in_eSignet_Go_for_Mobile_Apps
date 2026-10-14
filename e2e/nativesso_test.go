@@ -369,7 +369,7 @@ func TestE2E_Exchange_ForgedIDToken(t *testing.T) {
 }
 
 // R21: the Hub id_token lives 120 s; after it expired the exchange still succeeds while the device
-// secret and its session are valid and the id_token is younger than id_token_max_age_seconds (3600 s).
+// secret and its session are valid (the stack sets no id_token_max_age_seconds cap).
 func TestE2E_Exchange_ExpiredIDToken(t *testing.T) {
 	t.Parallel()
 	f := nativeSSO(t)

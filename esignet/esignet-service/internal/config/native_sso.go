@@ -22,13 +22,6 @@ const (
 	// Apps 1.0, 6.3): one working day.
 	defaultDeviceSecretValiditySeconds = 28800
 
-	// defaultIDTokenMaxAgeSeconds caps how old (since its iat) the first app's id_token may be in a
-	// Native SSO token exchange. The first app cannot renew its id_token without a new login, so
-	// this is also how long after that login a second app can still sign in silently. Without a
-	// cap, a leaked id_token and device secret (with the DPoP key) would work for the whole device
-	// secret lifetime.
-	defaultIDTokenMaxAgeSeconds = 3600
-
 	// defaultDeviceSecretEncryptionKeyRefID is the reference id, under OIDCServiceAppID, of the
 	// RSA Component Encryption Key the device secret JWE is encrypted to. keymanager creates it
 	// on the first GetCertificate call.
@@ -93,11 +86,11 @@ func applyNativeSSODefaults(cfg *AppConfig) {
 	cfg.NativeSSO.SigningKeyRefID = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID",
 		cfg.NativeSSO.SigningKeyRefID, defaultDeviceSecretSigningKeyRefID)
 
-	// The env var set to 0 turns the cap off, as it did before the default existed; a yaml value of 0
-	// cannot be told apart from an absent key, so it means the default.
+	// No cap by default (Native SSO 6.3 accepts an expired id_token; decision D8): the first app cannot
+	// renew its id_token without a new login, so a cap also ends silent sign-in that long after the login.
+	// A positive value is a hardening option; the env var set to 0 turns a yaml cap off.
 	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = int64(envIntOrConfigOrDefaultAllowEnvZero(
-		"MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS", int(cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds),
-		defaultIDTokenMaxAgeSeconds))
+		"MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS", int(cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds), 0))
 	cfg.OAuth.NativeSSO.ScopeExceededError = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR",
 		cfg.OAuth.NativeSSO.ScopeExceededError, engineconfig.NativeSSOScopeExceededInteractionRequired)
 	cfg.OAuth.NativeSSO.ExchangeOnly = envBoolOrConfig("MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY",

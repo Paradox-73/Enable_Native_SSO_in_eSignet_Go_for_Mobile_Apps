@@ -88,10 +88,9 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
    - In Hub tap "Sign out of all apps". Hub shows "You are signed out of Hub and of every app that used this
      sign-in."; its DPoP key is deleted and eSignet ends the device secret's session (rule R27).
    - Open Health Card: it clears its tokens and shows "Sign in to Hub first" with "Open Hub".
-5. **Health Card after the one-hour cap** (rehearse only if you can wait an hour): sign in to Hub, wait more than 60 minutes,
-   clear Health Card's data and open it. The exchange is refused (`invalid_grant`, the id_token is older than 3600 s) and Health
-   Card shows "Your Hub sign-in has ended. Open Hub and sign in again." Hub still says "signed in": it cannot see the cap, so the
-   user signs out of Hub and in again. Within the hour an expired id_token is still accepted, so the demo flow above is not affected.
+5. **Health Card long after Hub's login.** Hub's id_token expires after 120 s, and Health Card still signs in silently: eSignet
+   accepts an expired id_token while the device secret and its login session live (8 hours, decision D8). No id_token age cap
+   is set by default, so the demo flow above works at any pace within those 8 hours.
 
 ## Video storyboard
 

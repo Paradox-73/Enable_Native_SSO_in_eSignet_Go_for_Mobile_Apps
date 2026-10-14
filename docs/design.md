@@ -650,7 +650,7 @@ In the Native SSO branch of the token-exchange handler:
    equal to the device secret's `client_id`. **Expiry is not required**: see the next subsection (R20, R21).
 10. `ds_hash` in the id_token equals the hash of the presented device secret (task 9 iii.1, R11), and the
     id_token's `sid` equals the device secret's `sid` (task 9 iii.2, R12). Mismatch: `invalid_request`.
-    Only then the cap `id_token_max_age_seconds` (eSignet default 3600 s) rejects an id_token older than the cap
+    Only then the optional cap `id_token_max_age_seconds` (off by default, D8) rejects an id_token older than the cap
     with `invalid_grant`, as for an ended session (R21). The order matters: an old id_token paired with the wrong
     device secret gets the mismatch error, not "sign in again".
 11. Same vendor: the Child App and the Super App named in the device secret belong to the same relying party, and
@@ -730,7 +730,7 @@ for every eSignet setting, architecture 2.8):
 | `oauth.allowed_scopes` | (yaml) | adds `device_sso` | advertised in discovery |
 | `oauth.allowed_grant_types` | (yaml) | adds `urn:ietf:params:oauth:grant-type:token-exchange` | Thunder builds the handler only for listed grants |
 | `native_sso.enabled` | `MOSIP_ESIGNET_NATIVE_SSO_ENABLED` | false (opt-in); true in `deployment.yaml` | off: no device secret provider is passed to the engine, so `device_sso` is refused, and no userinfo filter |
-| `oauth.native_sso.id_token_max_age_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | 3600 in eSignet (a YAML 0 or absent key means 3600; the env var set to 0 means no cap); 0 (no cap) in the bare engine | age cap on the exchanged id_token, so also how long after the Super App's login silent sign-in works; a value of at least the device secret lifetime turns it off |
+| `oauth.native_sso.id_token_max_age_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | 0 (no cap); the env var set to 0 turns off a yaml cap | hardening option: age cap on the exchanged id_token. A stolen id_token stops working sooner, but silent sign-in also ends that many seconds after the Super App's login, and the Super App cannot tell its user (D8) |
 | `oauth.native_sso.scope_exceeded_error` | `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `interaction_required` | or `invalid_scope` |
 | `oauth.native_sso.exchange_only` | `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | true in eSignet | token exchange only for the device-secret profile |
 | `oauth.native_sso.consent_only_reconsent` | `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT` | false; true in `deployment.yaml` | consent-only re-consent (section 6.3); needs `scope_exceeded_error: interaction_required` |

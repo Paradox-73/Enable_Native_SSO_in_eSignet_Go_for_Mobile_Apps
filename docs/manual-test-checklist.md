@@ -47,8 +47,8 @@ Tick each box. A step that does not match: note the screen (screenshot) and see 
       you gave the extra permission."
 - [ ] 17. **Sign out of all apps.** In Hub tap "Sign out of all apps": "You are signed out of Hub and of every app that used this
       sign-in." Open Health Card: "Sign in to Hub first" with "Open Hub".
-- [ ] 18. **One-hour cap** (optional, takes over an hour; the cap is 3600 s by default). Sign in to Hub, wait 61 minutes, clear Health Card's data (Settings, Apps, Health Card, Storage, Clear data), open
-      Health Card. Expected: "Your Hub sign-in has ended. Open Hub and sign in again." Hub itself still says "signed in".
+- [ ] 18. **Expired id_token** (optional, takes over an hour). Sign in to Hub, wait 61 minutes, clear Health Card's data (Settings, Apps, Health Card, Storage, Clear data), open
+      Health Card. Expected: Health Card signs in silently. eSignet accepts Hub's expired id_token while the device secret lives (8 hours; no age cap by default).
 
 ## D. Server checks (headless, in the terminal)
 

@@ -98,16 +98,17 @@ Why it is safe here: an expired id_token is accepted only when **all** of these 
 | `ds_hash` in the id_token equals the hash of this device secret; `sid` equal in both | The id_token issued together with that exact device secret | R11, R12 |
 | DPoP proof signed by the key whose thumbprint is the device secret's `cnf.jkt` | Use of the Super App's non-exportable Keystore key, on that phone, at that moment | R14 |
 | Child App authenticated with its own key, allows `device_sso`, same relying party as the Super App | Being a registered family client of the same vendor | R13, R19 |
-| `id_token_max_age_seconds` cap (eSignet default 3600 s) | An id_token issued less than an hour ago, so a stolen id_token and device secret stop working an hour after the Super App's login, not after the device secret's 8 hours | R21 |
+| Optional `id_token_max_age_seconds` cap (off by default, D8) | When set, an id_token younger than the cap, so a stolen id_token and device secret stop working that long after the Super App's login, not after the device secret's 8 hours | R21 |
 
 - The id_token's `exp` protects a relying party that receives an id_token as proof of a fresh login. Here the
   server does not rely on the id_token for that: it relies on the device secret, the session record and the DPoP
   key. The id_token only names the user and the session, and that statement stays true after `exp`.
-- How long silent sign-in works is therefore decided by the id_token age cap (1 hour by default), the device
-  secret's `exp`, the session record's TTL and the Super App still holding its key, all of which the operator or
-  the user controls. The Super App cannot renew its id_token without a new login, so after the cap the Child App
-  gets `invalid_grant` ("Your Hub sign-in has ended. Open Hub and sign in again.") until the user signs in to the
-  Super App again.
+- How long silent sign-in works is therefore decided by the device secret's `exp` (8 hours by default), the
+  session record's TTL, the Super App still holding its key and, when an operator sets it, the id_token age cap.
+  The operator or the user controls each of these. The cap is off by default: the Super App cannot renew its
+  id_token without a new login, so with a cap the Child App gets `invalid_grant` ("Your Hub sign-in has ended. Open
+  Hub and sign in again.") that long after the login, while the Super App still shows "signed in". A deployment
+  that sets the cap trades that dead end for a shorter window in which a stolen id_token and device secret work.
 - An attacker who has only an old id_token (from a log, a screenshot, a backup) gets nothing: the exchange needs
   the matching device secret and a proof from the Super App's key.
 
