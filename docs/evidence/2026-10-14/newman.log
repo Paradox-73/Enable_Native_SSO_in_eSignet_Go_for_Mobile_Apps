@@ -1,0 +1,440 @@
+stack: building eSignet image and starting ps03-native-sso
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+stack: mock identity ready after 14 s
+stack up: ps03-native-sso ready in 32 s (issuer http://localhost:38088)
+stack: ok   eSignet /health
+stack: ok   discovery issuer http://localhost:38088
+stack: ok   discovery PAR endpoint
+stack: ok   discovery DPoP ES256
+stack: ok   JWKS has a key
+stack: ok   mock identity health
+stack: ok   oidc-ui login pages
+stack: ok   oidc-ui proxy to eSignet
+stack smoke: PASS
+(node:11720) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Go-eSignet
+
+□ Native SSO
+└ 00 Discovery shows Native SSO
+  GET http://localhost:38088/.well-known/openid-configuration [200 OK, 2.02kB, 109ms]
+  √  discovery 200
+  √  issuer is the configured issuer
+  √  native_sso_supported is true
+  √  scopes_supported lists device_sso
+  √  grant_types_supported lists token-exchange
+  √  DPoP ES256 is supported
+  √  revocation_endpoint is advertised (device secret revocation)
+  √  client authentication is private_key_jwt only
+
+└ 01 Generate keys and register the Hub (first app)
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/client-mgmt/client [200 OK, 269B, 7ms]
+  √  client registration 200
+  √  no errors
+  √  client is ACTIVE
+  √  client_id echoed
+
+└ 02 Register the Health Card (second app, same relying party)
+  POST http://localhost:38088/client-mgmt/client [200 OK, 270B, 6ms]
+  √  client registration 200
+  √  no errors
+  √  client is ACTIVE
+  √  client_id echoed
+
+└ 03 Register a client that does not allow device_sso
+  POST http://localhost:38088/client-mgmt/client [200 OK, 271B, 6ms]
+  √  client registration 200
+  √  no errors
+  √  client is ACTIVE
+  √  client_id echoed
+
+└ 04 Register an app of another relying party
+  POST http://localhost:38088/client-mgmt/client [200 OK, 271B, 5ms]
+  √  client registration 200
+  √  no errors
+  √  client is ACTIVE
+  √  client_id echoed
+
+└ Hub 01 PAR with device_sso
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/par [201 Created, 284B, 8ms]
+  √  PAR answers 201
+  √  request_uri present
+  √  expires_in is positive
+
+└ Hub 02 Authorize
+  GET http://localhost:38088/oauth2/authorize?client_id=ns-hub-f01b0c33&request_uri=urn:ietf:params:oauth:request_uri:qbHGN3Eu-lSXbi2uVUoQH4_rD1LXe1t3eS3FF48d13Y [302 Found, 661B, 10ms]
+  √  authorize redirects to the login page
+  √  redirect carries no error
+  √  authId and executionId present
+
+└ Hub 03 Login pages metadata
+  GET http://localhost:38088/flow/meta?type=APP&id=ns-hub-f01b0c33&language=en&namespace=auth [200 OK, 130.64kB, 19ms]
+  √  flow meta answers 200
+
+└ Hub 04 Login screen: start the flow
+  POST http://localhost:38088/flow/execute [200 OK, 4.13kB, 7ms]
+  √  flow step answers 200
+  ┌
+  │ 'flow INCOMPLETE inputs=[username,captcha_token] actio
+  │ n=submit_uin'
+  └
+  √  flow is INCOMPLETE and asks for the identifier
+
+└ Hub 05 Login screen: enter the UIN
+  POST http://localhost:38088/flow/execute [200 OK, 2.68kB, 152ms]
+  √  flow step answers 200
+  ┌
+  │ 'flow INCOMPLETE inputs=[otp] action=action_submit_otp
+  │ '
+  └
+  √  flow is INCOMPLETE and asks for the OTP
+
+└ Hub 06 Login screen: enter the OTP
+  POST http://localhost:38088/flow/execute [200 OK, 1.62kB, 81ms]
+  √  flow step answers 200
+  ┌
+  │ 'flow INCOMPLETE inputs=[consent_decisions] action=act
+  │ ion_allow'
+  └
+  √  flow is INCOMPLETE and asks for consent
+
+└ Hub 07 Consent screen: allow
+  POST http://localhost:38088/flow/execute [200 OK, 1.43kB, 107ms]
+  √  consent answers 200
+  √  flow is COMPLETE with an assertion
+
+└ Hub 08 Callback: flow assertion to authorization code
+  POST http://localhost:38088/oauth2/auth/callback [200 OK, 325B, 6ms]
+  √  callback answers 200
+  √  redirect goes to the Hub app scheme
+  √  state is echoed
+  √  iss is the issuer (RFC 9207)
+  √  authorization code present
+
+└ Hub 09 Token: code for tokens and device_secret
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [200 OK, 3.89kB, 11ms]
+  √  token answers 200
+  √  token_type is DPoP
+  √  device_secret is returned
+  √  scope includes device_sso
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  √  id_token aud is the Hub
+  √  id_token carries sid
+  √  id_token ds_hash matches the device secret (left 128 bits of SHA-256, base64url)
+  √  id_token nonce matches
+  √  access token is bound to the Hub DPoP key (cnf.jkt)
+
+└ Hub 10 Userinfo with the Hub token
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  GET http://localhost:38088/oauth2/userinfo [200 OK, 927B, 8ms]
+  √  userinfo answers 200
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  √  userinfo sub equals the sub of the id_token
+  √  userinfo has the email claim
+
+└ Card 01 Token exchange with the device secret
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [200 OK, 2.35kB, 21ms]
+  √  exchange answers 200
+  √  token_type is DPoP
+  √  issued_token_type is access_token
+  √  scope has no device_sso
+  √  scope is the requested subset
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  √  id_token aud is the Health Card, not the Hub
+  √  id_token has the same sub as the Hub id_token
+  √  id_token has the same sid as the Hub id_token
+  √  no new device_secret is issued
+
+└ Card 02 Userinfo with the Health Card token
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  GET http://localhost:38088/oauth2/userinfo [200 OK, 889B, 8ms]
+  √  userinfo answers 200
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  √  userinfo sub equals the sub of the id_token
+  √  userinfo has the email claim (scope email)
+  √  userinfo has no phone_number (scope phone not granted)
+  √  userinfo has no name claim (scope profile not granted to the Health Card)
+
+└ Card 03 Token exchange with dpop_jkt (optional extension)
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [200 OK, 2.35kB, 14ms]
+  √  exchange answers 200
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  √  access token cnf.jkt is the Health Card key, not the Hub key
+
+└ Card 04 Userinfo with the dpop_jkt token and the Health Card key
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  GET http://localhost:38088/oauth2/userinfo [200 OK, 889B, 7ms]
+  √  userinfo answers 200
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  √  userinfo sub equals the sub of the id_token
+
+└ Neg 01 Exchange: scope wider than the Hub grant -> interaction_required
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 327B, 15ms]
+  √  answers 400
+  √  error is interaction_required
+  √  no token is issued
+  √  error_description is present
+  √  error_description names the missing scope
+
+└ Neg 02 Exchange: device_sso in the requested scope -> invalid_scope
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 283B, 5ms]
+  √  answers 400
+  √  error is invalid_scope
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 03 Exchange: audience is not the issuer -> invalid_target
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 279B, 4ms]
+  √  answers 400
+  √  error is invalid_target
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 04 Exchange: old device-secret token type -> invalid_request
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 350B, 5ms]
+  √  answers 400
+  √  error is invalid_request
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 05 Exchange: tampered device secret -> invalid_request
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 285B, 9ms]
+  √  answers 400
+  √  error is invalid_request
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 06 Exchange: DPoP proof from another key -> invalid_grant
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 274B, 11ms]
+  √  answers 400
+  √  error is invalid_grant
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 07 Exchange: no DPoP proof -> invalid_dpop_proof
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 245B, 5ms]
+  √  answers 400
+  √  error is invalid_dpop_proof
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 08 Exchange: no actor_token -> invalid_request
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 287B, 5ms]
+  √  answers 400
+  √  error is invalid_request
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 09 Exchange: client of another relying party -> invalid_request
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 294B, 13ms]
+  √  answers 400
+  √  error is invalid_request
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 10 Exchange: client without the token-exchange grant -> unauthorized_client
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 280B, 6ms]
+  √  answers 400
+  √  error is unauthorized_client
+  √  no token is issued
+  √  error_description is present
+
+└ Neg 11 PAR with device_sso from a client that does not allow it -> invalid_scope
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/par [400 Bad Request, 280B, 5ms]
+  √  PAR is refused with 400
+  √  error is invalid_scope
+  √  no request_uri is returned
+
+└ Neg 12 Userinfo without a DPoP proof -> 401
+  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 405B, 5ms]
+  √  userinfo without a proof answers 401
+
+└ Neg 13 Userinfo with the Bearer scheme for a DPoP-bound token -> 401
+  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 409B, 7ms]
+  √  a DPoP-bound token used as Bearer is refused with 401
+
+└ Rev 01 Revoke the Hub device secret as the Health Card -> invalid_grant
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/revoke [400 Bad Request, 275B, 12ms]
+  √  answers 400
+  √  error is invalid_grant
+
+└ Rev 02 Revoke the device secret as the Hub (sign out of all apps) -> 200
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/revoke [200 OK, 131B, 14ms]
+  √  answers 200
+  √  body is empty (RFC 7009 2.2)
+
+└ Rev 03 Exchange after the revocation -> invalid_grant
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 270B, 10ms]
+  √  answers 400
+  √  error is invalid_grant
+  √  no token is issued
+  √  error_description is present
+
+└ Rev 04 Card userinfo after the revocation -> 401
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 435B, 7ms]
+  √  userinfo answers 401 after the sign-out
+  √  the answer names invalid_token
+
+└ Rev 05 Card userinfo with the dpop_jkt token after the revocation -> 401
+  ┌
+  │ `Using "CryptoJS" is deprecated. Use "require('crypto-
+  │ js')" instead.`
+  └
+  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 435B, 6ms]
+  √  userinfo answers 401 after the sign-out
+  √  the answer names invalid_token
+
+└ 99 Cleanup: remove keys and tokens from the environment
+  GET http://localhost:38088/oauth2/jwks [200 OK, 3.9kB, 5ms]
+  √  JWKS answers 200
+
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                38 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │                76 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                69 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │               133 │                0 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 4.8s                                       │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 157.98kB (approx)                         │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 19ms [min: 4ms, max: 152ms, s.d.: 33ms] │
+└────────────────────────────────────────────────────────────────┘
+stack down: ps03-native-sso

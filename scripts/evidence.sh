@@ -8,6 +8,8 @@
 #   bash scripts/evidence.sh --run [--with-lint]
 #                                            run the checks below, update the record with what they printed,
 #                                            then rewrite the report
+#   bash scripts/evidence.sh --export        copy the text logs of today's run folder (also the emulator logs saved
+#                                            there by hand) to docs/evidence/<date>/, then rewrite the report
 #   bash scripts/evidence.sh --check         exit 0 when every row is PASS or a `NOT RUN` row whose note names a
 #                                            known limit (limit:Lnn, listed under "Known limits"); any FAIL row,
 #                                            unknown result or unknown limit fails
@@ -25,6 +27,8 @@
 #   PS03_HELD_LOCKS=:docker-stack (scripts/with-stack.sh then does not wait for itself). Needs JAVA_HOME (17+) and
 #   ANDROID_HOME for the Android steps, Docker, and python3 or python.
 # - Run details go to $PS03_RUN_DIR/evidence/<date>/ (one log per step). Prints `evidence: <n> results at <commit>`.
+# - `--run` and `--export` copy that folder's .log, .json and .txt files to docs/evidence/<date>/ (committed): Docker
+#   build lines dropped, JWTs and the stack's passwords replaced, each file cut to 300 KiB. Report rows link them.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 PS03_SCRIPT_NAME=evidence
@@ -32,7 +36,7 @@ PS03_SCRIPT_NAME=evidence
 MODE=report WITH_LINT=0
 for a in "$@"; do
   case $a in
-    --run) MODE=run ;; --check) MODE=check ;; --with-lint) WITH_LINT=1 ;;
+    --run) MODE=run ;; --check) MODE=check ;; --export) MODE=export ;; --with-lint) WITH_LINT=1 ;;
     -h|--help) ps03_usage ;; *) ps03_die "unknown option $a" ;;
   esac
 done
@@ -54,6 +58,8 @@ ev() { "$PY" "$PS03_ROOT/scripts/evidence.py" "$@"; }
 case $MODE in
   check)  ev check; exit $? ;;
   report) ev report; exit $? ;;
+  export) [ -d "$OUT" ] || ps03_die "no run folder $OUT"
+          ev export "$OUT" "$PS03_ROOT/docs/evidence/$TODAY" && ev report; exit $? ;;
 esac
 
 # ---------------------------------------------------------------------------------------------
@@ -160,6 +166,7 @@ if grep -q '^demo ready (server part only' "$OUT/demo.log" && grep -q '^teardown
   ev set DEMO-SERVER PASS "demo ready (server part only; emulator steps NOT RUN), teardown ok, $STEP_SECONDS s"
 else ev set DEMO-SERVER FAIL "see $OUT/demo.log"; fi
 
+ev export "$OUT" "$PS03_ROOT/docs/evidence/$TODAY"
 ev report
 ps03_log "logs in $OUT; failed steps: $FAILS"
 [ $FAILS -eq 0 ] || exit 1

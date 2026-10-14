@@ -1,0 +1,549 @@
+stack: building eSignet image and starting ps03-native-sso
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+stack: mock identity ready after 10 s
+stack up: ps03-native-sso ready in 29 s (issuer http://localhost:38088)
+stack: ok   eSignet /health
+stack: ok   discovery issuer http://localhost:38088
+stack: ok   discovery PAR endpoint
+stack: ok   discovery DPoP ES256
+stack: ok   JWKS has a key
+stack: ok   mock identity health
+stack: ok   oidc-ui login pages
+stack: ok   oidc-ui proxy to eSignet
+stack smoke: PASS
+=== RUN   TestE2E_FAPI2Login
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-39ca01bd&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3A89d-LwJBF6uPQnokAcSRe_sQBvcS3Cr7WQ4QpivtfYY -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 401
+    fapi_login_test.go:169: login ok: client e2e-superapp-39ca01bd, sub o6O-WWJ6L1AlwikBKK6ZWo4pv5Kg3bYGOpd6W69sWsE, token_type DPoP
+--- PASS: TestE2E_FAPI2Login (0.33s)
+=== RUN   TestE2E_PSUTProbe
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-b36c1241&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3AGkMEdxWWbfMj1HZqMWNc1A5sps58MaWddAyuOwP3FRQ -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    fapi_login_test.go:190: relying party e2e-rp-9d002153 client e2e-superapp-b36c1241 sub vuJhkQ5xnMKqmzz7M0Xc9ZgbwmW7M3Ifji-GAtC5oIU
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-childapp-181ccb63&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3AuINKCPKU1ix4uNmHwMiLbPS2G_Rh50XCcFfZOQeMUUw -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    fapi_login_test.go:190: relying party e2e-rp-9d002153 client e2e-childapp-181ccb63 sub vuJhkQ5xnMKqmzz7M0Xc9ZgbwmW7M3Ifji-GAtC5oIU
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-otherapp-7a9258ed&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3AF18OUngwU3Wf3ZGqFLgZyD1EruRb1plOaWeE-V2HlTQ -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    fapi_login_test.go:190: relying party e2e-rp-other-4ea81d2c client e2e-otherapp-7a9258ed sub AwXX5g1OziLxK2cdvlypZ3jyWt6xg0CTaM4sf539k3k
+psut-scope: relying-party (same relying party: sub equal=true; other relying party: sub equal=false)
+--- PASS: TestE2E_PSUTProbe (0.24s)
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-855e1f85&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3A6LSsxMgL-g_Y1AjjFuGwerwubKf5eVVJWXMNg-aZtXU -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/consent_page
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/consent_page
+    nativesso_consent_test.go:105: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: GET http://localhost:38088/oauth2/native-sso/consent?ticket=o5IiERAYUTN4l2yh7CxBzXnjWZ9DpvhOi9r4TbsVRRY -> 200
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/declined
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/declined
+    nativesso_consent_test.go:133: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/native-sso/consent -> 303
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/declined
+    nativesso_consent_test.go:142: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/cross-site_form_refused
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/cross-site_form_refused
+    nativesso_consent_test.go:146: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/native-sso/consent -> 403
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/the_app_cannot_answer_for_the_user
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/the_app_cannot_answer_for_the_user
+    nativesso_consent_test.go:160: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: GET http://localhost:38088/oauth2/native-sso/consent?ticket=mZxGUFj6kJtokh0aslHh_xxRQHDugMtJYgem6H8jE3s -> 403
+    client.go:89: POST http://localhost:38088/oauth2/native-sso/consent -> 403
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/the_app_cannot_answer_for_the_user
+    nativesso_consent_test.go:177: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/native-sso/consent -> 303
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/allowed
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/allowed
+    nativesso_consent_test.go:185: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/native-sso/consent -> 303
+    client.go:89: POST http://localhost:38088/oauth2/native-sso/consent -> 400
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/approval_needs_every_binding_check
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/approval_needs_every_binding_check
+    nativesso_consent_test.go:212: R28: HTTP 400 invalid_grant: DPoP proof key does not match device secret binding
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/new_user_data_needs_a_login
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/new_user_data_needs_a_login
+    nativesso_consent_test.go:219: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app; user consent is needed for: phone
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/scope_not_allowed_for_the_app
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/scope_not_allowed_for_the_app
+    nativesso_consent_test.go:230: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app; user consent is needed for: health_card_share
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/approval_is_per_login_session
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-855e1f85&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3AE9Hn166pHz_vAQY-I8hslqq5O5t2QyEyxm1PObvkKJ8 -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/approval_is_per_login_session
+    nativesso_consent_test.go:244: R28: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app and can be approved at consent_uri without a new login; user consent is needed for: health_card_share
+=== RUN   TestE2E_Exchange_ConsentOnlyReconsent/revoked_device_secret_ends_the_approval
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent
+    client.go:89: POST http://localhost:38088/oauth2/revoke -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ConsentOnlyReconsent/revoked_device_secret_ends_the_approval
+    nativesso_consent_test.go:260: R28: HTTP 400 invalid_grant: The login session of the device secret has ended
+--- PASS: TestE2E_Exchange_ConsentOnlyReconsent (0.38s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/consent_page (0.02s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/declined (0.04s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/cross-site_form_refused (0.01s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/the_app_cannot_answer_for_the_user (0.04s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/allowed (0.03s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/approval_needs_every_binding_check (0.01s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/new_user_data_needs_a_login (0.01s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/scope_not_allowed_for_the_app (0.02s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/approval_is_per_login_session (0.09s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/revoked_device_secret_ends_the_approval (0.02s)
+=== RUN   TestE2E_SuperAppLogin_IssuesDeviceSecret
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+--- PASS: TestE2E_SuperAppLogin_IssuesDeviceSecret (0.09s)
+=== RUN   TestE2E_DeviceSSO_ClientNotAllowed
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 400
+    nativesso_test.go:54: R02: HTTP 400 invalid_scope: The client is not allowed to request the device_sso scope
+--- PASS: TestE2E_DeviceSSO_ClientNotAllowed (0.01s)
+=== RUN   TestE2E_DeviceSecret_IsNestedJWE
+--- PASS: TestE2E_DeviceSecret_IsNestedJWE (0.00s)
+=== RUN   TestE2E_IDToken_HasSIDAndDSHash
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
+--- PASS: TestE2E_IDToken_HasSIDAndDSHash (0.01s)
+=== RUN   TestE2E_TokenResponse_Fields
+--- PASS: TestE2E_TokenResponse_Fields (0.01s)
+=== RUN   TestE2E_DeviceSSO_RequiresDPoP
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+=== RUN   TestE2E_DeviceSSO_RequiresDPoP/client_without_DPoP_binding
+=== NAME  TestE2E_DeviceSSO_RequiresDPoP
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-nodpopapp-b474615b&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3ANxI1b_qUFU_RbkdjG7gBuUjBse1DAOsPJ2ejDb3qcGc -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_DeviceSSO_RequiresDPoP/client_without_DPoP_binding
+    nativesso_test.go:130: R07: HTTP 400 invalid_request: A DPoP proof is required for the device_sso scope
+=== RUN   TestE2E_DeviceSSO_RequiresDPoP/DPoP-bound_client
+=== NAME  TestE2E_DeviceSSO_RequiresDPoP
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-0aab4742&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3AZYGOjRJ893604M_KiIr3WudmQbGKQ2v1CXG0qAMtRys -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_DeviceSSO_RequiresDPoP/DPoP-bound_client
+    nativesso_test.go:145: R07: HTTP 400 invalid_dpop_proof: Invalid DPoP proof
+--- PASS: TestE2E_DeviceSSO_RequiresDPoP (0.17s)
+    --- PASS: TestE2E_DeviceSSO_RequiresDPoP/client_without_DPoP_binding (0.09s)
+    --- PASS: TestE2E_DeviceSSO_RequiresDPoP/DPoP-bound_client (0.08s)
+=== RUN   TestE2E_Exchange_TamperedDeviceSecret
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+=== RUN   TestE2E_Exchange_TamperedDeviceSecret/id_token_as_device_secret
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret/id_token_as_device_secret
+    nativesso_test.go:173: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
+=== RUN   TestE2E_Exchange_TamperedDeviceSecret/access_token_as_device_secret
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret/access_token_as_device_secret
+    nativesso_test.go:173: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
+=== RUN   TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext
+    nativesso_test.go:173: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
+--- PASS: TestE2E_Exchange_TamperedDeviceSecret (0.03s)
+    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/id_token_as_device_secret (0.01s)
+    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/access_token_as_device_secret (0.01s)
+    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext (0.01s)
+=== RUN   TestE2E_Exchange_OldURNRejected
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+=== RUN   TestE2E_Exchange_OldURNRejected/urn:x-oath:params:oauth:token-type:device-secret
+=== NAME  TestE2E_Exchange_OldURNRejected
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_OldURNRejected/urn:x-oath:params:oauth:token-type:device-secret
+    nativesso_test.go:187: R10: HTTP 400 invalid_request: Unsupported actor_token_type urn:x-oath:params:oauth:token-type:device-secret; use urn:openid:params:token-type:device-secret
+=== RUN   TestE2E_Exchange_OldURNRejected/urn:ietf:params:oauth:token-type:access_token
+=== NAME  TestE2E_Exchange_OldURNRejected
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_OldURNRejected/urn:ietf:params:oauth:token-type:access_token
+    nativesso_test.go:187: R10: HTTP 400 invalid_request: Only the OpenID Connect Native SSO token exchange is supported
+--- PASS: TestE2E_Exchange_OldURNRejected (0.03s)
+    --- PASS: TestE2E_Exchange_OldURNRejected/urn:x-oath:params:oauth:token-type:device-secret (0.02s)
+    --- PASS: TestE2E_Exchange_OldURNRejected/urn:ietf:params:oauth:token-type:access_token (0.01s)
+=== RUN   TestE2E_Exchange_DSHashMismatch
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:199: R11: HTTP 400 invalid_request: The subject_token ds_hash does not match the device secret
+--- PASS: TestE2E_Exchange_DSHashMismatch (0.10s)
+=== RUN   TestE2E_Exchange_ClientWithoutDeviceSSO
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+=== RUN   TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso
+=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso
+    nativesso_test.go:216: R13: HTTP 400 unauthorized_client: The client is not allowed to use the device_sso scope
+=== RUN   TestE2E_Exchange_ClientWithoutDeviceSSO/no_token-exchange_grant
+=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO/no_token-exchange_grant
+    nativesso_test.go:216: R13: HTTP 400 unauthorized_client: The client is not authorized to use this grant type
+--- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO (0.02s)
+    --- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso (0.01s)
+    --- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO/no_token-exchange_grant (0.01s)
+=== RUN   TestE2E_Exchange_DPoPKeyMismatch
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:227: R14: HTTP 400 invalid_grant: DPoP proof key does not match device secret binding
+--- PASS: TestE2E_Exchange_DPoPKeyMismatch (0.02s)
+=== RUN   TestE2E_Exchange_NoDPoP
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:236: R14: HTTP 400 invalid_dpop_proof: Invalid DPoP proof
+--- PASS: TestE2E_Exchange_NoDPoP (0.01s)
+=== RUN   TestE2E_Exchange_ScopeSuperset
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:245: R15: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app; user consent is needed for: phone
+--- PASS: TestE2E_Exchange_ScopeSuperset (0.02s)
+=== RUN   TestE2E_Exchange_DeviceSSOInScope
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:262: R16: HTTP 400 invalid_scope: The device_sso scope cannot be requested in a token exchange
+--- PASS: TestE2E_Exchange_DeviceSSOInScope (0.01s)
+=== RUN   TestE2E_Exchange_NarrowerScope
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+    nativesso_test.go:283: Hub userinfo claims [aud birthdate email gender iss name sub]; Health Card (openid email) userinfo claims [aud email iss sub]
+--- PASS: TestE2E_Exchange_NarrowerScope (0.03s)
+=== RUN   TestE2E_Exchange_WrongAudience
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:330: R18: HTTP 400 invalid_target: The audience must be this authorization server's issuer
+--- PASS: TestE2E_Exchange_WrongAudience (0.01s)
+=== RUN   TestE2E_Exchange_OtherVendor
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:338: R19: HTTP 400 invalid_request: The client may not share the login of the client of the device secret
+--- PASS: TestE2E_Exchange_OtherVendor (0.02s)
+=== RUN   TestE2E_Exchange_ForgedIDToken
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+=== RUN   TestE2E_Exchange_ForgedIDToken/signed_by_another_key
+=== NAME  TestE2E_Exchange_ForgedIDToken
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ForgedIDToken/signed_by_another_key
+    nativesso_test.go:366: R20: HTTP 400 invalid_request: Invalid subject_token: not an id_token issued by this server
+=== RUN   TestE2E_Exchange_ForgedIDToken/claims_changed
+=== NAME  TestE2E_Exchange_ForgedIDToken
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ForgedIDToken/claims_changed
+    nativesso_test.go:366: R20: HTTP 400 invalid_request: Invalid subject_token: not an id_token issued by this server
+--- PASS: TestE2E_Exchange_ForgedIDToken (0.03s)
+    --- PASS: TestE2E_Exchange_ForgedIDToken/signed_by_another_key (0.01s)
+    --- PASS: TestE2E_Exchange_ForgedIDToken/claims_changed (0.02s)
+=== RUN   TestE2E_Exchange_ExpiredIDToken
+=== PAUSE TestE2E_Exchange_ExpiredIDToken
+=== RUN   TestE2E_Exchange_DPoPReplay
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:400: R22: HTTP 400 invalid_dpop_proof: Invalid DPoP proof
+--- PASS: TestE2E_Exchange_DPoPReplay (0.03s)
+=== RUN   TestE2E_Exchange_ChildTokens
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+--- PASS: TestE2E_Exchange_ChildTokens (0.04s)
+=== RUN   TestE2E_Exchange_ChildOwnDPoPKey
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 401
+    nativesso_test.go:483: R23: HTTP 401 invalid_token: DPoP proof verification failed
+=== RUN   TestE2E_Exchange_ChildOwnDPoPKey/proof_from_the_Health_Card_key
+=== NAME  TestE2E_Exchange_ChildOwnDPoPKey
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ChildOwnDPoPKey/proof_from_the_Health_Card_key
+    nativesso_test.go:488: R14: HTTP 400 invalid_grant: DPoP proof key does not match device secret binding
+=== RUN   TestE2E_Exchange_ChildOwnDPoPKey/dpop_jkt_not_a_thumbprint
+=== NAME  TestE2E_Exchange_ChildOwnDPoPKey
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ChildOwnDPoPKey/dpop_jkt_not_a_thumbprint
+    nativesso_test.go:493: R23: HTTP 400 invalid_request: Invalid dpop_jkt parameter
+--- PASS: TestE2E_Exchange_ChildOwnDPoPKey (0.07s)
+    --- PASS: TestE2E_Exchange_ChildOwnDPoPKey/proof_from_the_Health_Card_key (0.02s)
+    --- PASS: TestE2E_Exchange_ChildOwnDPoPKey/dpop_jkt_not_a_thumbprint (0.01s)
+=== RUN   TestE2E_Exchange_SubMatchesDirectLogin
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-childapp-0afb75ac&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3APzCvdVkDzDmCj_7yiJG00Jk7ydjPYhuHFJbiWdDX6DU -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+--- PASS: TestE2E_Exchange_SubMatchesDirectLogin (0.08s)
+=== RUN   TestE2E_Discovery_NativeSSO
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+--- PASS: TestE2E_Discovery_NativeSSO (0.01s)
+=== RUN   TestE2E_ClientRegistration_TokenExchangeGrant
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+--- PASS: TestE2E_ClientRegistration_TokenExchangeGrant (0.01s)
+=== RUN   TestE2E_GenericExchangeRejected
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:553: R26: HTTP 400 invalid_request: Only the OpenID Connect Native SSO token exchange is supported
+--- PASS: TestE2E_GenericExchangeRejected (0.01s)
+=== RUN   TestE2E_Revoke_DeviceSecret
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-a1398587&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3AawuwzJYgJSpO9Wo0Y7dWVTQNaabiyjEmbLRdqD2WfCE -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[consent_decisions]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+    client.go:89: POST http://localhost:38088/oauth2/introspect -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+=== RUN   TestE2E_Revoke_DeviceSecret/other_client_of_the_vendor
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/revoke -> 400
+=== NAME  TestE2E_Revoke_DeviceSecret/other_client_of_the_vendor
+    nativesso_test.go:593: R27: HTTP 400 invalid_grant: The token was not issued to the authenticated client
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+=== RUN   TestE2E_Revoke_DeviceSecret/issuing_client
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/revoke -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Revoke_DeviceSecret/issuing_client
+    nativesso_test.go:606: R27: HTTP 400 invalid_grant: The login session of the device secret has ended
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 401
+=== NAME  TestE2E_Revoke_DeviceSecret/issuing_client
+    nativesso_test.go:616: R27: HTTP 401 invalid_token: The access token is invalid, expired, or malformed
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 401
+=== NAME  TestE2E_Revoke_DeviceSecret/issuing_client
+    nativesso_test.go:616: R27: HTTP 401 invalid_token: The access token is invalid, expired, or malformed
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/introspect -> 200
+=== RUN   TestE2E_Revoke_DeviceSecret/again_and_unknown_values_are_no-ops
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/revoke -> 200
+    client.go:89: POST http://localhost:38088/oauth2/revoke -> 200
+=== RUN   TestE2E_Revoke_DeviceSecret/other_tokens_without_the_deny_list
+=== NAME  TestE2E_Revoke_DeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/revoke -> 400
+=== NAME  TestE2E_Revoke_DeviceSecret/other_tokens_without_the_deny_list
+    nativesso_test.go:638: R27: HTTP 400 unsupported_token_type: Only device secrets can be revoked on this server
+--- PASS: TestE2E_Revoke_DeviceSecret (0.22s)
+    --- PASS: TestE2E_Revoke_DeviceSecret/other_client_of_the_vendor (0.02s)
+    --- PASS: TestE2E_Revoke_DeviceSecret/issuing_client (0.06s)
+    --- PASS: TestE2E_Revoke_DeviceSecret/again_and_unknown_values_are_no-ops (0.01s)
+    --- PASS: TestE2E_Revoke_DeviceSecret/other_tokens_without_the_deny_list (0.01s)
+=== CONT  TestE2E_Exchange_ExpiredIDToken
+    nativesso_test.go:382: waiting 2m12s for the Hub id_token to expire
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+--- PASS: TestE2E_Exchange_ExpiredIDToken (131.98s)
+PASS
+ok  	github.com/badmosip/esignet-native-sso/e2e	133.993s
+?   	github.com/badmosip/esignet-native-sso/e2e/client	[no test files]
+?   	github.com/badmosip/esignet-native-sso/e2e/internal/uuid	[no test files]
+e2e: phase 2: recreating eSignet with a device secret lifetime of 20 s
+ Container ps03-native-sso-esignet-1 Recreate
+ Container ps03-native-sso-esignet-1 Recreated
+stack restart: esignet ready in 7 s
+=== RUN   TestE2E_Exchange_SessionEnded
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:669: R12: HTTP 400 invalid_grant: The login session of the device secret has ended
+--- PASS: TestE2E_Exchange_SessionEnded (0.02s)
+=== RUN   TestE2E_Exchange_ExpiredDeviceSecret
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/par -> 201
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-b618126f&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3AdRMMeY38riYBuJL4OyoFWT3KaLbGasNHA9HX5nwpVVk -> 302
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow INCOMPLETE inputs=[otp]
+    client.go:89: POST http://localhost:38088/flow/execute -> 200
+    client.go:89:   flow COMPLETE inputs=[]
+    client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    nativesso_test.go:693: waiting 33s for the device secret to expire
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:695: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
+--- PASS: TestE2E_Exchange_ExpiredDeviceSecret (33.21s)
+PASS
+ok  	github.com/badmosip/esignet-native-sso/e2e	33.236s
+?   	github.com/badmosip/esignet-native-sso/e2e/client	[no test files]
+?   	github.com/badmosip/esignet-native-sso/e2e/internal/uuid	[no test files]
+e2e: evidence: /e/Projects/MOSIP/PS03/run/evidence/e2e-20261014-052627/evidence.jsonl
+e2e: 32 passed, 0 failed
+e2e: logs: /e/Projects/MOSIP/PS03/run/logs/e2e-20261014-052627-phase1.log /e/Projects/MOSIP/PS03/run/logs/e2e-20261014-052627-phase2.log
+stack down: ps03-native-sso

@@ -1,0 +1,81 @@
+demo: step 1: build Hub and Health Card, check one signer (2 s since start)
+superapp: CN=PS03 App Family (test only), SHA-256 a787b1f375864c00f3ff290e70f5d8da43ba6f7466c05eeb8cb84d151e200de0
+childapp: CN=PS03 App Family (test only), SHA-256 a787b1f375864c00f3ff290e70f5d8da43ba6f7466c05eeb8cb84d151e200de0
+family-signing: OK a787b1f375864c00f3ff290e70f5d8da43ba6f7466c05eeb8cb84d151e200de0
+demo: step 2: stack from clean volumes (36 s since start)
+stack down: ps03-native-sso
+stack: building eSignet image and starting ps03-native-sso
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+stack: mock identity ready after 11 s
+stack up: ps03-native-sso ready in 29 s (issuer http://localhost:38088)
+stack: ok   eSignet /health
+stack: ok   discovery issuer http://localhost:38088
+stack: ok   discovery PAR endpoint
+stack: ok   discovery DPoP ES256
+stack: ok   JWKS has a key
+stack: ok   mock identity health
+stack: ok   oidc-ui login pages
+stack: ok   oidc-ui proxy to eSignet
+stack smoke: PASS
+demo: step 3: headless Native SSO flow against the stack (67 s since start)
+=== RUN   TestE2E_SuperAppLogin_IssuesDeviceSecret
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+--- PASS: TestE2E_SuperAppLogin_IssuesDeviceSecret (0.36s)
+=== RUN   TestE2E_Exchange_ScopeSuperset
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+    nativesso_test.go:245: R15: HTTP 400 interaction_required: The requested scope exceeds the scope granted to the first app; user consent is needed for: phone
+--- PASS: TestE2E_Exchange_ScopeSuperset (0.02s)
+=== RUN   TestE2E_Exchange_NarrowerScope
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+    nativesso_test.go:283: Hub userinfo claims [aud birthdate email gender iss name sub]; Health Card (openid email) userinfo claims [aud email iss sub]
+--- PASS: TestE2E_Exchange_NarrowerScope (0.04s)
+=== RUN   TestE2E_Exchange_ChildTokens
+    client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 200
+    client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
+    client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
+--- PASS: TestE2E_Exchange_ChildTokens (0.03s)
+PASS
+ok  	github.com/badmosip/esignet-native-sso/e2e	0.444s
+?   	github.com/badmosip/esignet-native-sso/e2e/client	[no test files]
+?   	github.com/badmosip/esignet-native-sso/e2e/internal/uuid	[no test files]
+e2e: evidence: /e/Projects/MOSIP/PS03/run/evidence/e2e-20261014-053306/evidence.jsonl
+e2e: 4 passed, 0 failed
+e2e: logs: /e/Projects/MOSIP/PS03/run/logs/e2e-20261014-053306-phase1.log
+demo ready (server part only; emulator steps NOT RUN)
+stack down: ps03-native-sso
+teardown ok
+demo: finished in 81 s

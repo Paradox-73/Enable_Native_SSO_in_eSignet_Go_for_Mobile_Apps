@@ -7,6 +7,21 @@ import sys, os, re, json, glob, datetime
 import xml.etree.ElementTree as ET
 
 RECORD, REPORT = os.environ["EV_RECORD"], os.environ["EV_REPORT"]
+EVIDENCE_DIR = os.path.join(os.path.dirname(REPORT), "evidence")  # docs/evidence/<date>/, committed
+# Committed evidence file of each check row; a row links it when docs/evidence/<row date>/<file> exists.
+EVIDENCE = {
+    "REPO-LINT": "repo-lint.log", "UNIT-THUNDER": "UNIT-THUNDER.log", "COVER-THUNDER": "UNIT-THUNDER.log",
+    "UNIT-ESIGNET": "UNIT-ESIGNET.log", "COVER-ESIGNET": "UNIT-ESIGNET.log", "LINT-THUNDER": "LINT-THUNDER.log",
+    "LINT-ESIGNET": "LINT-ESIGNET.log", "LINT-E2E": "LINT-E2E.log", "E2E": "e2e.log", "E2E-REDIS": "e2e-redis.log",
+    "NEWMAN": "newman.log", "JVM-OIDC": "junit-classes.json", "JVM-STORE": "junit-classes.json",
+    "JVM-HUB": "junit-classes.json", "JVM-CARD": "junit-classes.json", "APK-SIGN": "sign.log",
+    "DEMO-SERVER": "demo.log", "UI-HUB": "ui-tests.log", "UI-CARD": "ui-tests.log", "UI-FAMILY": "family-tests.log",
+    "DEMO-FULL": "demo-check.log", "DOCS-CHECK": "docs-check.log",
+}
+EXPORT_MAX_BYTES = 300 * 1024
+# Lines that carry no result: Docker build steps and compose progress.
+NOISE = re.compile(r"^(#\d+ |\s*(Image|Container|Network|Volume) \S+ (Building|Built|Creat|Start|Stopp|Remov|Waiting|Healthy|Running))")
+JWT = re.compile(r"eyJ[A-Za-z0-9_-]{8,}(\.[A-Za-z0-9_-]*){1,4}")
 TODAY, COMMIT = os.environ["EV_TODAY"], os.environ["EV_COMMIT"]
 COLS = ["section", "id", "task", "unit", "e2e", "android", "result", "date", "note"]
 
@@ -102,6 +117,40 @@ def cmd_junit(args):
     save(rows)
     json.dump(allcls, open(os.environ["EV_JUNIT_OUT"], "w"))
 
+def evidence_link(date, name):
+    """Markdown link to docs/evidence/<date>/<name>, or "-" when that file is not committed."""
+    if not name or not os.path.isfile(os.path.join(EVIDENCE_DIR, date, name)):
+        return "-"
+    return "[%s](evidence/%s/%s)" % (name, date, name)
+
+def cmd_export(args):
+    # export <run dir> <dest dir>: copies the text logs of a run, without build noise, tokens or the stack's
+    # passwords, each cut to EXPORT_MAX_BYTES (head and tail kept).
+    src, dest = args[0], args[1]
+    secrets = []
+    env_file = os.path.join(os.environ.get("PS03_RUN_DIR", ""), "stack.env")
+    if os.path.isfile(env_file):
+        for line in open(env_file, encoding="utf-8"):
+            if "=" in line and not line.startswith("#"):
+                v = line.split("=", 1)[1].strip()
+                if len(v) >= 8: secrets.append(v)
+    os.makedirs(dest, exist_ok=True)
+    n = 0
+    for fn in sorted(os.listdir(src)):
+        path = os.path.join(src, fn)
+        if not os.path.isfile(path) or not fn.endswith((".log", ".json", ".txt")): continue
+        text = open(path, encoding="utf-8", errors="replace").read()
+        text = "\n".join(l.rstrip() for l in text.splitlines() if not NOISE.match(l)) + "\n"
+        text = JWT.sub("<jwt removed>", text)
+        for v in secrets: text = text.replace(v, "<secret removed>")
+        data = text.encode("utf-8")
+        if len(data) > EXPORT_MAX_BYTES:
+            half = EXPORT_MAX_BYTES // 2
+            data = data[:half] + b"\n[... cut by scripts/evidence.sh: the full log is in the run folder ...]\n" + data[-half:]
+        with open(os.path.join(dest, fn), "wb") as f: f.write(data)
+        n += 1
+    print("evidence: exported %d files to %s" % (n, dest))
+
 def cmd_rules(args):
     # rules --go f1,f2 --e2e f1,f2 --classes file
     opt = dict(zip(args[0::2], args[1::2]))
@@ -128,6 +177,13 @@ def cmd_rules(args):
         if r["result"] != res or r["date"] != TODAY: changed += 1
         r["result"], r["date"] = res, TODAY
     save(rows)
+    with open(os.path.join(os.path.dirname(os.environ["EV_JUNIT_OUT"]), "tests-passed.txt"), "w",
+              encoding="utf-8", newline="\n") as f:
+        f.write("# Tests that passed in the run of %s at %s (scripts/evidence.sh --run)\n" % (TODAY, COMMIT))
+        f.write("\n# Go unit tests (go test -json)\n" + "".join(t + "\n" for t in sorted(go)))
+        f.write("\n# Live e2e tests\n" + "".join(t + "\n" for t in sorted(e2e)))
+        f.write("\n# Android JVM test classes (tests, failed, skipped)\n" +
+                "".join("%s %d %d %d\n" % (k, v[0], v[1], v[2]) for k, v in sorted(cls.items())))
     print("rules updated: %d rows" % changed)
 
 def counts(rows):
@@ -191,17 +247,21 @@ def cmd_report(_):
     w("bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all   # emulator")
     w("```\n")
     w("## Results by check\n")
-    w("| Id | Check | Command | Result | Date | Detail |\n|---|---|---|---|---|---|")
+    w("Evidence links point to trimmed logs of the run that set the row, committed under [evidence/](evidence/).\n")
+    w("| Id | Check | Command | Result | Date | Detail | Evidence |\n|---|---|---|---|---|---|---|")
     for r in agg:
-        w("| %s | %s | %s | %s | %s | %s |" % (r["id"], esc(r["task"]), ("`%s`" % esc(r["unit"])) if r["unit"] else "", r["result"], r["date"], esc(r["note"])))
+        w("| %s | %s | %s | %s | %s | %s | %s |" % (r["id"], esc(r["task"]), ("`%s`" % esc(r["unit"])) if r["unit"] else "", r["result"], r["date"], esc(r["note"]), evidence_link(r["date"], EVIDENCE.get(r["id"]))))
     w("")
     w("## Rule matrix\n")
     w("Rules R01-R29 are the server rules and A01-A13 the app rules of [design.md section 20](design.md#20-rules-and-tests). "
       "A row is PASS only when every test named in its Unit, e2e and Android columns passed in the run recorded for it. "
       "A rule that has both a JVM part and a device part has two rows (`a`, `b`); the device row is set from an emulator run.\n")
-    w("| Rule | Task | Unit test | e2e test | Android test | Result | Date | Note |\n|---|---|---|---|---|---|---|---|")
+    w("| Rule | Task | Unit test | e2e test | Android test | Result | Date | Note | Evidence |\n|---|---|---|---|---|---|---|---|---|")
     for r in mat:
-        w("| %s | %s | %s | %s | %s | %s | %s | %s |" % (r["id"], esc(r["task"]), code(r["unit"]), code(r["e2e"]) if r["e2e"] != "unit only" else "unit only", code(r["android"]), r["result"], r["date"], esc(r["note"])))
+        links = [evidence_link(r["date"], "tests-passed.txt")]
+        if "(device)" in r["android"]: links.append(evidence_link(r["date"], "ui-tests.log"))
+        links = [l for l in links if l != "-"] or ["-"]
+        w("| %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (r["id"], esc(r["task"]), code(r["unit"]), code(r["e2e"]) if r["e2e"] != "unit only" else "unit only", code(r["android"]), r["result"], r["date"], esc(r["note"]), ", ".join(links)))
     w("")
     w("## Coverage and lint\n")
     for r in agg:
@@ -220,4 +280,5 @@ def cmd_report(_):
     print("evidence: %d results at %s" % (c["PASS"] + c["NOT RUN"] + c["FAIL"], COMMIT))
 
 cmd = sys.argv[1]
-{"set": cmd_set, "env": cmd_env, "junit": cmd_junit, "rules": cmd_rules, "check": cmd_check, "report": cmd_report}[cmd](sys.argv[2:])
+{"set": cmd_set, "env": cmd_env, "junit": cmd_junit, "rules": cmd_rules, "check": cmd_check, "report": cmd_report,
+ "export": cmd_export}[cmd](sys.argv[2:])

@@ -1,0 +1,31 @@
+## eSignet log: runtime store
+{"@timestamp":"2026-10-14T08:27:38.928018472Z","level":"INFO","message":"redis connected","@version":"1","appName":"esignet","traceId":"-","key_prefix":"esignet:","connMaxLifetime":"30m0s","level_value":20000}
+{"@timestamp":"2026-10-14T08:27:38.928316601Z","level":"INFO","message":"runtime store initialized","@version":"1","appName":"esignet","traceId":"-","type":"redis","level_value":20000}
+## redis keys by prefix
+      1 esignet::runtime:esignet:attribute:cache:01a13986-7984-7b86-9935-9dfda8216094
+      1 esignet::runtime:esignet:client:detail:e2e-childapp-4e0c888d
+      1 esignet::runtime:esignet:client:detail:e2e-superapp-1eeaa08e
+      1 esignet::runtime:esignet:flow:definition:flow-esignet
+      1 esignet::runtime:esignet:jti:token:client_assertion:56e842ba-723c-492f-9457-51141f607be5
+      1 esignet::runtime:esignet:jti:token:dpop:b7d4891d-dca4-47f1-9a0d-28080776531f
+## consent_history rows by client (silent reuse)
+e2e-childapp-4e0c888d|7
+e2e-childapp-68c02c10|3
+e2e-superapp-9dc1482f|1
+e2e-superapp-aa52850c|1
+e2e-otherapp-87defcf3|1
+e2e-superapp-c3bb9361|1
+e2e-nodpopapp-a5b63649|1
+e2e-superapp-1eeaa08e|1
+e2e-superapp-f68ad8ac|1
+e2e-childapp-177cd652|1
+e2e-childapp-fa82f576|1
+e2e-superapp-7f2695a5|1
+## one row
+e2e-childapp-4e0c888d|{"email":false,"openid":false,"profile":false}|["name","gender","birthdate","email"]|["openid","profile","email"]|2026-10-14 08:27:56.723891|2026-10-14 08:28:16
+e2e-childapp-4e0c888d|{"email":false,"openid":false,"profile":false}|["name","gender","birthdate","email"]|["openid","profile","email"]|2026-10-14 08:27:22.043183|2026-10-14 16:25:09
+## consent_detail rows
+10
+## audit lines
+1
+{"time":"2026-10-14T08:27:56.723681421Z","level":"INFO","msg":"Native SSO consent event","component":"NativeSSOConsent","event":"native_sso_consent_reused","client_id":"e2e-childapp-4e0c888d","first_client_id":"e2e-superapp-1eeaa08e","scopes":"openid profile email","session_ref":"775fec1835f4930f"}

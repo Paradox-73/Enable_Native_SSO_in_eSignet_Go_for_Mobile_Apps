@@ -33,6 +33,8 @@ Thumbs.db
 # Local machine files, secrets and run state (never in git)
 local.properties
 *.log
+# Trimmed run logs that the test report links (scripts/evidence.sh --export).
+!docs/evidence/**/*.log
 .env
 .env.local
 *.jks
