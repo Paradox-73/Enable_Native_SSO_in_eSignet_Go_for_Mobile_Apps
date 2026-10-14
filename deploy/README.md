@@ -12,6 +12,7 @@ emulator use it.
 | 38300 | oidc-ui login pages (nginx proxies `/v1/esignet/` to `esignet:8080`) | `mosipid/oidc-ui:2.0.0` |
 | 38082 | mock identity system | `mosipid/mock-identity-system:0.14.0` |
 | 38455 | Postgres (`mosip_esignet`, `mosip_mockidentitysystem`) | `postgres:bookworm` |
+| none (compose network only) | Redis runtime store, profile `redis` only | `redis:7.4.2-alpine` |
 
 - Upstream files reused unchanged: `../esignet/docker-compose/init.sql` (databases, schemas, seeded user) and
   `../esignet/docker-compose/nginx.conf`.
@@ -36,7 +37,12 @@ Run from the repository root (Git Bash on Windows).
   other projects on the machine use Docker.
 - `PS03_KEEP_STACK=1 bash scripts/with-stack.sh true` leaves the stack running after the command (for the emulator).
   Stop it with `bash deploy/stack.sh down`.
-- Passwords: the Postgres password and the eSignet keystore password are random values written on first use to
+- Runtime store: in memory by default. Set `PS03_RUNTIME_STORE=redis` for every command of one stack (for example
+  `PS03_RUNTIME_STORE=redis bash scripts/with-stack.sh bash e2e/run.sh`, and the same variable for `down`) to start
+  the compose profile `redis` and run eSignet with `MOSIP_ESIGNET_CACHE_TYPE=redis`. Login sessions, PAR requests,
+  codes, consent tickets and DPoP `jti` entries then live in Redis, as several eSignet replicas need. Redis keeps
+  no data on disk, so a restart of the Redis container ends every session, like a restart of the in-memory store.
+- Passwords: the Postgres password, the eSignet keystore password and the Redis password are random values written on first use to
   `$PS03_RUN_DIR/stack.env` (outside git; `PS03_RUN_DIR` is `../run` next to the clone when it exists, else
   `run/`, which is git-ignored). Delete the file to get new ones.
 - Keystore: eSignet creates its PKCS#12 keystore on first start in the `keystore` volume; `down` deletes it, so

@@ -1038,6 +1038,9 @@ commit of that folder.
     built, with the reason in design section 17: a one-time `jti` (it would stop the third family app), the diagram's
     full-hash `ds_hash` (Native SSO leaves the formula to the server; the `at_hash` construction stays), `sid` =
     `authID` (`authID` passes through the browser; `sid` is minted on the server).
+  - Runtime store (G8): the compose profile `redis` (`PS03_RUNTIME_STORE=redis`) runs eSignet's existing Redis store; the
+    live suite passed 32 of 32 against it. e2e phase 2 recreates Redis together with eSignet, so the ended-session test
+    still starts from an empty store.
 
 ## Decisions that may change
 

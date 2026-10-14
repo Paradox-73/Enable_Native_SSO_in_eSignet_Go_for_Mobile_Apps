@@ -10,7 +10,8 @@
 #
 # - Without arguments: phase 1 (every test except the phase-2 ones), then eSignet is recreated with
 #   a device secret lifetime of E2E_DEVICE_SECRET_VALIDITY_SECONDS (default 20 s), which also empties
-#   its in-memory runtime store, then phase 2 (session ended, expired device secret). The Hub session
+#   its in-memory runtime store (with PS03_RUNTIME_STORE=redis, Redis is recreated empty as well), then
+#   phase 2 (session ended, expired device secret). The Hub session
 #   is handed over in a state file under $PS03_RUN_DIR/test-results, deleted at the end.
 # - With arguments: one phase-1 run with those go test flags.
 # - The client keeps the issuer http://localhost:38088 in every URL, iss, htu and aud, and dials
@@ -52,7 +53,11 @@ if [ $# -gt 0 ]; then
 else
   run_phase 1 -skip "$PHASE2_TESTS" || rc=$?
   ps03_log "phase 2: recreating eSignet with a device secret lifetime of $VALIDITY s"
-  PS03_DEVICE_SECRET_VALIDITY_SECONDS=$VALIDITY bash "$PS03_ROOT/deploy/stack.sh" restart esignet || rc=1
+  # With the Redis store the sessions would survive an eSignet restart, so Redis is recreated too (it keeps
+  # no data on disk); both stores then start empty, which phase 2 needs.
+  restart=(esignet)
+  [ "${PS03_RUNTIME_STORE:-inmemory}" = redis ] && restart=(redis esignet)
+  PS03_DEVICE_SECRET_VALIDITY_SECONDS=$VALIDITY bash "$PS03_ROOT/deploy/stack.sh" restart "${restart[@]}" || rc=1
   [ $rc -eq 0 ] || ps03_warn "phase 1 or the restart failed; running phase 2 anyway"
   run_phase 2 -run "$PHASE2_TESTS" || rc=$?
 fi

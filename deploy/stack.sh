@@ -11,6 +11,8 @@
 #   bash deploy/stack.sh restart SERVICE...  recreate services with the current environment, wait healthy
 #   bash deploy/stack.sh down     stop everything and delete the volumes (database, keystore)
 #
+# - PS03_RUNTIME_STORE=redis (for up, restart and every later command of the same stack) adds the compose
+#   profile "redis": eSignet keeps its runtime store in a Redis container instead of in memory.
 # - Passwords for Postgres and the eSignet keystore are generated on first use into
 #   $PS03_RUN_DIR/stack.env (outside git) and passed to compose with --env-file.
 # - Does not take the docker-stack lock; scripts/with-stack.sh does (up, command, down).
@@ -39,11 +41,19 @@ ensure_env() {
     } > "$ENV_FILE"
     ps03_log "created $ENV_FILE"
   fi
+  # Files written before the Redis profile existed lack its password.
+  grep -q '^PS03_REDIS_PASSWORD=' "$ENV_FILE" || echo "PS03_REDIS_PASSWORD=$(random_secret)" >> "$ENV_FILE"
 }
 
 compose() {
+  local -a profile=()
+  case ${PS03_RUNTIME_STORE:-inmemory} in
+    inmemory) ;;
+    redis) profile=(--profile redis) ;;
+    *) ps03_die "PS03_RUNTIME_STORE must be inmemory or redis, got $PS03_RUNTIME_STORE" ;;
+  esac
   docker compose -p "$PROJECT" -f "$(ps03_host_path "$COMPOSE_FILE")" \
-    --env-file "$(ps03_host_path "$ENV_FILE")" "$@"
+    --env-file "$(ps03_host_path "$ENV_FILE")" "${profile[@]}" "$@"
 }
 
 # wait_http NAME URL PATTERN: polls URL until its body matches PATTERN or UP_TIMEOUT_S passes.

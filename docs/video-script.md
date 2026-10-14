@@ -56,7 +56,8 @@ Say these in your own words; each line is a fact the code and a test already pro
 - After 8 hours from Hub's login (the device secret's lifetime) the exchange is refused. Hub cannot see this, so it still
   says "signed in"; the user signs out of Hub and in again.
 - Tokens that a resource server checks only by signature, without asking eSignet, stay valid until they expire.
-- The runtime store is in memory: an eSignet restart ends every session, and several replicas would need Redis.
+- The demo's runtime store is in memory: an eSignet restart ends every session. Several replicas need eSignet's Redis
+  store, which the stack runs with `PS03_RUNTIME_STORE=redis` (the live suite passed against it).
 
 ## Cut list if the take runs over 5 minutes
 

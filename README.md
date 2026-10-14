@@ -156,8 +156,10 @@ Listed with ids in [docs/test-report.md](docs/test-report.md#known-limits):
   after an authentication, so the phone number needs a fresh login with `prompt=consent`; Health Card says so
   before the browser opens. Permissions that need no new user data are approved with no login (R28), on a page that
   shows a plain-language description of each permission.
-- The server's runtime store is in memory (L03), so an eSignet restart ends every Hub session, and several eSignet
-  replicas would need the Redis store to share sessions.
+- The demo stack keeps eSignet's runtime store in memory (L03), so an eSignet restart ends every Hub session. Several
+  eSignet replicas need eSignet's Redis store: `PS03_RUNTIME_STORE=redis` starts the stack with it, and the live suite
+  passed 32 of 32 that way on 2026-10-14 ([deploy/README.md](deploy/README.md)). Several replicas behind a load
+  balancer were not run.
 - Sign-out ends the device secret's session on the server (rule R27); Health Card's access tokens carry that session
   id, so userinfo and introspection refuse them afterwards. A resource server that checks a token's signature without
   asking eSignet still accepts it until it expires.
