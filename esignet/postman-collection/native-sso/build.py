@@ -15,7 +15,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 COLLECTION = os.path.join(HERE, "..", "Go-eSignet.postman_collection.json")
 
 PRE = "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);\n"
-FORM = "application/x-www-form-urlencoded"
 GRANT_EX = "urn:ietf:params:oauth:grant-type:token-exchange"
 ASSERT_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 ID_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:id_token"
@@ -27,12 +26,8 @@ def ev(listen, js):
     return {"listen": listen, "script": {"type": "text/javascript", "exec": js.strip("\n").split("\n")}}
 
 
-def url(raw):
-    return raw
-
-
 def item(name, method, raw_url, pre=None, test=None, body=None, headers=None, description=None, follow=True):
-    req = {"method": method, "header": headers or [], "url": url(raw_url)}
+    req = {"method": method, "header": headers or [], "url": raw_url}
     if body is not None:
         req["body"] = body
     if description:
