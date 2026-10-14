@@ -70,14 +70,13 @@ Go always runs in the `golang:1.26-bookworm` Linux container, with the whole rep
   ```bash
   bash scripts/import-upstream.sh thunder
   bash scripts/verify-import.sh thunder        # working tree: 0 differ, 0 missing
-  bash /e/Projects/MOSIP/toolchain/commit-paths.sh "$PWD" 'import: upstream thunder-id/thunderid@12f517c4 (Apache-2.0)' thunder
+  git commit -s -m 'import: upstream thunder-id/thunderid@12f517c4 (Apache-2.0)' -- thunder
   bash scripts/verify-import.sh thunder        # the import commit itself
   ```
 
 ### hooks/pre-commit
 
-The shared commit helper makes path-limited commits (`git commit -- <paths>`), which git builds from HEAD plus
-the working tree. On Windows the working tree has no executable bit, so upstream's executable scripts would be
+A path-limited commit (`git commit -- <paths>`) is built from HEAD plus the working tree. On Windows the working tree has no executable bit, so upstream's executable scripts would be
 committed as plain files. The hook copies the executable bit from the real index into that commit. Install it
 once per clone with `bash scripts/install-hooks.sh`. Limit: a commit whose only change is a file mode is not
 possible this way, because git decides there is nothing to commit before the hook runs.
@@ -108,6 +107,11 @@ Checks only what git would commit (ignored files are skipped):
 | `PS03_GO_MEMORY`, `PS03_GO_LINT_MEMORY`, `PS03_GO_CPUS` | `2g`, `3g`, `6` | container limits; the CPU count is lowered to what Docker has |
 | `PS03_GO_TEST_P` | `4` | packages tested in parallel |
 | `CGO_ENABLED` | `0` | passed into the container (eSignet's local builds are cgo-free) |
+| `PS03_FAMILY_KEYSTORE`, `PS03_FAMILY_KEYSTORE_PASSWORD` | `$PS03_RUN_DIR/keys/ps03-family-test.jks` and a random password in the file next to it | the test certificate that signs both Android apps |
+
+`$PS03_RUN_DIR` holds `keys/`, `test-results/`, `logs/`, `evidence/`, `locks/` (when `PS03_LOCK_DIR` points there),
+`upstream-cache/` and the stack's `stack.env`. Docker volumes created by the scripts: `ps03-gomod` (Go modules),
+`ps03-gocache` (build cache), `ps03-gotools` (golangci-lint binaries).
 
 ## Measured on 2026-10-04 (Windows 11 laptop, Docker Desktop, 12 logical CPUs)
 
