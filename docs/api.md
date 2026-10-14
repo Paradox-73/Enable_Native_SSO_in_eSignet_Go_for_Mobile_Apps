@@ -136,7 +136,7 @@ user enters the UIN and a new OTP there. Full description: [oauth2.yaml](../thun
 |---|---|---|
 | Newman (Postman CLI) | `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` | Docker, newman 6; 38 requests (results: [test-report.md](test-report.md)) |
 | Postman app | import the collection and the environment "Go-eSignet Native SSO (local stack)", start the stack with `bash deploy/stack.sh up`, run the folder "Native SSO" top to bottom | Postman desktop; not run by the team (limit L07) for the upstream folders |
-| Go client | `bash scripts/with-stack.sh bash e2e/run.sh` | Docker; 31 live tests, `e2e/client` shows each request |
+| Go client | `bash scripts/with-stack.sh bash e2e/run.sh` | Docker; 32 live tests, `e2e/client` shows each request |
 
 The folder signs its own client assertions and DPoP proofs in pre-request scripts, so no key is pasted by hand. Seeded
 user and OTP: [test-data.md](test-data.md).

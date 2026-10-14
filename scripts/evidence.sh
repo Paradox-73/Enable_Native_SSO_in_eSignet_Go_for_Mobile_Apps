@@ -146,7 +146,7 @@ else
 fi
 
 # Android JVM tests and signing
-step JVM jvm bash -c "cd '$PS03_ROOT/android' && bash gradlew --no-daemon --no-build-cache :oidc-client:cleanTest :oidc-client:test :secure-store:cleanTestDebugUnitTest :secure-store:testDebugUnitTest :superapp:cleanTestDebugUnitTest :superapp:testDebugUnitTest :childapp:cleanTestDebugUnitTest :childapp:testDebugUnitTest :superapp:assembleDebug :childapp:assembleDebug"
+step JVM jvm bash -c "cd '$PS03_ROOT/android' && bash gradlew --no-daemon --no-build-cache --rerun-tasks :oidc-client:test :secure-store:testDebugUnitTest :superapp:testDebugUnitTest :childapp:testDebugUnitTest :superapp:assembleDebug :childapp:assembleDebug"
 A=$PS03_ROOT/android
 ev junit "JVM-OIDC=$A/oidc-client/build/test-results" "JVM-STORE=$A/secure-store/build/test-results" \
   "JVM-HUB=$A/superapp/build/test-results" "JVM-CARD=$A/childapp/build/test-results"

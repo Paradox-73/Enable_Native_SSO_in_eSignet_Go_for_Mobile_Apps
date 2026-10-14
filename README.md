@@ -26,8 +26,11 @@ RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
     tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`) passed, all on 2026-10-14 at `fd48556`.
 - **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job on the push of 2026-10-06
   ([run 37464932756](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/37464932756)),
-  and on 2026-10-07 at `7944c0d` (run 37494756432). Later pushes have not run hosted CI yet; the same checks passed
-  locally on 2026-10-14. The repository is private until submission; judges get access then.
+  and on 2026-10-06 at 16:19 UTC at `7944c0d` (run 37494756432). The pushes of 2026-10-13 20:34 UTC (`314e9d2`, run
+  38463861197) and 2026-10-14 00:14 UTC (`b73ac56`, run 38489035225) show as failed: GitHub refused to start any job
+  because of the account's billing ("recent account payments have failed or your spending limit needs to be
+  increased"), so no check ran there. The same checks passed locally on 2026-10-14 ([test report](docs/test-report.md)).
+  The repository is private until submission; judges get access then.
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
 - **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
