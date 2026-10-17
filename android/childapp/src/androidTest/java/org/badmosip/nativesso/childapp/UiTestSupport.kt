@@ -32,6 +32,7 @@ internal class CardUi {
     val uin: String = args.getString("uin") ?: "1774231323"
     val otp: String = args.getString("otp") ?: "111111"
     val expectedName: String = args.getString("expectedName") ?: "Siddharth K Mansour"
+    val expectedEmail: String = args.getString("expectedEmail") ?: "siddhartha.km@gmail.com"
     val services: CardServices get() = (context.applicationContext as CardApp).services
     private val evidence: File by lazy { File(context.getExternalFilesDir(null), "ui-test").apply { mkdirs() } }
 

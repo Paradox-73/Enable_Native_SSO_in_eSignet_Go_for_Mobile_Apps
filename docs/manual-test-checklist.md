@@ -148,13 +148,13 @@ and MT27 repeat the first two.
 Turn the switch on.
 
 **MT12. Hub login.** Tap "Sign in with eSignet". Chrome opens eSignet's page "Hub is requesting authentication". Enter
-`1774231323`, tick the captcha box if shown, tap "Get OTP", enter `111111`, tap "Verify", then tap "Allow" on the consent
-page. Expect Hub to return with "Signed in as" and the seeded user's name, "Sign-in shared with my other apps: Yes" and
+`1774231323`, tick the captcha box if shown, tap "Get OTP", enter `111111`, tap "Verify". On the consent page turn on the
+optional attributes switch (the email; it starts off), then tap "Allow". Expect Hub to return with "Signed in as" and the seeded user's name, "Sign-in shared with my other apps: Yes" and
 "Apps using this sign-in: None yet".
 
 **MT13. Silent sign-in.** Open Health Card. Expect "Signing you in with Hub..." for a moment, then its home screen with the
-name, "Email: Not shared with Health Card" (Hub's login asks only for the name) and "With Hub's sign-in. No password or
-OTP was needed." No browser opens. Back in Hub, "Apps using this
+name, the email (`siddhartha.km@gmail.com`; optional in Hub's login, so it shows "Not shared with Health Card" if the
+switch stayed off in MT12) and "With Hub's sign-in. No password or OTP was needed." No browser opens. Back in Hub, "Apps using this
 sign-in" lists Health Card.
 
 **MT14. Consent only, Not now.** In Health Card tap "Allow card sharing". The consent screen says no ID or OTP is needed.
@@ -309,7 +309,7 @@ visual order.
 **MT32. Health Card pass.** Sign in to Hub again first. Swipe through every item on each screen.
 
 1. "Signing you in with Hub..." (expect it to be spoken without a touch).
-2. Home screen: the name, "Email: Not shared with Health Card", "With Hub's sign-in. No password or OTP was needed.", the buttons "Allow card sharing"
+2. Home screen: the name, the email, "With Hub's sign-in. No password or OTP was needed.", the buttons "Allow card sharing"
    and "Add my phone number", and the status "Card sharing with clinics: ...".
 3. The consent screen after "Allow card sharing" and the consent screen after "Add my phone number".
 4. The result lines after "Not now" ("You did not give the extra permission. Nothing changed.") and after "Allow".

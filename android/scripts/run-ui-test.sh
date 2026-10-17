@@ -16,7 +16,8 @@
 # - Builds `:<app>:assembleDebug :<app>:assembleDebugAndroidTest` (skip with PS03_SKIP_BUILD=1; needs
 #   JAVA_HOME 17+), installs both APKs (uninstalls first when the signature differs), registers the
 #   app with eSignet (register-client.sh), then runs the class with `am instrument -w`.
-# - Instrumentation arguments from the environment: PS03_TEST_UIN, PS03_TEST_OTP, PS03_TEST_NAME.
+# - Instrumentation arguments from the environment: PS03_TEST_UIN, PS03_TEST_OTP, PS03_TEST_NAME,
+#   PS03_TEST_EMAIL.
 # - Prints the instrumentation output (it ends with `OK (1 test)` when the test passes). Logcat and
 #   the test's last screenshot and window dump go to $PS03_RUN_DIR/evidence/ui-<app>-<time>/; the
 #   screenshots a test saves on purpose also go to $PS03_RUN_DIR/evidence/<date>/screens/.
@@ -57,6 +58,7 @@ run_one() {
   [ -n "${PS03_TEST_OTP:-}" ] && args+=(-e otp "$PS03_TEST_OTP")
   # adb shell joins its arguments into one device command line: quote values with spaces.
   [ -n "${PS03_TEST_NAME:-}" ] && args+=(-e expectedName "'$PS03_TEST_NAME'")
+  [ -n "${PS03_TEST_EMAIL:-}" ] && args+=(-e expectedEmail "$PS03_TEST_EMAIL")
 
   ps03_adb logcat -c || true
   # A busy emulator may show a system "isn't responding" dialog over the app; close it before the test.

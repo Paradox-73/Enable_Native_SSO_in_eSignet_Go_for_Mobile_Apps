@@ -64,13 +64,14 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
    - Show the Hub start screen: "Sign in once with eSignet. Your other apps from the same publisher ...". Turn the
      switch "Share this sign-in with my other apps" on (it is off at first start).
    - Tap "Sign in with eSignet". Chrome opens eSignet's page. Enter UIN `1774231323`, request the OTP, enter
-     `111111`, tick consent when asked. Chrome returns to Hub.
+     `111111`. On the consent page turn on the optional attributes switch (the email; it starts off), then tap
+     "Allow". Chrome returns to Hub.
    - Expect: "Signed in as" with the seeded user's name, "Sign-in shared with my other apps: Yes",
      "Apps using this sign-in: None yet".
 2. **Health Card, no login.**
    - Open Health Card (launcher). Expect "Signing you in with Hub..." for a moment, then the home screen with the
-     name, "Email: Not shared with Health Card" (Hub's login asks only for the name) and the line "With Hub's
-     sign-in. No password or OTP was needed." No browser opens.
+     name, the email (optional in Hub's login, so it shows when it was switched on at step 1) and the line "With
+     Hub's sign-in. No password or OTP was needed." No browser opens.
    - Back in Hub, "Apps using this sign-in" now lists Health Card with a time.
 3. **Re-consent.**
    - First without a login: in Health Card tap "Allow card sharing". The consent screen says no ID or OTP is

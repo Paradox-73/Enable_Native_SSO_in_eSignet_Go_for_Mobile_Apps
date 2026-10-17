@@ -76,8 +76,9 @@ Android code, so every step is covered by JVM tests):
 
 1. Discovery of `ps03.issuer`; the document must name exactly that issuer.
 2. PAR with `scope=openid profile` (plus `device_sso` when "Share this sign-in with my other apps" is on),
-   `acr_values=mosip:idp:acr:generated-code`, a `claims` request for `name` in userinfo, PKCE S256,
-   `state`, `nonce`, a DPoP proof and a `private_key_jwt` assertion (audience = issuer).
+   `acr_values=mosip:idp:acr:generated-code`, a `claims` request for `name` (essential) and `email`
+   (optional, for Health Card) in userinfo, PKCE S256, `state`, `nonce`, a DPoP proof and a
+   `private_key_jwt` assertion (audience = issuer).
 3. The pending login (`state`, `nonce`, `code_verifier`, the switch) is written to the encrypted
    store, then the authorization URL opens in a Custom Tab.
 4. eSignet's login pages (OTP, consent) redirect to `org.badmosip.nativesso.superapp://oauth/callback`.
