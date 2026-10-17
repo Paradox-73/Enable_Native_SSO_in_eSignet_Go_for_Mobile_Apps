@@ -80,7 +80,8 @@ class HubAuthenticatorTest {
         assertEquals("openid profile", par["scope"])
         assertEquals(redirectUri, par["redirect_uri"])
         assertEquals(HubConfig.OTP_ACR, par["acr_values"])
-        assertEquals(HubConfig.DEFAULT_CLAIMS, par["claims"])
+        // The name for Hub's greeting and the email for Health Card; the phone number needs Health Card's own login.
+        assertEquals("""{"userinfo":{"name":{"essential":true},"email":{"essential":false}}}""", par["claims"])
         assertEquals("S256", par["code_challenge_method"])
         assertTrue(hub.hasPendingLogin())
 

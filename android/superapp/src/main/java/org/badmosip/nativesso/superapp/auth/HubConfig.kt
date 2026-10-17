@@ -48,8 +48,12 @@ data class HubConfig(
         /** eSignet's OTP authentication context class. */
         const val OTP_ACR: String = "mosip:idp:acr:generated-code"
 
-        /** Asks for the name in userinfo so the home screen can greet the user. */
-        const val DEFAULT_CLAIMS: String = """{"userinfo":{"name":{"essential":true}}}"""
+        /**
+         * Asks for the name in userinfo so the home screen can greet the user, and for the email as optional so
+         * Health Card, which signs in through this login, can show it. The phone number stays out: Health Card asks
+         * for it with a new login (re-consent for new user data).
+         */
+        const val DEFAULT_CLAIMS: String = """{"userinfo":{"name":{"essential":true},"email":{"essential":false}}}"""
     }
 }
 

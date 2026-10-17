@@ -51,8 +51,8 @@ save them to `$PS03_RUN_DIR/evidence/<date>/screens/`; the files below are copie
 
 | Flow | Steps the user sees | Diagram |
 |---|---|---|
-| First sign-in in Hub | Hub (signed out) -> switch "Share this sign-in with my other apps" -> "Sign in with eSignet" -> browser: UIN, OTP, consent -> back in Hub, signed in | [seq-super-app-login](diagrams/seq-super-app-login.png) |
-| Health Card, silent | open Health Card -> "Signing you in with Hub..." -> home with the name (email "Not shared with Health Card"); no browser | [seq-child-app-sso](diagrams/seq-child-app-sso.png) |
+| First sign-in in Hub | Hub (signed out) -> switch "Share this sign-in with my other apps" -> "Sign in with eSignet" -> browser: UIN, OTP, consent (optional email switch, off at first) -> back in Hub, signed in | [seq-super-app-login](diagrams/seq-super-app-login.png) |
+| Health Card, silent | open Health Card -> "Signing you in with Hub..." -> home with the name and the email (optional in Hub's login); no browser | [seq-child-app-sso](diagrams/seq-child-app-sso.png) |
 | Health Card, Hub not signed in | "Sign in to Hub first" with "Open Hub"; after Hub signs in, Health Card signs in on resume | same |
 | Re-consent, no login (permission) | "Allow card sharing" -> explainer ("no ID or OTP is needed") -> "Continue to eSignet" -> eSignet's page "Allow more access?" -> "Allow" -> back in Health Card, still signed in with Hub, "Card sharing with clinics: Allowed" | [seq-consent-only](diagrams/seq-consent-only.png) |
 | Re-consent, no login, declined | same, then "Not now" on eSignet's page -> home again with "You did not give the extra permission. Nothing changed." | same |
@@ -91,7 +91,7 @@ Hub first                  Consent                         Home
 +--------------------+     +----------------------------+  +----------------------------+
 | [mark] Health Card |     | [mark] Health Card         |  | [mark] Health Card         |
 | Sign in to Hub     |     | Health Card needs your     |  | Signed in as <name>        |
-| first              |     | permission                 |  | Email  Not shared          |
+| first              |     | permission                 |  | Email  <email>             |
 | <reason>           |     | Health Card asks to see:   |  | Phone number               |
 | Your health card.  |     | your phone number. Your    |  |   Not shared with Health   |
 | Signs you in with  |     | Hub sign-in did not        |  |   Card   [Add my phone     |

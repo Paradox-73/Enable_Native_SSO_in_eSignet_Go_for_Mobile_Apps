@@ -27,8 +27,8 @@ import java.util.regex.Pattern
 
 /**
  * Hub's real sign-in on a device: Hub opens eSignet's login pages in a Custom Tab, the test types
- * the seeded user's UIN and OTP into Chrome, ticks the captcha box when there is one, allows the
- * consent, and Hub comes back to its home screen with the user's name. Then it checks that an
+ * the seeded user's UIN and OTP into Chrome, ticks the captcha box when there is one, turns on the
+ * optional attributes (the email, for Health Card) and allows the consent, and Hub comes back to its home screen with the user's name. Then it checks that an
  * encrypted token bundle with an id_token is on disk.
  *
  * Needs the local stack (`scripts/with-stack.sh`), `adb reverse` for ports 38088 and 38300, and
@@ -111,13 +111,14 @@ class SuperAppSignInTest {
     /**
      * Drives eSignet's login pages in Chrome. The pages are a web app, so the test looks at what is on
      * screen and acts on it, in any order: UIN field, captcha box, "Get OTP", OTP fields, "Verify",
-     * consent "Allow". It ends when Hub's home screen is back.
+     * the consent page's optional-attributes switch (off by default), consent "Allow". It ends when Hub's home screen is back.
      */
     private fun loginInBrowser() {
         val deadline = System.currentTimeMillis() + 180_000
         var uinTyped = false
         var otpTyped = false
         var captchaTicked = false
+        var optionalOn = false
         while (System.currentTimeMillis() < deadline) {
             if (device.hasObject(By.res("home_name"))) return
             device.findObject(By.res("error_text"))?.let { throw AssertionError("Hub shows an error: ${it.text}") }
@@ -155,6 +156,7 @@ class SuperAppSignInTest {
                 }
                 else -> {
                     val captcha = if (captchaTicked) null else findWeb(CAPTCHA)
+                    val optional = if (optionalOn) null else findWeb(OPTIONAL_ATTRIBUTES)
                     val button = findWeb(if (otpTyped) VERIFY_OR_ALLOW else GET_OTP_OR_ALLOW)
                     when {
                         captcha != null && uinTyped -> {
@@ -162,6 +164,14 @@ class SuperAppSignInTest {
                             captchaTicked = true
                             step("captcha box tapped")
                             Thread.sleep(3_000)
+                        }
+                        // Optional claims start switched off on eSignet's consent page; Hub asks for the
+                        // email as optional so that Health Card can show it.
+                        optional != null -> {
+                            if (!optional.isChecked) optional.click()
+                            optionalOn = true
+                            step("optional attributes switched on")
+                            Thread.sleep(1_000)
                         }
                         button != null && button.isEnabled -> {
                             val label = button.text ?: button.contentDescription
@@ -223,6 +233,7 @@ class SuperAppSignInTest {
         val LEAVE_SITE: Pattern = Pattern.compile("(?i) *leave site.*")
         val STAY_ON_PAGE: Pattern = Pattern.compile("(?i) *cancel *")
         val CAPTCHA: Pattern = Pattern.compile("(?i).*(i am human|i'm not a robot|hcaptcha checkbox).*")
+        val OPTIONAL_ATTRIBUTES: Pattern = Pattern.compile("(?i) *toggle all optional attributes *")
         val GET_OTP_OR_ALLOW: Pattern = Pattern.compile("(?i)\\s*(get otp|send otp|allow|accept|i agree|proceed)\\s*")
         val VERIFY_OR_ALLOW: Pattern = Pattern.compile("(?i)\\s*(verify|log ?in|allow|accept|i agree|proceed)\\s*")
     }
