@@ -14,6 +14,8 @@ emulator use it.
 | 38455 | Postgres (`mosip_esignet`, `mosip_mockidentitysystem`) | `postgres:bookworm` |
 | none (compose network only) | Redis runtime store, profile `redis` only | `redis:7.4.2-alpine` |
 
+- The ports listen on `127.0.0.1` only. Other machines on the same network, Wi-Fi included, cannot reach the stack,
+  because the mock identity system accepts the test OTP. The emulator and a USB phone reach it through `adb reverse`.
 - Upstream files reused unchanged: `../esignet/docker-compose/init.sql` (databases, schemas, seeded user) and
   `../esignet/docker-compose/nginx.conf`.
 - Inside the compose network eSignet is `esignet:8080`. The issuer stays `http://localhost:38088` everywhere: it is

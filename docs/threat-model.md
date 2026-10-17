@@ -27,7 +27,9 @@
 1. **Between apps on the phone.** Each Android app runs as its own Linux user. The only way across is the Super
    App's bound service `FamilySsoService`.
 2. **Between the phone and eSignet.** HTTP requests from the apps and from the Custom Tab. In production this is
-   TLS; the local demo uses plain HTTP to `localhost` over `adb reverse`, which never leaves the laptop.
+   TLS; the local demo uses plain HTTP to `localhost` over `adb reverse`, which never leaves the laptop. The demo stack
+   publishes its ports on `127.0.0.1` only (`deploy/compose.yaml`), so no other machine on the same network can reach
+   eSignet or the mock identity system, which accepts the test OTP.
 3. **Between the Custom Tab and the apps.** The authorization response comes back through a redirect to the
    app's scheme.
 4. **Inside eSignet.** Thunder treats the device secret as opaque and trusts the provider's answer; the provider

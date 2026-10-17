@@ -18,7 +18,7 @@
 #   $PS03_RUN_DIR/stack.env (outside git) and passed to compose with --env-file.
 # - Does not take the docker-stack lock; scripts/with-stack.sh does (up, command, down).
 # - Ports: 38455 Postgres, 38082 mock identity, 38088 eSignet (issuer http://localhost:38088),
-#   38300 oidc-ui.
+#   38300 oidc-ui, all published on 127.0.0.1 only.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib.sh"
 PS03_SCRIPT_NAME=stack
