@@ -7,6 +7,8 @@
 #
 # Ports on the host (all in the PS03 range 38000-38999):
 #   38455 Postgres, 38082 mock identity system, 38088 eSignet, 38300 oidc-ui.
+#   Published on 127.0.0.1 only, so other machines on the same network cannot reach the stack (the
+#   mock identity system accepts the test OTP). The emulator and a USB phone use `adb reverse`.
 # Runtime store: in memory by default (one eSignet replica). PS03_RUNTIME_STORE=redis makes deploy/stack.sh
 # start the profile "redis" and point eSignet's runtime store (sessions, codes, PAR requests, consent
 # tickets, DPoP jti cache) at it, as several replicas would need.
@@ -20,7 +22,7 @@ services:
   database:
     image: postgres:bookworm
     ports:
-      - "38455:5432"
+      - "127.0.0.1:38455:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${PS03_DB_PASSWORD:?run deploy/stack.sh, it creates the passwords file}
@@ -38,7 +40,7 @@ services:
     image: mosipid/mock-identity-system:0.14.0
     user: root
     ports:
-      - "38082:8082"
+      - "127.0.0.1:38082:8082"
     environment:
       container_user: mosip
       active_profile_env: default,local
@@ -56,7 +58,7 @@ services:
       context: ..
       dockerfile: deploy/esignet.Dockerfile
     ports:
-      - "38088:8080"
+      - "127.0.0.1:38088:8080"
     environment:
       PORT: "8080"
       DATABASE_HOST: database
@@ -132,7 +134,7 @@ services:
     image: mosipid/oidc-ui:2.0.0
     user: root
     ports:
-      - "38300:3000"
+      - "127.0.0.1:38300:3000"
     environment:
       container_user: mosip
       DEFAULT_LANG: en

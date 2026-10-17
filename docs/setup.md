@@ -61,6 +61,7 @@ export ANDROID_HOME=/path/to/Android/Sdk
 | 38455 | Postgres |
 | 5584 / 5585 | emulator console and adb (`emulator-5584`) |
 
+The stack's ports listen on `127.0.0.1` only, so other machines on the same network cannot reach it.
 The emulator reaches the stack through `adb reverse` on 38088 and 38300, so the issuer is `http://localhost:38088` on the
 phone as on the laptop. Do not use `10.0.2.2`: it would change `iss` and every DPoP `htu`. Images and services of the
 stack: [../deploy/README.md](../deploy/README.md).
