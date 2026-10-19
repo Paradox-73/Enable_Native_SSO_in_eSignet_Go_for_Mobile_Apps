@@ -66,7 +66,7 @@ class CardAuthenticatorTest {
         assertEquals(f.esignet.deviceSecret, form["actor_token"])
         assertEquals(TokenTypes.DEVICE_SECRET, form["actor_token_type"])
         assertEquals(f.esignet.issuer, form["audience"])
-        assertEquals("openid profile", form["scope"])
+        assertEquals("openid profile email", form["scope"])
         assertFalse("never device_sso", form.getValue("scope").contains("device_sso"))
         // Health Card's own private_key_jwt, not Hub's.
         val assertion = SignedJWT.parse(form["client_assertion"])

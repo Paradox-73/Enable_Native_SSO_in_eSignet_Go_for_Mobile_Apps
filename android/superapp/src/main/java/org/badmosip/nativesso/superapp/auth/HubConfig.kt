@@ -12,7 +12,9 @@ import java.security.MessageDigest
  * @property issuer eSignet's issuer identifier; every endpoint comes from its discovery document
  * @property clientId this install's client_id ([ClientIdentity.clientIdFor])
  * @property redirectUri custom scheme with a host, as eSignet's client registration requires
- * @property scopes `openid profile`; `device_sso` is added per login when the user turns sharing on
+ * @property scopes `openid profile email`; `device_sso` is added per login when the user turns sharing on.
+ *   Health Card's token exchange can only reuse these scopes, and eSignet's userinfo for an exchanged token
+ *   keeps only the claims of its scopes (`profile` does not include `email`), so the email needs its own scope
  * @property acrValues eSignet's OTP login
  * @property claims OpenID Connect `claims` request parameter (JSON), or null
  */
@@ -20,7 +22,7 @@ data class HubConfig(
     val issuer: String,
     val clientId: String,
     val redirectUri: String,
-    val scopes: Set<String> = setOf(Scopes.OPENID, "profile"),
+    val scopes: Set<String> = setOf(Scopes.OPENID, "profile", "email"),
     val acrValues: String? = OTP_ACR,
     val claims: String? = DEFAULT_CLAIMS,
 ) {

@@ -77,7 +77,7 @@ class HubAuthenticatorTest {
 
         assertEquals("${esignet.server.url("/authorize")}?client_id=$clientId&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3Aabc", url)
         val par = esignet.parForm
-        assertEquals("openid profile", par["scope"])
+        assertEquals("openid profile email", par["scope"])
         assertEquals(redirectUri, par["redirect_uri"])
         assertEquals(HubConfig.OTP_ACR, par["acr_values"])
         // The name for Hub's greeting and the email for Health Card; the phone number needs Health Card's own login.
@@ -127,7 +127,7 @@ class HubAuthenticatorTest {
         esignet.deviceSecret = "ds-" + "y".repeat(60)
         val hub = authenticator()
         hub.startLogin(shareWithFamily = true)
-        assertEquals(setOf("openid", "profile", "device_sso"), esignet.parForm.getValue("scope").split(' ').toSet())
+        assertEquals(setOf("openid", "profile", "email", "device_sso"), esignet.parForm.getValue("scope").split(' ').toSet())
 
         val session = hub.completeLogin(esignet.redirect(redirectUri))
 

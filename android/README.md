@@ -75,7 +75,7 @@ What happens when the user taps "Sign in with eSignet" (`superapp/.../auth/HubAu
 Android code, so every step is covered by JVM tests):
 
 1. Discovery of `ps03.issuer`; the document must name exactly that issuer.
-2. PAR with `scope=openid profile` (plus `device_sso` when "Share this sign-in with my other apps" is on),
+2. PAR with `scope=openid profile email` (plus `device_sso` when "Share this sign-in with my other apps" is on),
    `acr_values=mosip:idp:acr:generated-code`, a `claims` request for `name` (essential) and `email`
    (optional, for Health Card) in userinfo, PKCE S256, `state`, `nonce`, a DPoP proof and a
    `private_key_jwt` assertion (audience = issuer).
@@ -256,8 +256,9 @@ the screen logic, also without Android types):
 1. Health Card opens and asks Hub (`HubConnection`) for its shared sign-in. None: the screen "Sign in
    to Hub first" with the reason, "Open Hub" and "Check again".
 2. Token exchange through `oidc-client` (Native SSO 1.0 section 4.1): `subject_token` = Hub's id_token,
-   `actor_token` = the device secret, `audience` = the issuer, `scope=openid profile` (never
-   `device_sso`), Health Card's own `private_key_jwt`, and a DPoP proof signed by Hub's key through
+   `actor_token` = the device secret, `audience` = the issuer, `scope=openid profile email` (never
+   `device_sso`; eSignet's userinfo for an exchanged token keeps only the claims of its scopes, and
+   `profile` does not include `email`), Health Card's own `private_key_jwt`, and a DPoP proof signed by Hub's key through
    Hub's service (the device secret is bound to that key; `use_dpop_nonce` is answered once with a new
    proof from Hub).
 3. id_token checks: signature, `iss`, `aud` = Health Card's client_id, `at_hash`, and `sid` equal to
@@ -268,7 +269,7 @@ the screen logic, also without Android types):
    own encrypted store. No browser, no password, no OTP.
 
 Re-consent without a new login (bonus B1, consent only): "Allow card sharing" asks the exchange for
-`openid profile health_card_share`. Hub's login never had that permission, and it releases no user
+`openid profile email health_card_share`. Hub's login never had that permission, and it releases no user
 data, so eSignet answers HTTP 400 `interaction_required` with a `consent_uri`. Health Card shows "Health
 Card needs your permission" with "You stay signed in: eSignet shows the request on its page, and no ID or
 OTP is needed.":
@@ -285,7 +286,7 @@ OTP is needed.":
 - "Not now" on eSignet's page (`native_sso_consent=denied`), "Not now" on Health Card's screen, or
   "Cancel": the earlier sign-in stays and the screen says nothing changed.
 
-Re-consent with a new login (bonus B1, new user data): "Add my phone number" asks the exchange for `openid profile phone`. Hub's
+Re-consent with a new login (bonus B1, new user data): "Add my phone number" asks the exchange for `openid profile email phone`. Hub's
 login never had `phone`, so eSignet answers HTTP 400 `interaction_required` with "user consent is
 needed for: phone". Health Card shows "Health Card needs your permission" (which permission, and that
 eSignet will ask for the ID and a new OTP because it keeps no browser session):

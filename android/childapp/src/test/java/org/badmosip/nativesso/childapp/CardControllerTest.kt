@@ -90,7 +90,7 @@ class CardControllerTest {
         val consent = screen as CardScreen.Consent
         assertTrue(consent.consentOnly)
         assertEquals(setOf("health_card_share"), consent.missing)
-        assertEquals("openid profile health_card_share", f.esignet.exchangeForm["scope"])
+        assertEquals("openid profile email health_card_share", f.esignet.exchangeForm["scope"])
 
         controller.acceptConsent()
         assertEquals(CardScreen.Working(inBrowser = true), screen)
@@ -108,7 +108,7 @@ class CardControllerTest {
         assertEquals(Binding.HUB, home.session.binding)
         assertTrue("health_card_share" in home.session.scopes)
         assertEquals(before.hubSessionId, home.session.hubSessionId)
-        assertEquals("openid profile health_card_share", f.esignet.exchangeForm["scope"])
+        assertEquals("openid profile email health_card_share", f.esignet.exchangeForm["scope"])
         assertEquals(proofsBefore + 1, f.esignet.exchangeProofs.size)
         assertEquals(0, f.esignet.calls["/oauth2/par"] ?: 0)
     }
@@ -306,8 +306,8 @@ class CardControllerTest {
         controller.addPhone()
         val consent = screen as CardScreen.Consent
         assertEquals(setOf("phone"), consent.missing)
-        assertEquals(setOf("openid", "profile", "phone"), consent.scope)
-        assertEquals("openid profile phone", f.esignet.exchangeForm["scope"])
+        assertEquals(setOf("openid", "profile", "email", "phone"), consent.scope)
+        assertEquals("openid profile email phone", f.esignet.exchangeForm["scope"])
 
         controller.acceptConsent()
         assertEquals(CardScreen.Working(inBrowser = true), screen)

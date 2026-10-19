@@ -11,7 +11,7 @@ import java.time.Instant
 /**
  * What Health Card asks eSignet for.
  *
- * @property scopes the silent sign-in: `openid profile`, a subset of what Hub's login asks for
+ * @property scopes the silent sign-in: `openid profile email`, a subset of what Hub's login asks for
  * @property extraScope the permission behind "Add my phone number". Hub's login never asks for it, so
  *   asking for it in the token exchange is answered `interaction_required` (bonus B1) and Health Card
  *   runs its own login with `prompt=consent`. eSignet maps it to `phone_number`.
@@ -23,7 +23,7 @@ data class CardConfig(
     val issuer: String,
     val clientId: String,
     val redirectUri: String,
-    val scopes: Set<String> = setOf(Scopes.OPENID, "profile"),
+    val scopes: Set<String> = setOf(Scopes.OPENID, "profile", "email"),
     val extraScope: String = "phone",
     val shareScope: String = SHARE_SCOPE,
     val acrValues: String? = OTP_ACR,
