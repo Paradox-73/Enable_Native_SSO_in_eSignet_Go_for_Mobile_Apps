@@ -8,7 +8,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 
 | Item | Where | State | Open |
 |---|---|---|---|
-| Source code, complete, hosted | GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` (public) | READY | GitHub Actions passed every job on 2026-10-14 at `b73ac56` (run 38565036088). Commits after it were checked locally; push them and record the hosted run in row CI of `docs/test-evidence.tsv` |
+| Source code, complete, hosted | GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` (public) | READY | GitHub Actions passed every job on 2026-10-20 at `aa28ffd` (run 39429707302) |
 | Working prototype or demo | stack and both apps: [setup.md](setup.md); `bash scripts/demo/demo.sh` | READY | `bash scripts/demo/demo.sh --check` (row DEMO-FULL). Emulator only: nobody has installed the APKs on a phone yet ([manual-test-checklist.md](manual-test-checklist.md), section E) |
 | Pitch deck | outline: [ppt-outline.md](ppt-outline.md) | READY | the deck is ready and is submitted with the other deliverables (it is not kept in this repository) |
 | Video demo, 2 to 5 minutes | script with scenes and timings: [video-script.md](video-script.md); runbook: [demo-script.md](demo-script.md) | TODO (PERSON) | do a dry run (checklist steps MT37 to MT42), then record after a fresh `demo.sh --check`; upload to the cloud storage |

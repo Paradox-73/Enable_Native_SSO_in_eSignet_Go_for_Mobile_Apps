@@ -42,8 +42,8 @@ Prerequisites and fixes: [docs/setup.md](docs/setup.md).
     Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
     passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
 - **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job (repo-lint, Go unit tests and
-  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-14 at
-  `db13987` ([run 38616577934](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/38616577934)).
+  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-20 at
+  `aa28ffd` ([run 39429707302](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/39429707302)).
   Later commits run on GitHub when they are pushed; see the repository's Actions tab.
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
