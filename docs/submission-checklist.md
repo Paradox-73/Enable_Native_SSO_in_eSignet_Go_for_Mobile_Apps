@@ -10,7 +10,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 |---|---|---|---|
 | Source code, complete, hosted | GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` (public) | READY | GitHub Actions passed every job on 2026-10-14 at `b73ac56` (run 38565036088). Commits after it were checked locally; push them and record the hosted run in row CI of `docs/test-evidence.tsv` |
 | Working prototype or demo | stack and both apps: [setup.md](setup.md); `bash scripts/demo/demo.sh` | READY | `bash scripts/demo/demo.sh --check` (row DEMO-FULL). Emulator only: nobody has installed the APKs on a phone yet ([manual-test-checklist.md](manual-test-checklist.md), section E) |
-| Pitch deck | outline: [ppt-outline.md](ppt-outline.md) | TODO (PERSON) | build the slides from the outline; export PPT and PDF |
+| Pitch deck | outline: [ppt-outline.md](ppt-outline.md) | READY | the deck is ready and is submitted with the other deliverables (it is not kept in this repository) |
 | Video demo, 2 to 5 minutes | script with scenes and timings: [video-script.md](video-script.md); runbook: [demo-script.md](demo-script.md) | TODO (PERSON) | do a dry run (checklist steps MT37 to MT42), then record after a fresh `demo.sh --check`; upload to the cloud storage |
 | Usage and installation instructions | [../README.md](../README.md), [setup.md](setup.md) | READY | a person runs a fresh clone on macOS, Linux and Windows (checklist steps MT01 to MT10) and sends the results template back |
 | API documentation | [api.md](api.md), [../esignet/docs/esignet-openapi.yaml](../esignet/docs/esignet-openapi.yaml), [../thunder/api/oauth2.yaml](../thunder/api/oauth2.yaml) | READY | OpenAPI lint 0 errors |
@@ -34,14 +34,13 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 | Updated Postman collection | [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | READY: run under newman (row NEWMAN), including consent-only re-consent (Card 05 to Card 09) |
 | Updated API documentation | [api.md](api.md) | READY |
 | Design document based on MOSIP/eSignet design and RFC behaviour | [design.md](design.md), [threat-model.md](threat-model.md) | READY; section 17 lists where the statement, its sequence diagrams and the specifications differ |
-| PPT summarising approach and implementation | [ppt-outline.md](ppt-outline.md) | TODO (see Pitch deck) |
+| PPT summarising approach and implementation | [ppt-outline.md](ppt-outline.md) | READY (see Pitch deck) |
 
 ## Steps to submit
 
 1. On the day: `bash scripts/demo/demo.sh --check` (expect `demo ready`, then `teardown ok`), then
    `bash scripts/evidence.sh --check`.
-2. Do the video dry run, record the video and build the slide deck from [video-script.md](video-script.md) and
-   [ppt-outline.md](ppt-outline.md); export PPT, PDF and video. Add team names and roles to the README and the deck.
+2. Do the video dry run and record the video from [video-script.md](video-script.md). The deck is ready ([ppt-outline.md](ppt-outline.md) is its outline); export PPT, PDF and video. Add team names and roles to the README and the deck.
 3. `bash scripts/repo-lint.sh`, `bash make.sh docs-check`, `bash scripts/fresh-clone-check.sh` (each must pass).
 4. Push `main`; open the Actions tab and record the run of `ci` (URL and result) in `docs/test-evidence.tsv`, row CI,
    then `bash scripts/evidence.sh` to rewrite the report.

@@ -351,7 +351,7 @@ sequenceDiagram
   participant B as Custom Tab: eSignet consent page
 
   C->>H: getSsoBundle(), signDpopProof(POST, token endpoint)
-  C->>T: Token exchange, scope openid profile health_card_share
+  C->>T: Token exchange, scope openid profile email health_card_share
   T->>T: every binding check passes, and health_card_share is outside the grant but releases no user data
   T->>T: store one-time ticket (hash only): client, user, sid, scope, 300 s
   T-->>C: 400 interaction_required + consent_uri
