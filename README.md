@@ -8,6 +8,20 @@ A second Android app from the same publisher (Health Card) then signs the user i
 a second OTP: it trades Hub's device secret for its own tokens at the token endpoint (OAuth 2.0 Token Exchange,
 RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 
+## Try it in 10 minutes
+
+We built Native SSO for eSignet Go: sign in once with an OTP in the Hub app, and the Health Card app then signs in on its own.
+
+1. Start the server stack, run its 32 live tests and stop it again: `bash scripts/with-stack.sh bash e2e/run.sh`
+   (needs Docker; expect `e2e: 32 passed, 0 failed`).
+2. Build both apps: `( cd android && bash gradlew --no-daemon assembleDebug )` (needs JDK 17 and the Android SDK).
+3. Start the stack, an emulator, both installed apps and Hub in front: `bash scripts/demo/demo.sh`.
+   Without an emulator, `bash scripts/demo/demo.sh --no-emulator --check` runs the server part only.
+4. In Hub, sign in with the OTP. In Health Card, tap sign in: it signs in with no OTP and no browser.
+   Scene-by-scene steps and expected screens: [docs/demo-script.md](docs/demo-script.md).
+
+Prerequisites and fixes: [docs/setup.md](docs/setup.md).
+
 ## Status on 2026-10-14
 
 - **Built and tested**: every statement task (T1-T10, P1, P2) and the bonus B1, on the server and in both Android

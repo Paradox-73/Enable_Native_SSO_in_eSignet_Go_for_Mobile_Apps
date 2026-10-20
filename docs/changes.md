@@ -31,14 +31,14 @@ Written 2026-10-05; commit ids are the ones in `git log` on that date. Rule ids 
 
 ## Supporting work
 
-| Work | Commits | Files |
+| Work | Commits in [STATUS.md](STATUS.md) | Files |
 |---|---|---|
-| Local stack and headless FAPI 2.0 login | `bf5a1b2` | `deploy/`, `e2e/client/`, `scripts/with-stack.sh` |
-| Live suite and CI workflow | `4c6c7bf` | `e2e/nativesso_test.go`, `e2e/nativesso_fixture_test.go`, `e2e/run.sh`, `.github/workflows/ci.yml` |
-| API documents and Postman folder | `ba0e764`, `6aff73e` | `esignet/docs/esignet-openapi.yaml`, `thunder/api/oauth2.yaml`, `esignet/postman-collection/` |
-| Health Card, sign-out, accessibility | `fe17bf6` | `android/childapp/`, `android/superapp/`, `android/scripts/` |
-| Demo, evidence, documents | `55a70c9`, this pack | `scripts/demo/`, `scripts/evidence.sh`, `docs/` |
-| Imports and build switch | `c4c5443`, `4eac1cc`, `3a0e127` | `thunder/`, `esignet/`, `esignet/esignet-service/go.mod` (builds against the in-repo Thunder) |
+| Local stack and headless FAPI 2.0 login | WP-06 | `deploy/`, `e2e/client/`, `scripts/with-stack.sh` |
+| Live suite and CI workflow | WP-13 | `e2e/nativesso_test.go`, `e2e/nativesso_fixture_test.go`, `e2e/run.sh`, `.github/workflows/ci.yml` |
+| API documents and Postman folder | WP-14, WP-08 | `esignet/docs/esignet-openapi.yaml`, `thunder/api/oauth2.yaml`, `esignet/postman-collection/` |
+| Health Card, sign-out, accessibility | WP-15 | `android/childapp/`, `android/superapp/`, `android/scripts/` |
+| Demo, evidence, documents | WP-16 to WP-18 | `scripts/demo/`, `scripts/evidence.sh`, `docs/` |
+| Imports and build switch | WP-02, WP-03 | `thunder/`, `esignet/`, `esignet/esignet-service/go.mod` (builds against the in-repo Thunder) |
 
 ## What is not changed
 

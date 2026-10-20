@@ -13,7 +13,7 @@ open. Those cards are history now. Read them with `git show d106024:docs/STATUS.
 | Updated | 2026-10-14, after WP-21 |
 | `main` | all work is on `main`; [GitHub](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps) gets it at each push |
 | Unfinished work | none in code; the items only a person can do are in [submission-checklist.md](submission-checklist.md) |
-| Deadline | 2026-10-26 23:59 IST (MOSIP Decode 2026, problem statement 03, team Badmosip) |
+| Deadline | in [submission-checklist.md](submission-checklist.md) |
 
 ## All tasks
 
