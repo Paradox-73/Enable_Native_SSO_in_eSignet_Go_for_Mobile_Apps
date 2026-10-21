@@ -11,6 +11,7 @@ import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
+import org.badmosip.nativesso.uitest.AccessibilityScan
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import java.io.File
@@ -67,15 +68,22 @@ internal class CardUi {
         return found
     }
 
-    /** Saved to ui-test/screens/; `android/scripts/run-ui-test.sh` copies them to the evidence folder. */
+    /**
+     * Saved to ui-test/screens/; `android/scripts/run-ui-test.sh` copies them to the evidence folder.
+     * Every screen of Hub or Health Card that gets a screenshot also gets the accessibility check.
+     */
     fun screenshot(name: String) {
         val dir = File(evidence, "screens").apply { mkdirs() }
-        // takeScreenshot answers false instead of throwing when a busy emulator cannot capture the screen.
-        repeat(5) {
-            if (runCatching { device.takeScreenshot(File(dir, "$name.png")) }.getOrDefault(false)) return
-            device.waitForIdle(1_000)
+        try {
+            // takeScreenshot answers false instead of throwing when a busy emulator cannot capture the screen.
+            repeat(5) {
+                if (runCatching { device.takeScreenshot(File(dir, "$name.png")) }.getOrDefault(false)) return
+                device.waitForIdle(1_000)
+            }
+            Log.w(TAG, "screenshot $name could not be taken")
+        } finally {
+            AccessibilityScan.check(name, evidence)
         }
-        Log.w(TAG, "screenshot $name could not be taken")
     }
 
     /** The last screen and its view tree, kept for the run script (pass or fail). */

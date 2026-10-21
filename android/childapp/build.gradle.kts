@@ -67,6 +67,8 @@ android {
             }
         }
     }
+    // AccessibilityScan, the accessibility check both apps' UI tests run on every screen they show.
+    sourceSets.getByName("androidTest").java.srcDir("../ui-test-support")
     packaging {
         resources.excludes += setOf("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
     }
@@ -95,4 +97,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.uiautomator)
+    androidTestImplementation(libs.accessibility.test.framework)
+    androidTestImplementation(libs.guava)
 }

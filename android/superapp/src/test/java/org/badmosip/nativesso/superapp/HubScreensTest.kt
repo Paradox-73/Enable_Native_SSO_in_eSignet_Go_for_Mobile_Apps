@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
@@ -83,6 +85,21 @@ class HubScreensTest {
                     HubContent(screen, share, details, actions) { labels[it] }
                 }
             }
+        }
+        everyControlIsLabelledAndLargeEnough()
+    }
+
+    /** Every control on the screen has words for TalkBack and a touch target of at least 48 x 48 dp. */
+    private fun everyControlIsLabelledAndLargeEnough() {
+        val controls = rule.onAllNodes(hasClickAction()).fetchSemanticsNodes()
+        assertTrue("no control on the screen", controls.isNotEmpty())
+        val minPx = with(rule.density) { 48.dp.roundToPx() }
+        controls.forEach { node ->
+            val c = node.config
+            val words = c.getOrNull(SemanticsProperties.Text).orEmpty().joinToString(" ") +
+                c.getOrNull(SemanticsProperties.ContentDescription).orEmpty().joinToString(" ")
+            assertTrue("control without text or description: $c", words.isNotBlank())
+            assertTrue("control \"$words\" is ${node.size} px, under 48 x 48 dp ($minPx px)", node.size.width >= minPx && node.size.height >= minPx)
         }
     }
 

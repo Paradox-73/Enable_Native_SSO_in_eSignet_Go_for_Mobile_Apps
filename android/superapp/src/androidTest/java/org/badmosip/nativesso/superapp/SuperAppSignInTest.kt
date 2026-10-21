@@ -14,6 +14,7 @@ import androidx.test.uiautomator.Until
 import com.nimbusds.jwt.SignedJWT
 import org.badmosip.nativesso.oidc.TokenHashes
 import org.badmosip.nativesso.superapp.auth.HubAuthenticator
+import org.badmosip.nativesso.uitest.AccessibilityScan
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -216,15 +217,22 @@ class SuperAppSignInTest {
         Log.i(TAG, message)
     }
 
-    /** Saved to ui-test/screens/; `android/scripts/run-ui-test.sh` copies them to the evidence folder. */
+    /**
+     * Saved to ui-test/screens/; `android/scripts/run-ui-test.sh` copies them to the evidence folder.
+     * Every screen of Hub or Health Card that gets a screenshot also gets the accessibility check.
+     */
     private fun screenshot(name: String) {
         val dir = File(evidence, "screens").apply { mkdirs() }
-        // takeScreenshot answers false instead of throwing when a busy emulator cannot capture the screen.
-        repeat(5) {
-            if (runCatching { device.takeScreenshot(File(dir, "$name.png")) }.getOrDefault(false)) return
-            device.waitForIdle(1_000)
+        try {
+            // takeScreenshot answers false instead of throwing when a busy emulator cannot capture the screen.
+            repeat(5) {
+                if (runCatching { device.takeScreenshot(File(dir, "$name.png")) }.getOrDefault(false)) return
+                device.waitForIdle(1_000)
+            }
+            Log.w(TAG, "screenshot $name could not be taken")
+        } finally {
+            AccessibilityScan.check(name, evidence)
         }
-        Log.w(TAG, "screenshot $name could not be taken")
     }
 
     private companion object {
