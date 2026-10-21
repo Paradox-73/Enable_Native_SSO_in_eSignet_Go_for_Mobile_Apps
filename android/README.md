@@ -323,7 +323,9 @@ lines and errors are polite live regions; progress indicators carry a descriptio
 switch row is one toggle with the switch role; all buttons are full width and at least 48 dp high;
 every screen scrolls, so 200 % font size cuts nothing off; reading order is title, status, actions,
 then details; text colors reach at least 4.5:1 on their backgrounds in light and dark mode
-(`CardTheme.kt`, `HubTheme.kt`).
+(`CardTheme.kt`, `HubTheme.kt`). The emulator UI tests run Google's Accessibility Test Framework on every app
+screen they photograph (`ui-test-support/AccessibilityScan.kt`, added to both apps' `androidTest` sources); results in
+[../docs/ux.md](../docs/ux.md#accessibility).
 
 What the Robolectric and JVM tests cover (`childapp`, 62 with `HubConnectionTest`):
 

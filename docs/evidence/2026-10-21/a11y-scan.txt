@@ -1,0 +1,15 @@
+# Accessibility scan results of the UI test run of 2026-10-21 (ended 13:52 IST), one line per checked screen.
+# Source: $PS03_RUN_DIR/evidence/ui-<app>-20261021-13*/ui-test/a11y/<screen>.txt
+health-card-after-consent (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (34 elements, 13 checks, 247 not run)
+health-card-after-consent-only (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (31 elements, 13 checks, 227 not run)
+health-card-consent-declined (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (34 elements, 13 checks, 250 not run)
+health-card-consent-only-declined (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (34 elements, 13 checks, 250 not run)
+health-card-consent-only-screen (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (20 elements, 13 checks, 149 not run)
+health-card-consent-screen (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (20 elements, 13 checks, 149 not run)
+health-card-hub-missing (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (17 elements, 13 checks, 129 not run)
+health-card-needs-hub (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (20 elements, 13 checks, 149 not run)
+health-card-signed-out (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (15 elements, 13 checks, 117 not run)
+health-card-silent-sign-in (org.badmosip.nativesso.childapp): 0 errors, 0 warnings (34 elements, 13 checks, 247 not run)
+hub-home (org.badmosip.nativesso.superapp): 0 errors, 0 warnings (22 elements, 13 checks, 165 not run)
+hub-signed-out (org.badmosip.nativesso.superapp): 0 errors, 0 warnings (19 elements, 13 checks, 144 not run)
+hub-welcome-sharing-on (org.badmosip.nativesso.superapp): 0 errors, 0 warnings (18 elements, 13 checks, 138 not run)

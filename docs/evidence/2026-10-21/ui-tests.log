@@ -1,0 +1,65 @@
+stack: building eSignet image and starting ps03-native-sso
+ Image ps03-native-sso/esignet:local Building 
+ Image ps03-native-sso/esignet:local Built 
+stack: mock identity ready after 8 s
+stack up: ps03-native-sso ready in 34 s (issuer http://localhost:38088)
+stack: ok   eSignet /health
+stack: ok   discovery issuer http://localhost:38088
+stack: ok   discovery PAR endpoint
+stack: ok   discovery DPoP ES256
+stack: ok   JWKS has a key
+stack: ok   mock identity health
+stack: ok   oidc-ui login pages
+stack: ok   oidc-ui proxy to eSignet
+stack smoke: PASS
+with-emulator: starting AVD ps03_api34 on port 5584 (log: /e/Projects/MOSIP/PS03/run/logs/emulator-20261021-134722.log)
+with-emulator: booted in 39 s
+with-emulator: emulator-5584 ready: adb reverse 38088 and 38300, Chrome first-run off
+run-ui-test: installed org.badmosip.nativesso.superapp and org.badmosip.nativesso.superapp.test
+register-client: starting org.badmosip.nativesso.superapp once so it creates its keys
+register-client: ps03-hub-479d5aad3bbe ACTIVE
+run-ui-test: running org.badmosip.nativesso.superapp.SuperAppSignInTest
+.
+Time: 33.982
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-superapp-20261021-134818
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-ec57a6941b8d ACTIVE
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppSilentSignInTest
+.
+Time: 4.084
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261021-134906
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-ec57a6941b8d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppConsentOnlyTest
+.
+Time: 74.026
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261021-134915
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-ec57a6941b8d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppReconsentTest
+.
+Time: 28.571
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261021-135033
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-ec57a6941b8d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppSignOutTest
+.
+Time: 8.672
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261021-135110
+run-ui-test: installed org.badmosip.nativesso.childapp and org.badmosip.nativesso.childapp.test
+register-client: ps03-card-ec57a6941b8d already registered
+run-ui-test: running org.badmosip.nativesso.childapp.ChildAppHubMissingTest
+.
+Time: 4.268
+OK (1 test)
+run-ui-test: evidence: /e/Projects/MOSIP/PS03/run/evidence/ui-childapp-20261021-135123
+run-ui-test: screenshots: /e/Projects/MOSIP/PS03/run/evidence/2026-10-21/screens
+OK (6 tests)
+with-emulator: stopping emulator-5584
+stack down: ps03-native-sso
+rc=0

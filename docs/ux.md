@@ -1,7 +1,7 @@
 # UX: flows, screens and accessibility
 
 The user flows of the two apps, screenshots of every screen from the emulator, and what was done for accessibility.
-Written 2026-10-05, updated 2026-10-06 (consent-only re-consent), from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
+Written 2026-10-05, updated 2026-10-06 (consent-only re-consent) and 2026-10-21 (automated accessibility checks on the emulator), from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
 unit tests and the emulator runs of 2026-10-05 and 2026-10-06.
 
 ## Screenshots
@@ -141,18 +141,47 @@ Signed out of Health Card: "You signed out of Health Card. Hub is still signed i
 
 ## Accessibility
 
-Done in WP-15 on the screens of both apps, and checked by the same kind of JVM screen test in each app
-(`HubScreensTest`, `CardScreensTest`), at 200 % font size on a small phone (360 x 640 dp).
+Done in WP-15 on the screens of both apps. Checked in two places: JVM screen tests in each app (`HubScreensTest`,
+`CardScreensTest`, Robolectric, at 200 % font size on a small phone, 360 x 640 dp), and, since 2026-10-21, an automated
+accessibility scan on the emulator during the UI tests.
 
 | Aspect | What was done | Check |
 |---|---|---|
-| Labels and reading order | headings are marked; each labelled value is one TalkBack item; the reading order follows the visual order | `HubScreensTest`, `CardScreensTest` |
-| Touch targets | 48 dp touch targets on every control of both apps | `HubScreensTest`, `CardScreensTest` |
+| Labels and reading order | headings are marked; each labelled value is one TalkBack item; the reading order follows the visual order | `HubScreensTest`, `CardScreensTest`; emulator scan (label present, reading order) |
+| Every control named | every clickable item has a text or a content description | `HubScreensTest`, `CardScreensTest` (every screen they show); emulator scan |
+| Touch targets | 48 dp touch targets on every control of both apps | `HubScreensTest`, `CardScreensTest` (every clickable item at least 48 x 48 dp); emulator scan |
 | Colour contrast | every text and background pair is at least 4.5 to 1, in light and dark | `HubThemeTest`, `CardThemeTest` |
 | Large text | every screen of both apps keeps its actions reachable at 200 % font scale | `HubScreensTest`, `CardScreensTest` |
 | Status changes | status and error text is a polite live region, so it is spoken when it changes | `HubScreensTest`, `CardScreensTest` ("is spoken") |
 | No colour-only meaning | states carry words ("Yes", "No", "Not shared with Health Card") | strings |
 | Decorative images | the app mark next to the name has no description, so TalkBack reads the name once | code (`Header()` in both `MainActivity.kt`) |
 
-Not done: a TalkBack walk-through on a device or emulator and an accessibility scanner run (limit L08). Until then the
-claim is limited to the JVM checks above.
+### Automated accessibility scan on the emulator (2026-10-21)
+
+- Tool: Google's Accessibility Test Framework for Android 4.1.1
+  (`com.google.android.apps.common.testing.accessibility.framework`), the library behind Espresso's
+  `AccessibilityChecks` and the Accessibility Scanner app, with its newest rule set (`AccessibilityCheckPreset.LATEST`,
+  13 checks: touch target size, speakable text, duplicate clickable bounds, duplicate speakable text, redundant
+  descriptions, editable labels, clickable spans, link purpose, text and image contrast, text size, traversal order and
+  others).
+- How: [`android/ui-test-support/AccessibilityScan.kt`](../android/ui-test-support/AccessibilityScan.kt) reads the
+  window in front the way TalkBack does (`UiAutomation.getRootInActiveWindow()`), adds a screenshot for the contrast
+  checks, and runs every check. The UI tests call it on every screen of Hub and Health Card that they photograph, so
+  each screenshot above is also a checked screen. Any result of type ERROR fails the test; warnings are written down.
+  Chrome windows (eSignet's login and consent pages) are skipped, because the browser's own interface is not ours.
+- Findings per screen: `$PS03_RUN_DIR/evidence/ui-<app>-<time>/ui-test/a11y/<screen>.txt` and log tag `PS03A11y`.
+- Result: `bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all`
+  on 2026-10-21 (ended 13:52 IST, AVD `ps03_api34`, API 34): `OK (6 tests)`, 13 screens checked (Hub: 3, Health Card: 10), 0 errors,
+  0 warnings on every screen. Nothing in the apps had to change.
+- The scan was checked against a known fault: an unlabelled 20 dp clickable box added to Health Card's "Hub not
+  installed" screen for one run made `ChildAppHubMissingTest` fail with `SpeakableTextPresentCheck` ("This item may
+  not have a label readable by screen readers"); the same box made `CardScreensTest` fail on its size. The box was
+  removed again.
+- Limits of the scan on Compose screens: the framework cannot read the text colour of Compose text (it reports
+  "text color could not be determined", so the text contrast check does not run there; `HubThemeTest` and
+  `CardThemeTest` cover contrast). Compose reports the touch area of a control, which it widens to 48 dp, not its
+  drawn size; the JVM screen tests check the drawn size.
+
+Not done: a TalkBack walk-through by a person on a device or emulator (item M02, steps MT30 to MT34 of
+[manual-test-checklist.md](manual-test-checklist.md)). The automated checks find missing labels, small targets and
+order problems; they do not judge whether what TalkBack says makes sense to a listener.

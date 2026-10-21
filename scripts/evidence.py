@@ -15,7 +15,7 @@ EVIDENCE = {
     "LINT-ESIGNET": "LINT-ESIGNET.log", "LINT-E2E": "LINT-E2E.log", "E2E": "e2e.log", "E2E-REDIS": "e2e-redis.log",
     "NEWMAN": "newman.log", "JVM-OIDC": "junit-classes.json", "JVM-STORE": "junit-classes.json",
     "JVM-HUB": "junit-classes.json", "JVM-CARD": "junit-classes.json", "APK-SIGN": "sign.log",
-    "DEMO-SERVER": "demo.log", "UI-HUB": "ui-tests.log", "UI-CARD": "ui-tests.log", "UI-FAMILY": "family-tests.log",
+    "DEMO-SERVER": "demo.log", "UI-HUB": "ui-tests.log", "UI-CARD": "ui-tests.log", "UI-A11Y": "a11y-scan.txt", "UI-FAMILY": "family-tests.log",
     "DEMO-FULL": "demo-check.log", "DOCS-CHECK": "docs-check.log",
 }
 EXPORT_MAX_BYTES = 300 * 1024
