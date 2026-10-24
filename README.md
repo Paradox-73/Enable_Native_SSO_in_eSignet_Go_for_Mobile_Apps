@@ -57,7 +57,7 @@ Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](d
     with Health Card's tokens refused afterwards, R27, and consent-only re-consent, R28); the Postman folder under
     newman (43 requests, 152 assertions, 0 failed, including consent-only re-consent); govulncheck on eSignet: 0
     vulnerabilities in called code (2026-10-14 at `fd48556`).
-  - Apps: 209 Android JVM tests, 0 failed (62 of them for Hub, rerun 2026-10-22); on the Android emulator the UI tests (6 of 6 passed, including the
+  - Apps: 206 Android JVM tests, 0 failed (62 of them for Hub, rerun 2026-10-22); on the Android emulator the UI tests (6 of 6 passed, including the
     consent-only approval and refusal on eSignet's branded consent page, "Not now" on the consent screen and Health
     Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
     passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
