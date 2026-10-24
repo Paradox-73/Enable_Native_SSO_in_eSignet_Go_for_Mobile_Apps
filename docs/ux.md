@@ -183,6 +183,7 @@ accessibility scan on the emulator during the UI tests.
   `CardThemeTest` cover contrast). Compose reports the touch area of a control, which it widens to 48 dp, not its
   drawn size; the JVM screen tests check the drawn size.
 
-Not done: a TalkBack walk-through by a person on a device or emulator (item M02, steps MT30 to MT34 of
-[manual-test-checklist.md](manual-test-checklist.md)). The automated checks find missing labels, small targets and
-order problems; they do not judge whether what TalkBack says makes sense to a listener.
+A team member did a TalkBack walk-through and a large-font pass on a OnePlus CPH2569 on 2026-10-24 (item M02, steps MT30 to
+MT33 of [manual-test-checklist.md](manual-test-checklist.md)); the tester reported no issues and no per-item notes exist
+([phone-run.md](evidence/2026-10-24/phone-run.md)). The automated checks find missing labels, small targets and order
+problems; they do not judge whether what TalkBack says makes sense to a listener.

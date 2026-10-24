@@ -67,8 +67,9 @@ Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](d
   Later commits run on GitHub when they are pushed; see the repository's Actions tab.
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
-- **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
-  L07-L09). Work packages and open decisions: [docs/changes.md](docs/changes.md#work-packages).
+- **Real phone**: on 2026-10-24 a OnePlus CPH2569 (Android 15) passed Hub sign-in and Health Card's silent sign-in, and a
+  team member's TalkBack and large-font pass found no issues ([docs/evidence/2026-10-24/phone-run.md](docs/evidence/2026-10-24/phone-run.md)).
+- **Not run**: the upstream Postman folders in the Postman desktop app (limit L07). Work packages and open decisions: [docs/changes.md](docs/changes.md#work-packages).
 - **Video and manual checks**: [docs/video-script.md](docs/video-script.md), [docs/manual-test-checklist.md](docs/manual-test-checklist.md)
   (steps only a person can run: fresh clones on macOS, Linux and Windows, a real phone, TalkBack, a video dry run) and
   [docs/manual-test-results-template.md](docs/manual-test-results-template.md) to send the results back.
@@ -186,7 +187,7 @@ Full text with ids: [docs/test-report.md](docs/test-report.md#known-limits).
   (`PS03_RUNTIME_STORE=redis`, [deploy/README.md](deploy/README.md)), which passed the live suite.
 - After sign-out (R27), a resource server that checks a token's signature without asking eSignet accepts it until it
   expires (L04).
-- Software-backed Keystore on the emulator (L01); one emulator image (L06); no physical phone, no TalkBack pass (L08, L09).
+- Software-backed Keystore on the emulator (L01); one emulator image (L06); one physical phone tried (L09).
 
 ## Team
 

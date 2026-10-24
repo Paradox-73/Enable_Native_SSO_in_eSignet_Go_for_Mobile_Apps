@@ -24,7 +24,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 | Design mockups, wireframes, user flow | [ux.md](ux.md), [diagrams/user-flow.png](diagrams/user-flow.png) | READY: emulator screenshots of every screen ([screens/](screens/)), the screens in words and the flow diagram |
 | Architecture diagram | [diagrams/components.png](diagrams/components.png) and the sequence diagrams ([diagrams/README.md](diagrams/README.md)) | READY |
 | Test data | [test-data.md](test-data.md) | READY |
-| Test cases and results | [test-report.md](test-report.md) with trimmed logs in [evidence/](evidence/), `scripts/evidence.sh` | READY: every automated check PASS; NOT RUN only for the manual runs (TalkBack, physical phone, Postman desktop), each with its reason |
+| Test cases and results | [test-report.md](test-report.md) with trimmed logs in [evidence/](evidence/), `scripts/evidence.sh` | READY: every automated check PASS; NOT RUN only for the Postman desktop run, with its reason; TalkBack and physical phone passed on 2026-10-24 |
 
 ## Deliverables of problem statement 03
 
@@ -44,8 +44,8 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 3. `bash scripts/repo-lint.sh`, `bash make.sh docs-check`, `bash scripts/fresh-clone-check.sh` (each must pass).
 4. Push `main`; open the Actions tab and record the run of `ci` (URL and result) in `docs/test-evidence.tsv`, row CI,
    then `bash scripts/evidence.sh` to rewrite the report.
-5. Collect the filled [manual-test-results-template.md](manual-test-results-template.md) copies; record a passed
-   TalkBack pass and phone run in rows M02 and M03 of `docs/test-evidence.tsv`.
+5. Collect the filled [manual-test-results-template.md](manual-test-results-template.md) copies; the TalkBack pass and
+   phone run of 2026-10-24 are in rows M02 and M03 of `docs/test-evidence.tsv` ([phone-run.md](evidence/2026-10-24/phone-run.md)).
 6. Put deck, video, ID proofs and any file too large for git into the cloud storage; set the sharing permission so
    MOSIP can open it.
 7. Email decode@mosip.io with the team name (Badmosip), the problem statement (03, Enable Native SSO in eSignet Go for

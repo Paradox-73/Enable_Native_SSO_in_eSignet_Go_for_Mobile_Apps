@@ -212,7 +212,7 @@ adb reverse tcp:38300 tcp:38300
 adb reverse --list
 ```
 
-- Expect the stack to start, then the list to show both ports. `adb reverse` works only while the cable is connected.
+- Expect the stack to start, then the list to show both ports. `adb reverse` works only while the cable is connected. If eSignet is unreachable from the phone mid-test, run `adb reverse --list` again: the forwarding dropped once in the run of 2026-10-24.
 
 **MT24. Install both apps.**
 
@@ -356,8 +356,8 @@ is MT11 to MT13 at presenting speed. Record the real time.
 If the whole take runs over 5 minutes, use the cut list at the end of the video script and record what you cut.
 
 **MT42. Watch the take back.** Check that the total is between 2 and 5 minutes, the voice is clear, every UI text is legible,
-and no token, key or password shows. Check that the narration says plainly what the script lists under "Say plainly". If MT22
-to MT34 passed, tell the team that scene 10 still says a physical phone and a TalkBack pass were not run, and must change.
+and no token, key or password shows. Check that the narration says plainly what the script lists under "Say plainly". Scene 10
+states the phone run and TalkBack pass of 2026-10-24 (OnePlus CPH2569, Android 15; no issues reported); it must match what you say.
 
 ## J. Cleanup
 
