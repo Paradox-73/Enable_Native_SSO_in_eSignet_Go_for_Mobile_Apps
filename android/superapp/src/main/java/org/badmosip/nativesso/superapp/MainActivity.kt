@@ -58,8 +58,10 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
+import org.badmosip.nativesso.superapp.auth.HubConfig
 import org.badmosip.nativesso.superapp.auth.TokenBundle
 import org.badmosip.nativesso.superapp.sso.FamilyAccess
+import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -152,6 +154,7 @@ internal fun HubContent(
     shareWithFamily: Boolean,
     details: HubDetails,
     actions: HubActions,
+    now: Instant = Instant.now(),
     appLabel: (String) -> String? = { null },
 ) {
     val startingText = stringResource(R.string.starting)
@@ -168,7 +171,7 @@ internal fun HubContent(
             HubScreen.Starting -> CircularProgressIndicator(Modifier.semantics { contentDescription = startingText })
             is HubScreen.Welcome -> Welcome(screen, shareWithFamily, actions)
             is HubScreen.Working -> Working(screen.inBrowser, actions::cancel)
-            is HubScreen.Home -> Home(screen.session, screen.familyApps, appLabel, actions::signOut)
+            is HubScreen.Home -> Home(screen.session, screen.familyApps, now, appLabel, actions::signOut)
         }
         TechnicalDetails(details)
     }
@@ -237,20 +240,25 @@ private fun Working(inBrowser: Boolean, onCancel: () -> Unit) {
 }
 
 @Composable
-private fun Home(session: TokenBundle, familyApps: List<FamilyAccess>, appLabel: (String) -> String?, onSignOut: () -> Unit) {
+private fun Home(session: TokenBundle, familyApps: List<FamilyAccess>, now: Instant, appLabel: (String) -> String?, onSignOut: () -> Unit) {
+    val format = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault())
     Text(stringResource(R.string.signed_in_as), style = MaterialTheme.typography.labelLarge)
     Text(
         session.displayName ?: stringResource(R.string.name_unknown),
         style = MaterialTheme.typography.headlineSmall,
         modifier = Modifier.testTag("home_name"),
     )
+    val sharedUntil = session.signedInAt.plusSeconds(HubConfig.DEVICE_SECRET_LIFETIME_SECONDS)
     LabelledValue(
         stringResource(R.string.sharing_label),
-        stringResource(if (session.deviceSecret != null) R.string.sharing_on else R.string.sharing_off),
+        when {
+            session.deviceSecret == null -> stringResource(R.string.sharing_off)
+            now.isBefore(sharedUntil) -> stringResource(R.string.sharing_on, format.format(sharedUntil))
+            else -> stringResource(R.string.sharing_ended, format.format(sharedUntil))
+        },
         Modifier.testTag("sharing_status"),
     )
     if (session.deviceSecret != null) {
-        val format = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault())
         val unknown = stringResource(R.string.family_app_unknown)
         val row = stringResource(R.string.family_app_row)
         LabelledValue(

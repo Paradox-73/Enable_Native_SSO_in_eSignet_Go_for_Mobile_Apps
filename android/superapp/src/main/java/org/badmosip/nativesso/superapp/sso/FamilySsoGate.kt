@@ -48,7 +48,7 @@ class FamilySsoException(val code: Int, message: String) : Exception(message)
  * 1. Caller: at least one package under the calling uid is on [allowedPackages] and is signed with
  *    one of Hub's own certificates ([familyCertificates]). The signature permission on the service
  *    already guards the bind; this check still runs because a permission can be held by an app of
- *    another signer after a custom permission takeover (the uninstall sequence in docs/STATUS.md WP-11).
+ *    another signer after a custom permission takeover (the uninstall sequence in docs/changes.md, findings, WP-11).
  * 2. Rate: at most [rateLimit] calls per caller uid in any [rateWindowSeconds] seconds.
  * 3. Session: a sign-in with a device secret, that is, one the user agreed to share
  *    ("Share this sign-in with my other apps"). Otherwise [bundle] returns null and [signProof] refuses

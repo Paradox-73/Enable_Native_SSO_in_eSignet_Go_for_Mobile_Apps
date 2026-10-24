@@ -51,6 +51,14 @@ data class HubConfig(
         const val OTP_ACR: String = "mosip:idp:acr:generated-code"
 
         /**
+         * How long the device secret lets other apps sign in after Hub's login. Hub cannot read the device secret
+         * (it is encrypted to eSignet), so the home screen counts from the sign-in time.
+         * shortcut: copies eSignet's default `native_sso.device_secret_validity_seconds`; change both together, or
+         * have eSignet return the lifetime with the device secret if deployments start to differ.
+         */
+        const val DEVICE_SECRET_LIFETIME_SECONDS: Long = 28_800
+
+        /**
          * Asks for the name in userinfo so the home screen can greet the user, and for the email as optional so
          * Health Card, which signs in through this login, can show it. The phone number stays out: Health Card asks
          * for it with a new login (re-consent for new user data).

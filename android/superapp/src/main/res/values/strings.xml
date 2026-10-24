@@ -16,7 +16,8 @@
     <string name="signed_in_as">Signed in as</string>
     <string name="name_unknown">(name not shared)</string>
     <string name="sharing_label">Sign-in shared with my other apps</string>
-    <string name="sharing_on">Yes</string>
+    <string name="sharing_on">Yes, until %1$s</string>
+    <string name="sharing_ended">Ended at %1$s. Sign out and sign in again to share it.</string>
     <string name="sharing_off">No</string>
     <string name="sign_out">Sign out of all apps</string>
     <string name="starting">Opening Hub…</string>

@@ -77,12 +77,18 @@ class HubScreensTest {
 
     private val polite = SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite)
 
-    private fun show(screen: HubScreen, share: Boolean = false, dark: Boolean = false, labels: Map<String, String> = emptyMap()) {
+    private fun show(
+        screen: HubScreen,
+        share: Boolean = false,
+        dark: Boolean = false,
+        labels: Map<String, String> = emptyMap(),
+        now: Instant = session.signedInAt.plusSeconds(60),
+    ) {
         rule.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
                 HubTheme(dark = dark) {
-                    HubContent(screen, share, details, actions) { labels[it] }
+                    HubContent(screen, share, details, actions, now) { labels[it] }
                 }
             }
         }
@@ -145,10 +151,18 @@ class HubScreensTest {
         val apps = listOf(FamilyAccess("org.badmosip.nativesso.childapp", Instant.ofEpochSecond(1_790_000_060)))
         show(HubScreen.Home(session, apps), labels = mapOf("org.badmosip.nativesso.childapp" to "Health Card"))
         rule.onNodeWithTag("home_name").assertTextContains("Siddharth K Mansour")
-        rule.onNodeWithTag("sharing_status").assertTextContains("Sign-in shared with my other apps").assertTextContains("Yes")
+        rule.onNodeWithTag("sharing_status").assertTextContains("Sign-in shared with my other apps")
+            .assertTextContains("Yes, until", substring = true)
         rule.onNodeWithTag("family_apps").assertTextContains("Health Card, last used", substring = true)
         rule.onAllNodes(hasText("org.badmosip", substring = true)).assertCountEquals(0)
         button("sign_out_button", "signOut")
+    }
+
+    @Test
+    fun `after the device secret's lifetime Hub says sharing ended and how to share again`() {
+        show(HubScreen.Home(session), now = session.signedInAt.plusSeconds(8 * 3600))
+        rule.onNodeWithTag("sharing_status").assertTextContains("Ended at", substring = true)
+            .assertTextContains("Sign out and sign in again to share it.", substring = true)
     }
 
     @Test
