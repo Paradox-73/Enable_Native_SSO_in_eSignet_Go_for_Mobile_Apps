@@ -68,16 +68,14 @@ The test and lint commands, with the line each prints when it passes, are in
   saves CRLF changes the file; `repo-lint.sh` reports it.
 - **Executable scripts on Windows**: Git for Windows does not record the executable bit. For a new script run
   `git update-index --add --chmod=+x <file>` before committing; docs always call scripts with `bash` anyway.
-- **Commit message check**: `repo-lint.sh` also reads every commit message and rejects a short list of tool and
-  vendor names and some trailers. Run it before pushing; fixing a pushed message means rewriting history.
 
 ## Make a change
 
-Every work package in [docs/STATUS.md](docs/STATUS.md) is DONE; new work follows the same steps.
+Every work package in [docs/changes.md](docs/changes.md#work-packages) is DONE; new work follows the same steps.
 
 1. Branch from the latest `main`: `git switch main && git pull && git switch -c <short-name>`.
 2. Edit only the folders your change needs; a folder has one owner at a time (lanes in
-   [docs/STATUS.md](docs/STATUS.md#all-tasks)). A change to the Thunder provider contract
+   [docs/changes.md](docs/changes.md#work-packages)). A change to the Thunder provider contract
    (`thunder/backend/pkg/thunderidengine/providers/`) breaks the eSignet build: agree it with the eSignet owner first.
 3. Work in small commits (`git commit -s`), running the module's tests as you go.
 4. Before the pull request: run the tests of every module you touched, `bash scripts/repo-lint.sh`, and

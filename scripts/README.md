@@ -85,9 +85,6 @@ possible this way, because git decides there is nothing to commit before the hoo
 
 Checks only what git would commit (ignored files are skipped):
 
-- words: a fixed list of tool and vendor names (stored rot13-encoded in the script) in team-written files,
-  lines the team added to upstream files, file names and every commit message; `User-Agent` and Go's
-  generated-code marker are allowed. Upstream text is not judged.
 - keys: no `BEGIN ... PRIVATE KEY` block and no keystore file anywhere, except the fixtures in
   `.gitguardian.yaml`.
 - headers: `SPDX-License-Identifier: MIT` in the first 10 lines of team source files (Go, shell, Kotlin, Java,

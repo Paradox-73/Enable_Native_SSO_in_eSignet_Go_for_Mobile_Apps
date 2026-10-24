@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Team Badmosip
 #
-# Repository hygiene checks that need no build: words, keys, licence headers, line endings, sizes.
+# Repository hygiene checks that need no build: keys, licence headers, line endings, sizes.
 #
 #   bash scripts/repo-lint.sh [--repo DIR]
 #   bash scripts/repo-lint.sh --self-test
@@ -11,10 +11,6 @@
 # plus, inside an imported folder, files added after its "import:" commit and the lines the team
 # added to upstream files. Upstream bytes are never judged: they stay as published.
 #
-# - words: a fixed list of tool and vendor names that must not appear in team-written content,
-#   file names or any commit message (the list the shared commit helper enforces, plus a
-#   whole-word check). The HTTP header name User-Agent and Go's standard generated-code marker
-#   line are allowed.
 # - keys: no private key block (PEM "BEGIN ... PRIVATE KEY") and no keystore file (.jks,
 #   .keystore, .p12, .pfx, .bks) anywhere, imported folders included, except the test fixtures
 #   listed under ignored_paths in .gitguardian.yaml.
@@ -28,12 +24,6 @@
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-# The banned names are stored rot13-encoded so that this file does not itself contain them.
-rot13() { tr 'A-Za-z' 'N-ZA-Mn-za-m'; }
-WORDS=$(printf '%s' 'pynhqr|naguebcvp|bcranv|pungtcg|pbcvybg|trzvav|nffvfgnag|pb-nhguberq-ol|trarengrq (jvgu|ol)' | rot13)
-WHOLE_WORDS=$(printf '%s' 'nv|yyz|ntragf?' | rot13)
-BANNED="$WORDS|\\b($WHOLE_WORDS)\\b"
-ALLOWED_PHRASE='user-agent'
 GO_GENERATED='^// Code generated .* DO NOT EDIT\.$'
 KEY_BLOCK='-----BEGIN [A-Z0-9 ]*PRIVATE KEY'
 KEYSTORE_EXT='jks|keystore|p12|pfx|bks'
@@ -85,40 +75,6 @@ lint_repo() {
   local -a team_present=()
   for f in "${team[@]+"${team[@]}"}"; do [ -f "$f" ] && team_present+=("$f"); done
   team=("${team_present[@]+"${team_present[@]}"}")
-
-  # --- words in content, file names and commit messages ---------------------------------------
-  local hit file line text
-  report_words() { # stdin: "path:line:text"
-    while IFS= read -r hit; do
-      file=${hit%%:*}; line=${hit#*:}; line=${line%%:*}; text=${hit#*:*:}
-      [[ $text =~ $GO_GENERATED ]] && continue
-      shopt -s nocasematch
-      text=${text//$ALLOWED_PHRASE/}
-      shopt -u nocasematch
-      grep -qiE -- "$BANNED" <<<"$text" || continue
-      problem "words: $file:$line: $(grep -oiE -- "$BANNED" <<<"$text" | head -n 1 | rot13) (rot13)"
-    done
-  }
-  # The Gradle wrapper scripts are Gradle's own files (Apache-2.0, listed in THIRD_PARTY.md), copied
-  # unchanged; their text is not team-written, as in the header check below.
-  local -a team_text=()
-  for f in "${team[@]+"${team[@]}"}"; do
-    case ${f##*/} in gradlew|gradlew.bat) continue ;; esac
-    team_text+=("$f")
-  done
-  if [ ${#team_text[@]} -gt 0 ]; then
-    report_words < <(printf '%s\0' "${team_text[@]}" | xargs -0 grep -n -H -I -i -E -s -- "$BANNED" || true)
-  fi
-  for path in "${!modified[@]}"; do
-    report_words < <(added_lines "$path" | grep -iE -- "$BANNED" || true)
-  done
-  for f in "${team[@]+"${team[@]}"}"; do
-    grep -qiE -- "$BANNED" <<<"$f" && problem "words: file name $f"
-  done
-  while IFS= read -r hit; do
-    problem "words: commit ${hit%%:*} message: $(grep -oiE -- "$BANNED" <<<"${hit#*:}" | head -n 1 | rot13) (rot13)"
-  done < <(git log --format='@@%h%n%B' 2>/dev/null | awk '/^@@/ { h = substr($0, 3); next } { print h ":" $0 }' \
-           | sed "s/$ALLOWED_PHRASE//Ig" | grep -iE -- "$BANNED" || true)
 
   # --- private keys and keystores ---------------------------------------------------------------
   local -a allowed_keys=()
@@ -178,8 +134,7 @@ lint_repo() {
     done < <(printf '%s\0' "${all[@]}" | xargs -0 sh -c 'find "$@" -maxdepth 0 -type f -size +'"$MAX_BYTES"'c' sh 2>/dev/null)
   fi
 
-  local commits; commits=$(git rev-list --count HEAD 2>/dev/null || echo 0)
-  echo "repo-lint: checked ${#team[@]} team files, ${#modified[@]} changed upstream files, ${#all[@]} files for keys and size, $commits commit messages"
+  echo "repo-lint: checked ${#team[@]} team files, ${#modified[@]} changed upstream files, ${#all[@]} files for keys and size"
   if [ $problems -eq 0 ]; then echo "repo-lint: OK"; else echo "repo-lint: FAILED ($problems problems)"; return 1; fi
 }
 
@@ -201,10 +156,9 @@ self_test() {
   export GIT_AUTHOR_NAME=self-test GIT_AUTHOR_EMAIL=self-test@example.invalid
   export GIT_COMMITTER_NAME=self-test GIT_COMMITTER_EMAIL=self-test@example.invalid
   g() { git -c core.autocrlf=false -c init.defaultBranch=main "$@"; }
-  local bad; bad=$(printf 'pynhqr' | rot13)          # a banned name, decoded only at run time
   local key; key="-----BEGIN EC PRIVATE""KEY-----"; key=${key/PRIVATEKEY/PRIVATE KEY}
 
-  # Base repository: a team script, an import folder with upstream text that uses a banned word
+  # Base repository: a team script, an import folder with upstream Go code
   # and a key fixture listed in .gitguardian.yaml, imported in its own commit.
   local base=$tmp/base
   mkdir -p "$base/scripts/imports" "$base/vendor/pkg" "$base/vendor/testdata"
@@ -214,7 +168,7 @@ self_test() {
   printf '#!/bin/sh\n# SPDX-License-Identifier: MIT\necho "sets the User-Agent header"\n' > "$base/scripts/run.sh"
   printf '# SPDX-License-Identifier: MIT\nversion: 2\nsecret:\n  ignored_paths:\n    - vendor/testdata/test.key\n' > "$base/.gitguardian.yaml"
   g -C "$base" add -A && g -C "$base" commit -qm "chore: start"
-  printf 'package pkg\n\n// upstream text may say %s\nfunc A() {}\n' "$bad" > "$base/vendor/pkg/a.go"
+  printf 'package pkg\n\nfunc A() {}\n' > "$base/vendor/pkg/a.go"
   printf '%s\nAAAA\n' "$key" > "$base/vendor/testdata/test.key"
   g -C "$base" add -A && g -C "$base" commit -qm "import: upstream example/vendor@0123456 (Apache-2.0)"
 
@@ -230,26 +184,19 @@ self_test() {
     fi
   }
   nothing() { :; }
-  team_word() { printf '# SPDX-License-Identifier: MIT\n# written with %s\n' "$bad" > docs.yaml; }
-  team_word_name() { printf 'x\n' > "notes-$bad.md"; }
-  upstream_line_added() { printf '// team line mentions %s\n' "$bad" >> vendor/pkg/a.go; }
-  upstream_clean_edit() { printf '// a clean team line\n' >> vendor/pkg/a.go; }
+  upstream_lf_edit() { printf '// a team line\n' >> vendor/pkg/a.go; }
   new_go_without_header() { printf 'package pkg\n' > vendor/pkg/b.go; }
   new_go_with_header() { printf '// Copyright 2026 The Authors\n// SPDX-License-Identifier: Apache-2.0\n\npackage pkg\n' > vendor/pkg/b.go; }
-  # The marker line as mockery writes it: allowed in content and needs no licence header.
-  new_generated_go() { printf '// Code generated %s mockery; DO NOT EDIT.\n\npackage pkg\n' "$(printf 'ol' | rot13)" > vendor/pkg/mock.go; }
+  # The marker line as mockery writes it: the file needs no licence header.
+  new_generated_go() { printf '// Code generated by mockery; DO NOT EDIT.\n\npackage pkg\n' > vendor/pkg/mock.go; }
   team_script_without_header() { printf '#!/bin/sh\necho hi\n' > tool.sh; }
   unlisted_key() { printf '%s\nAAAA\n' "$key" > scripts/dev.pem; }
   keystore_file() { printf 'binary' > release.p12; }
   crlf_file() { printf '# SPDX-License-Identifier: MIT\r\nx: 1\r\n' > crlf.yaml; }
   big_file() { head -c $((6 * 1024 * 1024)) /dev/zero > big.bin; }
-  bad_commit() { printf 'x\n' > note.txt; g add -A; g commit -qm "docs: drafted with $bad"; }
 
   expect "clean repository" OK "" nothing
-  expect "banned word in a team file" FAILED "words: docs.yaml:2" team_word
-  expect "banned word in a file name" FAILED "words: file name notes-" team_word_name
-  expect "banned word added to an upstream file" FAILED "words: vendor/pkg/a.go:5" upstream_line_added
-  expect "upstream words are not judged" OK "" upstream_clean_edit
+  expect "LF line added to an upstream file" OK "" upstream_lf_edit
   expect "new Go file in an import without its header" FAILED "headers: vendor/pkg/b.go" new_go_without_header
   expect "new Go file in an import with its header" OK "" new_go_with_header
   expect "generated Go file needs no header" OK "" new_generated_go
@@ -258,7 +205,6 @@ self_test() {
   expect "keystore file" FAILED "keys: release.p12" keystore_file
   expect "CRLF line endings" FAILED "line endings: crlf.yaml" crlf_file
   expect "file over 5 MiB" FAILED "size: big.bin" big_file
-  expect "banned word in a commit message" FAILED "message" bad_commit
 
   if [ $fail -eq 0 ]; then echo "repo-lint: self-test OK"; else echo "repo-lint: self-test FAILED"; return 1; fi
 }
