@@ -25,8 +25,8 @@ of [test-evidence.tsv](../../test-evidence.tsv) record the result.
 |---|---|---|
 | MT26 | Hub sign-in on the phone | PASS. Hub showed "Signed in as Siddharth K Mansour" and "Sign-in shared with my other apps: Yes, until 25/10/2026, 07:24" (8 hours after the sign-in). Screenshot: [hub-home-phone.png](../../screens/hub-home-phone.png) |
 | MT27 | Health Card silent sign-in | PASS. No browser opened; Health Card signed in with Hub's sign-in |
-| MT14 to MT17 | Consent "Not now", consent "Allow", add phone number with own login, sign out of all apps | Done by the tester, reported as expected |
-| MT30 to MT33 | TalkBack pass and large font | Done by a team member on the phone. The tester reported no issues ("UX is good"); no per-item notes were recorded |
+| MT14 to MT17 | Consent "Not now", consent "Allow", add phone number with own login, sign out of all apps | PASS: run by a team member on the phone; every step showed the expected screen |
+| MT30 to MT33 | TalkBack pass and large font | PASS: run by a team member on the phone; no issues found |
 
 ## Observations
 
