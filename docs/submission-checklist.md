@@ -1,17 +1,17 @@
 # Submission checklist
 
 Every item of the MOSIP Decode 2026 submission guidelines and of problem statement 03, where it is, and its state on
-2026-10-22. States: **READY** (exists and checked), **PARTIAL** (exists, something open), **TODO** (not made), **PERSON**
+2026-10-22. States: **READY** (exists and checked), **PARTIAL** (exists, something open), **PERSON**
 (only a team member can do it). Deadline: 2026-10-26 23:59 IST. Dated results: [test-report.md](test-report.md).
 
 ## Mandatory items of the submission guidelines
 
 | Item | Where | State | Open |
 |---|---|---|---|
-| Source code, complete, hosted | GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` (public) | READY | GitHub Actions passed every job on 2026-10-20 at `aa28ffd` (run 39429707302) |
-| Working prototype or demo | stack and both apps: [setup.md](setup.md); `bash scripts/demo/demo.sh` | READY | `bash scripts/demo/demo.sh --check` (row DEMO-FULL). Emulator only: nobody has installed the APKs on a phone yet ([manual-test-checklist.md](manual-test-checklist.md), section E) |
+| Source code, complete, hosted | GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` (public) | READY | GitHub Actions passed every job on 2026-10-24 at `9bba2d7` (run 40134113684) |
+| Working prototype or demo | stack and both apps: [setup.md](setup.md); `bash scripts/demo/demo.sh` | READY | `bash scripts/demo/demo.sh --check` (row DEMO-FULL). Emulator and one real phone (OnePlus CPH2569, Android 15; [phone-run.md](evidence/2026-10-24/phone-run.md)) |
 | Pitch deck | outline: [ppt-outline.md](ppt-outline.md) | READY | the deck is ready and is submitted with the other deliverables (it is not kept in this repository) |
-| Video demo, 2 to 5 minutes | script with scenes and timings: [video-script.md](video-script.md); runbook: [demo-script.md](demo-script.md) | TODO (PERSON) | do a dry run (checklist steps MT37 to MT42), then record after a fresh `demo.sh --check`; upload to the cloud storage |
+| Video demo, 2 to 5 minutes | script with scenes and timings: [video-script.md](video-script.md); runbook: [demo-script.md](demo-script.md) | READY (link pending) | recorded; upload to the cloud storage and add the link here |
 | Usage and installation instructions | [../README.md](../README.md), [setup.md](setup.md) | READY | a person runs a fresh clone on macOS, Linux and Windows (checklist steps MT01 to MT10) and sends the results template back |
 | API documentation | [api.md](api.md), [../esignet/docs/esignet-openapi.yaml](../esignet/docs/esignet-openapi.yaml), [../thunder/api/oauth2.yaml](../thunder/api/oauth2.yaml) | READY | OpenAPI lint 0 errors |
 | Git repository with history | same repository; history never rewritten; members in the README's Team table | PARTIAL | most commits come from one account; each member commits their own remaining work (deck notes, manual test results) from their own account (PERSON) |
@@ -40,7 +40,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 
 1. On the day: `bash scripts/demo/demo.sh --check` (expect `demo ready`, then `teardown ok`), then
    `bash scripts/evidence.sh --check`.
-2. Do the video dry run and record the video from [video-script.md](video-script.md). The deck is ready ([ppt-outline.md](ppt-outline.md) is its outline); export PPT, PDF and video. Keep the deck's team slide in step with the README's Team table.
+2. The video is recorded ([video-script.md](video-script.md)); the link is added later. The deck is ready ([ppt-outline.md](ppt-outline.md) is its outline); export PPT, PDF and video. Keep the deck's team slide in step with the README's Team table.
 3. `bash scripts/repo-lint.sh`, `bash make.sh docs-check`, `bash scripts/fresh-clone-check.sh` (each must pass).
 4. Push `main`; open the Actions tab and record the run of `ci` (URL and result) in `docs/test-evidence.tsv`, row CI,
    then `bash scripts/evidence.sh` to rewrite the report.

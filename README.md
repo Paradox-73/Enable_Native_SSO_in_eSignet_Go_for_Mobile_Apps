@@ -62,8 +62,8 @@ Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](d
     Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
     passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
 - **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job (repo-lint, Go unit tests and
-  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-20 at
-  `aa28ffd` ([run 39429707302](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/39429707302)).
+  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-24 at
+  `9bba2d7` ([run 40134113684](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/40134113684)).
   Later commits run on GitHub when they are pushed; see the repository's Actions tab.
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
@@ -187,6 +187,8 @@ Full text with ids: [docs/test-report.md](docs/test-report.md#known-limits).
   (`PS03_RUNTIME_STORE=redis`, [deploy/README.md](deploy/README.md)), which passed the live suite.
 - After sign-out (R27), a resource server that checks a token's signature without asking eSignet accepts it until it
   expires (L04).
+- The stack is local, with the mock identity system, not the MOSIP Collab sandbox. The mentor call of 2026-09-30
+  accepted a local mock server for judging; the sandbox cannot host a modified eSignet build.
 - Software-backed Keystore on the emulator (L01); one emulator image (L06); one physical phone tried (L09).
 
 ## Team

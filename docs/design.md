@@ -588,6 +588,18 @@ Session record (runtime store, namespace `nativesso:session`, key `sid`):
 - This is the statement's "device_secret must be embedded into the id_token" (task 4a ix) read through the
   specification; see D2.
 
+Note on task 4a ix. The statement says "The device_secret must be embedded into the id_token". The id_token carries
+`ds_hash` and `sid`, as OpenID Connect Native SSO 1.0 section 3.4.1 defines, and the device secret travels only in
+the `device_secret` field of the token response.
+- Why: an id_token is passed to relying parties and read by any party that sees it; the device secret is the
+  credential for token exchange and never leaves the token response. `ds_hash` lets the id_token prove which device
+  secret it belongs to without exposing it.
+- Formula: diagram 1 of the statement shows `ds_hash = BASE64URL(SHA-256(device_secret))`. We use the left-most 128
+  bits of the SHA-256 hash, base64url encoded, the `at_hash` construction of OIDC Core 3.1.3.6. Native SSO 3.4.1 does
+  not fix the formula ("The exact binding between the ds_hash and device_secret is not specified by this profile").
+  Moving to the diagram's full-hash formula is a one-line change in `DeviceSecretHash` in
+  `thunder/backend/internal/oauth/oauth2/nativesso/nativesso.go`, plus the matching check in Hub and the e2e suite.
+
 ## 11. Validation order at the token exchange
 
 The order keeps Thunder's existing token pipeline (`token/service.go:64-262`: client authentication, grant
