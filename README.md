@@ -199,7 +199,8 @@ deliverables.
 | Kanav Bhardwaj | [@Paradox-73](https://github.com/Paradox-73) |
 | Ivan Bhargava | [@Ivan825](https://github.com/Ivan825) |
 | Ishaan Sodhi | not listed |
-| Nikunj | [@nikunj169](https://github.com/nikunj169) |
+| Nikunj Mahajan | [@nikunj169](https://github.com/nikunj169) |
+| Harsh Modi | - |
 
 ## Licence
 
