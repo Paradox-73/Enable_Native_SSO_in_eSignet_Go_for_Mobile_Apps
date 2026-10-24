@@ -1,7 +1,7 @@
 # Submission checklist
 
 Every item of the MOSIP Decode 2026 submission guidelines and of problem statement 03, where it is, and its state on
-2026-10-14. States: **READY** (exists and checked), **PARTIAL** (exists, something open), **TODO** (not made), **PERSON**
+2026-10-22. States: **READY** (exists and checked), **PARTIAL** (exists, something open), **TODO** (not made), **PERSON**
 (only a team member can do it). Deadline: 2026-10-26 23:59 IST. Dated results: [test-report.md](test-report.md).
 
 ## Mandatory items of the submission guidelines
@@ -14,7 +14,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 | Video demo, 2 to 5 minutes | script with scenes and timings: [video-script.md](video-script.md); runbook: [demo-script.md](demo-script.md) | TODO (PERSON) | do a dry run (checklist steps MT37 to MT42), then record after a fresh `demo.sh --check`; upload to the cloud storage |
 | Usage and installation instructions | [../README.md](../README.md), [setup.md](setup.md) | READY | a person runs a fresh clone on macOS, Linux and Windows (checklist steps MT01 to MT10) and sends the results template back |
 | API documentation | [api.md](api.md), [../esignet/docs/esignet-openapi.yaml](../esignet/docs/esignet-openapi.yaml), [../thunder/api/oauth2.yaml](../thunder/api/oauth2.yaml) | READY | OpenAPI lint 0 errors |
-| Git repository with history | same repository; history never rewritten | PARTIAL | most commits come from one account; each member commits their own remaining work (deck notes, manual test results) from their own account (PERSON) |
+| Git repository with history | same repository; history never rewritten; members in the README's Team table | PARTIAL | most commits come from one account; each member commits their own remaining work (deck notes, manual test results) from their own account (PERSON) |
 | College or university credentials | not in the repository (personal documents) | PERSON | every member uploads a valid ID to the cloud storage |
 
 ## Other items of the guidelines
@@ -40,7 +40,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 
 1. On the day: `bash scripts/demo/demo.sh --check` (expect `demo ready`, then `teardown ok`), then
    `bash scripts/evidence.sh --check`.
-2. Do the video dry run and record the video from [video-script.md](video-script.md). The deck is ready ([ppt-outline.md](ppt-outline.md) is its outline); export PPT, PDF and video. Add team names and roles to the README and the deck.
+2. Do the video dry run and record the video from [video-script.md](video-script.md). The deck is ready ([ppt-outline.md](ppt-outline.md) is its outline); export PPT, PDF and video. Keep the deck's team slide in step with the README's Team table.
 3. `bash scripts/repo-lint.sh`, `bash make.sh docs-check`, `bash scripts/fresh-clone-check.sh` (each must pass).
 4. Push `main`; open the Actions tab and record the run of `ci` (URL and result) in `docs/test-evidence.tsv`, row CI,
    then `bash scripts/evidence.sh` to rewrite the report.

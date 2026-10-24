@@ -3,8 +3,8 @@
 Outline of the pitch deck (the PPT deliverable). The submission guidelines ask for the problem, the solution, the
 technology stack, the target audience and the potential impact; the evaluation weights are functionality 40 %,
 quality of deliverable 40 %, user experience and design 10 %, presentation 10 %. Slide times add up to 8 minutes
-and are planned, not measured. The slide file itself is not in the repository: the team builds it from this outline
-and keeps the numbers in step with [test-report.md](test-report.md). Written 2026-10-05.
+and are planned, not measured. The slide file is not in the repository: the team built it from this outline and keeps
+its numbers in step with [test-report.md](test-report.md). Written 2026-10-05.
 
 Every number on a slide must come from a dated line in the test report. Anything not run is shown as "not run yet", not
 left out.

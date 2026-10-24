@@ -72,7 +72,7 @@ Signed out                              Signed in
 | Sign in once with eSignet. Your |     | Signed in as                    |
 | other apps from the same        |     |   <name>                        |
 | publisher, such as Health Card, |     | Sign-in shared with my other    |
-| can then sign you in without    |     | apps: Yes                       |
+| can then sign you in without    |     | apps: Yes, until 18:42          |
 | asking again.                   |     | Apps using this sign-in         |
 | [ ] Share this sign-in with my  |     |   Health Card, last used 10:42  |
 |     other apps                  |     | [ Sign out of all apps ]        |
@@ -80,6 +80,7 @@ Signed out                              Signed in
 | Show technical details          |     +---------------------------------+
 +---------------------------------+
 Working: "Signing you in..." / "Finish signing in on eSignet's page in the browser."  [ Cancel ]
+After the 8 hours of the device secret: "Ended at 18:42. Sign out and sign in again to share it."
 After sign-out: "You are signed out of Hub and of every app that used this sign-in."
 Errors: network, server refused (with its error code), failed security check, expired, wrong sign-in, unexpected
 ```

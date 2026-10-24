@@ -149,7 +149,7 @@ Turn the switch on.
 
 **MT12. Hub login.** Tap "Sign in with eSignet". Chrome opens eSignet's page "Hub is requesting authentication". Enter
 `1774231323`, tick the captcha box if shown, tap "Get OTP", enter `111111`, tap "Verify". On the consent page turn on the
-optional attributes switch (the email; it starts off), then tap "Allow". Expect Hub to return with "Signed in as" and the seeded user's name, "Sign-in shared with my other apps: Yes" and
+optional attributes switch (the email; it starts off), then tap "Allow". Expect Hub to return with "Signed in as" and the seeded user's name, "Sign-in shared with my other apps: Yes, until <time 8 hours ahead>" and
 "Apps using this sign-in: None yet".
 
 **MT13. Silent sign-in.** Open Health Card. Expect "Signing you in with Hub..." for a moment, then its home screen with the
@@ -300,7 +300,7 @@ visual order.
 1. Hub signed out: the title, the text "Sign in once with eSignet...", the switch "Share this sign-in with my other apps",
    the button "Sign in with eSignet".
 2. The eSignet sign-in in Chrome (eSignet's own page, so note problems but they are not Hub's).
-3. Hub signed in: "Signed in as", "Sign-in shared with my other apps: Yes", "Apps using this sign-in" and the button
+3. Hub signed in: "Signed in as", "Sign-in shared with my other apps: Yes, until <time 8 hours ahead>", "Apps using this sign-in" and the button
    "Sign out of all apps".
 4. After sign-out: "You are signed out of Hub and of every app that used this sign-in."
 - Expect each label and its value to be read as one item, headings to be announced as headings, and each control to be

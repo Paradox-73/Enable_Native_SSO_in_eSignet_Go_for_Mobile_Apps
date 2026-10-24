@@ -8,21 +8,41 @@ A second Android app from the same publisher (Health Card) then signs the user i
 a second OTP: it trades Hub's device secret for its own tokens at the token endpoint (OAuth 2.0 Token Exchange,
 RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 
-## Try it in 10 minutes
+## Judge's path
 
-We built Native SSO for eSignet Go: sign in once with an OTP in the Hub app, and the Health Card app then signs in on its own.
+1. See it: three screens below ([Screens](#screens)); every screen of both apps is in [docs/ux.md](docs/ux.md#screenshots).
+2. Check each statement task (T1-T10, P1, P2, bonus B1) against its code and tests:
+   [How each statement task is met](#how-each-statement-task-is-met).
+3. Read the dated results: [docs/test-report.md](docs/test-report.md) (every automated check PASS; the three manual
+   runs not done yet are listed with their reason).
+4. Run it: [Try it in 10 minutes](#try-it-in-10-minutes).
+5. Read the design: [docs/design.md](docs/design.md), [docs/threat-model.md](docs/threat-model.md),
+   [docs/api.md](docs/api.md), Postman folder in [esignet/postman-collection/](esignet/postman-collection/README.md#native-sso).
+6. See what the team changed in upstream code: `git diff c4c5443 -- thunder/` and `git diff 4eac1cc -- esignet/`;
+   by task in [docs/changes.md](docs/changes.md).
+7. Limits we state: [Known limits](#known-limits).
+
+## Try it in 10 minutes
 
 1. Start the server stack, run its 32 live tests and stop it again: `bash scripts/with-stack.sh bash e2e/run.sh`
    (needs Docker; expect `e2e: 32 passed, 0 failed`).
 2. Build both apps: `( cd android && bash gradlew --no-daemon assembleDebug )` (needs JDK 17 and the Android SDK).
 3. Start the stack, an emulator, both installed apps and Hub in front: `bash scripts/demo/demo.sh`.
    Without an emulator, `bash scripts/demo/demo.sh --no-emulator --check` runs the server part only.
-4. In Hub, sign in with the OTP. In Health Card, tap sign in: it signs in with no OTP and no browser.
+4. In Hub, sign in with the OTP. Then open Health Card: it signs in on its own, with no OTP and no browser.
    Scene-by-scene steps and expected screens: [docs/demo-script.md](docs/demo-script.md).
 
 Prerequisites and fixes: [docs/setup.md](docs/setup.md).
 
-## Status on 2026-10-14
+## Screens
+
+| Hub, signed in | Health Card, signed in by Hub (no browser, no OTP) | eSignet's consent page, no login (bonus B1) |
+|---|---|---|
+| ![Hub home](docs/screens/hub-home.png) | ![Health Card silent sign-in](docs/screens/health-card-silent-sign-in.png) | ![Consent page without login](docs/screens/esignet-consent-only-page.png) |
+
+Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](docs/ux.md#screenshots).
+
+## Test status
 
 - **Built and tested**: every statement task (T1-T10, P1, P2) and the bonus B1, on the server and in both Android
   apps. Dated results of every check: [docs/test-report.md](docs/test-report.md).
@@ -37,7 +57,7 @@ Prerequisites and fixes: [docs/setup.md](docs/setup.md).
     with Health Card's tokens refused afterwards, R27, and consent-only re-consent, R28); the Postman folder under
     newman (43 requests, 152 assertions, 0 failed, including consent-only re-consent); govulncheck on eSignet: 0
     vulnerabilities in called code (2026-10-14 at `fd48556`).
-  - Apps: 208 Android JVM tests, 0 failed; on the Android emulator the UI tests (6 of 6 passed, including the
+  - Apps: 209 Android JVM tests, 0 failed (62 of them for Hub, rerun 2026-10-22); on the Android emulator the UI tests (6 of 6 passed, including the
     consent-only approval and refusal on eSignet's branded consent page, "Not now" on the consent screen and Health
     Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
     passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
@@ -48,18 +68,10 @@ Prerequisites and fixes: [docs/setup.md](docs/setup.md).
 - **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
   behaves as upstream.
 - **Not run**: a TalkBack pass, a physical phone and the upstream Postman folders in the Postman desktop app (limits
-  L07-L09). Task-level state: [docs/STATUS.md](docs/STATUS.md).
+  L07-L09). Work packages and open decisions: [docs/changes.md](docs/changes.md#work-packages).
 - **Video and manual checks**: [docs/video-script.md](docs/video-script.md), [docs/manual-test-checklist.md](docs/manual-test-checklist.md)
   (steps only a person can run: fresh clones on macOS, Linux and Windows, a real phone, TalkBack, a video dry run) and
   [docs/manual-test-results-template.md](docs/manual-test-results-template.md) to send the results back.
-
-## Screens
-
-| Hub, signed in | Health Card, signed in by Hub (no browser, no OTP) | eSignet's consent page, no login (bonus B1) |
-|---|---|---|
-| ![Hub home](docs/screens/hub-home.png) | ![Health Card silent sign-in](docs/screens/health-card-silent-sign-in.png) | ![Consent page without login](docs/screens/esignet-consent-only-page.png) |
-
-Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](docs/ux.md#screenshots).
 
 ## What is here
 
@@ -150,13 +162,14 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 | Updated Postman collection | [esignet/postman-collection/](esignet/postman-collection/README.md#native-sso), folder "Native SSO" |
 | Updated API documentation | [docs/api.md](docs/api.md), [esignet-openapi.yaml](esignet/docs/esignet-openapi.yaml), [oauth2.yaml](thunder/api/oauth2.yaml) |
 | Design document | [docs/design.md](docs/design.md), [docs/threat-model.md](docs/threat-model.md) |
-| Presentation | outline in [docs/ppt-outline.md](docs/ppt-outline.md); the slide file is made by the team from it |
+| Presentation | slide deck, kept outside this repository and submitted with the other deliverables; outline in [docs/ppt-outline.md](docs/ppt-outline.md) |
+| Demo video | script in [docs/video-script.md](docs/video-script.md); the recording is submitted with the other deliverables |
 | Submission items | [docs/submission-checklist.md](docs/submission-checklist.md) |
 
 ## Documents
 
 [docs/README.md](docs/README.md) is the index. Short list: [setup](docs/setup.md), [test data](docs/test-data.md),
-[API](docs/api.md), [changes by task](docs/changes.md), [UX and accessibility](docs/ux.md),
+[API](docs/api.md), [changes and status](docs/changes.md), [UX and accessibility](docs/ux.md),
 [test report](docs/test-report.md), [demo script](docs/demo-script.md), [upstream offers](docs/upstream-prs/thunder.md),
 [contributing](CONTRIBUTING.md).
 
@@ -164,9 +177,9 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 
 Full text with ids: [docs/test-report.md](docs/test-report.md#known-limits).
 
-- **Silent sign-in lasts as long as Hub's device secret, 8 hours by default** (L10). After that the exchange is refused
-  while Hub still says "signed in", because Hub cannot read the device secret's expiry; the user signs out of Hub and
-  signs in again.
+- **Silent sign-in lasts as long as Hub's device secret, 8 hours by default** (L10). Hub's home screen shows the end time
+  and, once it has passed, tells the user to sign out and in again. Hub counts the 8 hours itself, because the device
+  secret is encrypted for eSignet; a server with another lifetime makes that time wrong.
 - Re-consent for new user data (the phone number) asks for the OTP again (L02); permissions that need no new user data
   are approved with no login (R28).
 - The demo stack keeps eSignet's runtime store in memory (L03); several replicas need the Redis store
@@ -174,6 +187,18 @@ Full text with ids: [docs/test-report.md](docs/test-report.md#known-limits).
 - After sign-out (R27), a resource server that checks a token's signature without asking eSignet accepts it until it
   expires (L04).
 - Software-backed Keystore on the emulator (L01); one emulator image (L06); no physical phone, no TalkBack pass (L08, L09).
+
+## Team
+
+Team **Badmosip**, MOSIP Decode 2026, problem statement 03. Each member's college ID proof is uploaded with the other
+deliverables.
+
+| Member | GitHub account |
+|---|---|
+| Kanav Bhardwaj | [@Paradox-73](https://github.com/Paradox-73) |
+| Ivan Bhargava | [@Ivan825](https://github.com/Ivan825) |
+| Ishaan Sodhi | not listed |
+| Nikunj | [@nikunj169](https://github.com/nikunj169) |
 
 ## Licence
 

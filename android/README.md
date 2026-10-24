@@ -193,7 +193,7 @@ Hub (`superapp/.../sso/`):
   1. caller: a package of the calling uid is on the allow-list (Health Card only) and is signed with
      Hub's own current certificate (`PackageManager` `GET_SIGNING_CERTIFICATES`, SHA-256). The
      permission alone is not trusted: an app of another signer can hold it after the takeover
-     sequence recorded in `docs/STATUS.md` (WP-11);
+     sequence recorded in `docs/changes.md` (findings, WP-11);
   2. rate: 30 calls per caller uid in any 60 s (one silent sign-in takes about five);
   3. session: only a sign-in with a device secret, that is, one made with "Use this sign-in in my
      other apps" on. Otherwise `getSsoBundle()` is null and `signDpopProof` refuses with

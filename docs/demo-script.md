@@ -66,7 +66,7 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
    - Tap "Sign in with eSignet". Chrome opens eSignet's page. Enter UIN `1774231323`, request the OTP, enter
      `111111`. On the consent page turn on the optional attributes switch (the email; it starts off), then tap
      "Allow". Chrome returns to Hub.
-   - Expect: "Signed in as" with the seeded user's name, "Sign-in shared with my other apps: Yes",
+   - Expect: "Signed in as" with the seeded user's name, "Sign-in shared with my other apps: Yes, until <time 8 hours ahead>",
      "Apps using this sign-in: None yet".
 2. **Health Card, no login.**
    - Open Health Card (launcher). Expect "Signing you in with Hub..." for a moment, then the home screen with the
