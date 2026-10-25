@@ -399,5 +399,23 @@ func (s *AuthorizationCodeNativeSSOTestSuite) TestDeviceSecret_AttributeCacheTTL
 
 // TestDeviceSSO_HashMatchesNativeSSOPackage keeps the fixture constant honest.
 func (s *AuthorizationCodeNativeSSOTestSuite) TestDeviceSSO_HashMatchesNativeSSOPackage() {
-	s.Equal(nativesso.DeviceSecretHash(nativeSSODeviceSecret), nativeSSODSHash)
+	s.Equal(nativesso.DeviceSecretHash(nativeSSODeviceSecret, false), nativeSSODSHash)
+}
+
+// With oauth.native_sso.ds_hash_full_sha256 the id_token carries the full SHA-256 form of ds_hash.
+func (s *AuthorizationCodeNativeSSOTestSuite) TestDeviceSSO_FullSHA256DSHash() {
+	s.handler.cfg.OAuth.NativeSSO.DSHashFullSHA256 = true
+	s.expectCode()
+	s.expectAttributes()
+	s.expectAccessToken()
+	s.expectDeviceSecret()
+	s.attrCache.EXPECT().ExtendAttributeCacheTTL(mock.Anything, testCacheID, mock.Anything).Return(nil)
+	s.expectIDToken()
+
+	_, errResp := s.handler.HandleGrant(s.dpopCtx, s.tokenRequest, s.oauthApp)
+
+	s.Require().Nil(errResp)
+	s.Require().Len(s.builtIDTokens, 1)
+	s.Equal(nativesso.DeviceSecretHash(nativeSSODeviceSecret, true), s.builtIDTokens[0].DeviceSecretHash)
+	s.Len(s.builtIDTokens[0].DeviceSecretHash, 43)
 }

@@ -80,13 +80,17 @@ func NewSessionID() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-// DeviceSecretHash returns the ds_hash claim for a device secret: the base64url encoding (no
-// padding) of the left-most half of the SHA-256 hash of its ASCII octets. This is the at_hash
-// construction of OpenID Connect Core 3.1.3.6. Native SSO 3.4.1 leaves the construction to the server
-// but requires that ds_hash leaks no data; a truncated hash of an encrypted value leaks none, and the
-// token exchange recomputes it from the presented device secret to check the binding.
-func DeviceSecretHash(deviceSecret string) string {
+// DeviceSecretHash returns the ds_hash claim for a device secret. By default it is the base64url
+// encoding (no padding) of the left-most half of the SHA-256 hash of its ASCII octets: the at_hash
+// construction of OpenID Connect Core 3.1.3.6. With full set (oauth.native_sso.ds_hash_full_sha256) it is
+// the base64url encoding of the whole SHA-256 hash. Native SSO 3.4.1 leaves the construction to the
+// server but requires that ds_hash leaks no data; neither form leaks any, and the token exchange
+// recomputes it the same way from the presented device secret to check the binding.
+func DeviceSecretHash(deviceSecret string, full bool) string {
 	sum := sha256.Sum256([]byte(deviceSecret))
+	if full {
+		return base64.RawURLEncoding.EncodeToString(sum[:])
+	}
 	return base64.RawURLEncoding.EncodeToString(sum[:len(sum)/2])
 }
 

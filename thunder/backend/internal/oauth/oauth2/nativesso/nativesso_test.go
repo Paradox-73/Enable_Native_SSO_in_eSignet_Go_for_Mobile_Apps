@@ -83,10 +83,22 @@ func TestNewSessionID(t *testing.T) {
 
 func TestDeviceSecretHash(t *testing.T) {
 	// SHA-256 of the empty string starts with e3b0c442 98fc1c14 9afbf4c8 996fb924 (FIPS 180-2 example).
-	assert.Equal(t, "47DEQpj8HBSa-_TImW-5JA", DeviceSecretHash(""))
-	assert.Equal(t, "Ad3fRNZ5FyNN5SYczCVEuQ", DeviceSecretHash("device-secret-value"))
-	assert.Len(t, DeviceSecretHash("any value"), 22, "left 16 bytes in base64url without padding")
-	assert.NotEqual(t, DeviceSecretHash("a"), DeviceSecretHash("b"))
+	assert.Equal(t, "47DEQpj8HBSa-_TImW-5JA", DeviceSecretHash("", false))
+	assert.Equal(t, "Ad3fRNZ5FyNN5SYczCVEuQ", DeviceSecretHash("device-secret-value", false))
+	assert.Len(t, DeviceSecretHash("any value", false), 22, "left 16 bytes in base64url without padding")
+	assert.NotEqual(t, DeviceSecretHash("a", false), DeviceSecretHash("b", false))
+}
+
+// With oauth.native_sso.ds_hash_full_sha256 the claim is BASE64URL(SHA-256(device_secret)), all 32 bytes.
+func TestDeviceSecretHash_FullSHA256(t *testing.T) {
+	// The whole SHA-256 of the empty string, e3b0c442...7852b855, in base64url without padding.
+	assert.Equal(t, "47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU", DeviceSecretHash("", true))
+	full := DeviceSecretHash("device-secret-value", true)
+	assert.Len(t, full, 43, "32 bytes in base64url without padding")
+	raw, err := base64.RawURLEncoding.DecodeString(full)
+	require.NoError(t, err)
+	assert.Equal(t, DeviceSecretHash("device-secret-value", false), base64.RawURLEncoding.EncodeToString(raw[:16]),
+		"the default form is the left half of the same hash")
 }
 
 func TestReleasedClaimNames_PlainAttributes(t *testing.T) {

@@ -22,6 +22,7 @@ var nativeSSOEnvVars = []string{
 	"MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS",
 	"MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR",
 	"MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY",
+	"MOSIP_ESIGNET_NATIVE_SSO_DS_HASH_FULL_SHA256",
 	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT",
 	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS",
 	"MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS",
@@ -55,6 +56,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_Defaults() {
 	ts.EqualValues(0, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds, "no id_token age cap unless configured (D8)")
 	ts.Equal("interaction_required", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
+	ts.False(cfg.OAuth.NativeSSO.DSHashFullSHA256, "ds_hash is the left-half hash unless configured")
 	ts.False(cfg.OAuth.NativeSSO.ConsentOnlyReconsent)
 	ts.EqualValues(0, cfg.OAuth.NativeSSO.ConsentTicketTTLSeconds)
 	ts.EqualValues(28800, cfg.OAuth.NativeSSO.ConsentBrowserTTLSeconds, "the device secret lifetime")
@@ -69,6 +71,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_YAMLValuesKept() 
 	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = 3600
 	cfg.OAuth.NativeSSO.ScopeExceededError = "invalid_scope"
 	cfg.OAuth.NativeSSO.ExchangeOnly = true
+	cfg.OAuth.NativeSSO.DSHashFullSHA256 = true
 	applyNativeSSODefaults(cfg)
 
 	ts.Equal(NativeSSOConfig{Enabled: true, DeviceSecretValiditySeconds: 600, EncryptionKeyRefID: "DS_ENC",
@@ -76,6 +79,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_YAMLValuesKept() 
 	ts.EqualValues(3600, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
 	ts.Equal("invalid_scope", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.True(cfg.OAuth.NativeSSO.ExchangeOnly)
+	ts.True(cfg.OAuth.NativeSSO.DSHashFullSHA256)
 }
 
 func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML() {
@@ -87,6 +91,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML(
 	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR", "invalid_scope")
 	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY", "false")
 	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_ENABLED", "true")
+	t.Setenv("MOSIP_ESIGNET_NATIVE_SSO_DS_HASH_FULL_SHA256", "true")
 
 	cfg := &AppConfig{}
 	cfg.NativeSSO = NativeSSOConfig{DeviceSecretValiditySeconds: 600, EncryptionKeyRefID: "DS_ENC",
@@ -100,6 +105,7 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvOverridesYAML(
 	ts.EqualValues(120, cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds)
 	ts.Equal("invalid_scope", cfg.OAuth.NativeSSO.ScopeExceededError)
 	ts.False(cfg.OAuth.NativeSSO.ExchangeOnly)
+	ts.True(cfg.OAuth.NativeSSO.DSHashFullSHA256)
 }
 
 // The env var set to 0 turns off a cap set in yaml.

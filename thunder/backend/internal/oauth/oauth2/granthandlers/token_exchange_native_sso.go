@@ -271,7 +271,8 @@ func (h *tokenExchangeGrantHandler) checkNativeSSOIDToken(ctx context.Context, t
 	if idClaims.Sub != dsClaims.Subject {
 		return invalidRequest(errDescNSSOIDTokenSubject)
 	}
-	if !constantTimeEqual(idClaims.DeviceSecretHash, nativesso.DeviceSecretHash(tokenRequest.ActorToken)) {
+	wantDSHash := nativesso.DeviceSecretHash(tokenRequest.ActorToken, h.cfg.OAuth.NativeSSO.DSHashFullSHA256)
+	if !constantTimeEqual(idClaims.DeviceSecretHash, wantDSHash) {
 		return invalidRequest(errDescNSSODSHashMismatch)
 	}
 	if !constantTimeEqual(idClaims.SessionID, dsClaims.SessionID) {

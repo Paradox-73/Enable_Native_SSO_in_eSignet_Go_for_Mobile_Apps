@@ -16,6 +16,7 @@ import (
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/dpop"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/model"
+	"github.com/thunder-id/thunderid/internal/oauth/oauth2/nativesso"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/tokenservice"
 	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
@@ -437,6 +438,25 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_IDTokenBindi
 			s.NotEqual(errDescNSSOIDTokenTooOld, errResp.ErrorDescription)
 		})
 	}
+}
+
+// With oauth.native_sso.ds_hash_full_sha256 the exchange checks the full SHA-256 form and refuses the
+// left-half form, so both ends of the binding use one construction.
+func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_FullSHA256DSHash() {
+	s.handler.cfg.OAuth.NativeSSO.DSHashFullSHA256 = true
+	s.idClaims.DeviceSecretHash = nativesso.DeviceSecretHash(nativeSSODeviceSecret, true)
+	s.expectChecksPass()
+	s.expectIssue()
+	_, errResp := s.handle()
+	s.Nil(errResp)
+
+	s.SetupTest()
+	s.handler.cfg.OAuth.NativeSSO.DSHashFullSHA256 = true
+	s.expectDeviceSecret()
+	s.expectIDToken()
+	_, errResp = s.handle()
+	s.assertError(errResp, constants.ErrorInvalidRequest)
+	s.Equal(errDescNSSODSHashMismatch, errResp.ErrorDescription)
 }
 
 // R21: an expired id_token inside the optional age cap is accepted.

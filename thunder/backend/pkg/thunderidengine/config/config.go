@@ -377,6 +377,10 @@ type NativeSSOConfig struct {
 	// ExchangeOnly limits the token-exchange grant to the Native SSO profile (a device secret as
 	// actor_token); other token exchanges are rejected with invalid_request.
 	ExchangeOnly bool `yaml:"exchange_only" json:"exchange_only"`
+	// DSHashFullSHA256 makes ds_hash the base64url of the whole SHA-256 of the device secret instead of
+	// its left half (the at_hash construction, the default). Both meet Native SSO 3.4.1; clients that
+	// check ds_hash must use the same form.
+	DSHashFullSHA256 bool `yaml:"ds_hash_full_sha256" json:"ds_hash_full_sha256"`
 	// ConsentOnlyReconsent lets the user approve extra scopes for the second app without logging in
 	// again, when the scopes need no user data beyond what the login already released. A refused
 	// exchange then carries consent_uri, a one-time page of this server where the user allows or
