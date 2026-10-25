@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.Looper
 import android.os.RemoteException
 import org.badmosip.nativesso.contract.FamilySsoContract
 import org.badmosip.nativesso.contract.IFamilySso
@@ -66,12 +67,13 @@ sealed interface HubStatus {
  * Hub's coded refusals become [HubException]s.
  *
  * Blocking: call from a background thread. The binding callbacks arrive on the main thread, so a
- * call from the main thread would wait out the whole timeout.
+ * call from the main thread would wait out the whole timeout; [use] refuses it.
  */
 class HubConnection(private val context: Context, private val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS) {
 
     /** Binds, runs [block] with the service, unbinds. */
     fun <T> use(block: (IFamilySso) -> T): T {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "HubConnection.use blocks; call it from a background thread" }
         val connected = CountDownLatch(1)
         val binder = AtomicReference<IBinder?>()
         val connection = object : ServiceConnection {
@@ -151,7 +153,7 @@ class HubConnection(private val context: Context, private val timeoutMillis: Lon
 
 /**
  * DPoP proofs from Hub, for the token exchange and userinfo: the device secret is bound to Hub's
- * key (statement task 9 iii.4), so Health Card cannot sign them itself. Use inside
+ * key (Native SSO 1.0 section 4.1), so Health Card cannot sign them itself. Use inside
  * [HubConnection.use]; a refusal is thrown as [HubException].
  */
 class HubDpopProofSource(private val service: IFamilySso) : DpopProofSource {

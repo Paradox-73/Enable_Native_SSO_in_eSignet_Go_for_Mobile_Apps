@@ -10,7 +10,8 @@ object SigningCertificates {
     /**
      * SHA-256 digests of the certificates [packageName] is currently signed with (after any key
      * rotation), the same value `apksigner verify --print-certs` prints. Empty if the package is not
-     * visible to the caller (Android 11+ needs a <queries> entry).
+     * visible to the caller (Android 11+ needs a <queries> entry). Callers compare whole sets: with
+     * several signers, sharing one certificate is not enough.
      */
     fun sha256Of(packageManager: PackageManager, packageName: String): List<ByteArray> {
         val info = try {

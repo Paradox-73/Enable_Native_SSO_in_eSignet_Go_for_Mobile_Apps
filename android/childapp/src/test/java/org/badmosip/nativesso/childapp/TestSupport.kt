@@ -282,6 +282,18 @@ internal class MemoryBlobStore : BlobStore {
     override fun contains(name: String): Boolean = blobs.containsKey(name)
 }
 
+/** Runs Hub calls on a worker thread, as the app does: [HubConnection.use] refuses the main thread. */
+internal class OffMainHubLink(private val inner: HubLink) : HubLink {
+    override fun <T> use(block: (HubCalls) -> T): T = onWorker { inner.use(block) }
+    override fun status(): HubStatus = onWorker { inner.status() }
+
+    private fun <T> onWorker(block: () -> T): T {
+        val result = java.util.concurrent.atomic.AtomicReference<Result<T>>()
+        Thread { result.set(runCatching(block)) }.apply { start(); join() }
+        return result.get().getOrThrow()
+    }
+}
+
 /** Health Card wired to a [FakeEsignet] and to Hub through the real [HubConnection] (Robolectric). */
 internal class CardFixture(val app: Application) {
     val clientId = "ps03-card-test"
@@ -293,7 +305,7 @@ internal class CardFixture(val app: Application) {
     val clientKey: EcKeyJwsSigner = EcKeyJwsSigner.generate("client-kid")
     val logs = CopyOnWriteArrayList<String>()
     val config = CardConfig(issuer = esignet.issuer, clientId = clientId, redirectUri = redirectUri)
-    val link = HubConnectionLink(HubConnection(app, timeoutMillis = 500))
+    val link = OffMainHubLink(HubConnectionLink(HubConnection(app, timeoutMillis = 500)))
 
     fun authenticator() = CardAuthenticator(
         config = config,

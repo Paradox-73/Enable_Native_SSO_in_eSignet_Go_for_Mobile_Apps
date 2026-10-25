@@ -15,7 +15,7 @@ full demo check). Dated results: rows JVM-*, UI-*, APK-SIGN and DEMO-FULL of
 
 | Module | Kind | What it holds |
 |---|---|---|
-| `oidc-client` | Kotlin/JVM library, no Android code | discovery, PKCE, DPoP proofs, `private_key_jwt`, PAR, authorization-code and Native SSO token-exchange requests (with the optional `dpop_jkt` parameter, which the apps do not send), userinfo, `use_dpop_nonce` retry, RFC 7638 thumbprints, id_token checks including `ds_hash` and `sid`, typed errors |
+| `oidc-client` | Kotlin/JVM library, no Android code | discovery, PKCE, DPoP proofs, `private_key_jwt`, PAR, authorization-code and Native SSO token-exchange requests, userinfo, `use_dpop_nonce` retry, RFC 7638 thumbprints, id_token checks including `ds_hash` and `sid`, typed errors |
 | `sso-contract` | Android library | `IFamilySso.aidl` and the `SsoBundle` parcelable, the permission, action and package names, error codes, a signing-certificate helper |
 | `secure-store` | Android library | `EncryptedFileStore`: one AES-256-GCM file per blob in `noBackupFilesDir`, key in Android Keystore (`KeystoreSecureStore`) |
 | `superapp` | Android app | Hub: sign-in with eSignet (Custom Tab, PAR, PKCE, DPoP, `private_key_jwt`), Keystore keys, encrypted token storage; the family single sign-on service (`sso/`); declares the family permission |
@@ -58,7 +58,7 @@ one certificate, in debug builds too.
 - On the first build it creates a PKCS12 test keystore with `keytool` (EC P-256, alias `family`,
   `CN=PS03 App Family (test only)`, 10 years) at `$PS03_RUN_DIR/keys/ps03-family-test.jks`, and a
   random password in `ps03-family-test.jks.password` next to it. `PS03_RUN_DIR` defaults to
-  `<repo>/../run` when that folder exists, else `<repo>/run`, as in `scripts/lib.sh`.
+  `<repo>/run`, as in `scripts/lib.sh`.
 - Neither file is ever committed (`.gitignore` covers `*.jks` and `run/`; `scripts/repo-lint.sh`
   fails on any keystore in the tree). They are test material: never sign a store release with them.
 - Overrides: Gradle property `ps03.familyKeystore` or environment variable `PS03_FAMILY_KEYSTORE` for
@@ -68,6 +68,7 @@ one certificate, in debug builds too.
 - Both apps declare the permission, not only Hub, so whichever is installed first defines it with
   the signature level (see "custom permission takeover" in
   [`FamilySsoContract.kt`](sso-contract/src/main/java/org/badmosip/nativesso/contract/FamilySsoContract.kt)).
+- Key rotation: Hub admits a caller only when its set of signing certificates equals Hub's own, so after a rotation an app still signed with the old key set is refused until it is re-signed with the same set as Hub.
 
 ## Hub sign-in with eSignet
 
@@ -131,7 +132,7 @@ bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/sc
 
 | Script | What it does |
 |---|---|
-| `scripts/with-emulator.sh <cmd...>` | takes the `emulator` lock; boots AVD `ps03_api34` headless on port 5584 (`-gpu host`), waits for boot and network, `adb reverse` 38088 and 38300, turns Chrome's first-run screens off, runs the command, then cleans up and kills the emulator it started |
+| `scripts/with-emulator.sh <cmd...>` | boots AVD `ps03_api34` headless on port 5584 (`-gpu host`), waits for boot and network, `adb reverse` 38088 and 38300, turns Chrome's first-run screens off, runs the command, then cleans up and kills the emulator it started |
 | `scripts/register-client.sh [superapp\|childapp]` | reads `files/client-registration.json` with `adb shell run-as` (starts the app once if needed) and registers the client through `POST /client-mgmt/client` (private_key_jwt, PAR, PKCE, DPoP, relying party `ps03-family`, client name "Hub" or "Health Card", grants `authorization_code` and token exchange, `allowed_authorization_scopes` `device_sso`, plus `health_card_share` for Health Card). A client_id registered before 2026-10-05 lacks the last two: reinstall the app (new key, new client_id) or start the stack from clean volumes |
 | `scripts/run-ui-test.sh <app> <Class>` | builds the app and test APKs, installs them, registers the client, runs the class with `am instrument`, saves logcat, the last screenshot and window dump to `$PS03_RUN_DIR/evidence/ui-<app>-<time>/` and the screenshots a test takes on purpose to `$PS03_RUN_DIR/evidence/<date>/screens/` |
 | `scripts/run-ui-test.sh all` | `SuperAppSignInTest`, then `ChildAppSilentSignInTest`, `ChildAppConsentOnlyTest`, `ChildAppReconsentTest`, `ChildAppSignOutTest` and `ChildAppHubMissingTest` (they use Hub's sign-in from the first); prints `OK (6 tests)` or `FAILED: <classes>` |

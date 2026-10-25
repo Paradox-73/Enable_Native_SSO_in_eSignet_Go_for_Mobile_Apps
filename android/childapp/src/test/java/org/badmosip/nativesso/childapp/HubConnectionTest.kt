@@ -19,6 +19,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Health Card's side of the family binder: the explicit bind intent, the timeout, and how each of
@@ -56,6 +57,13 @@ class HubConnectionTest {
 
     private val hub = FakeHub()
 
+    /** Runs [block] on a worker thread: the test thread is the main thread, where `use` refuses to run. */
+    private fun <T> offMain(block: () -> T): T {
+        val result = AtomicReference<Result<T>>()
+        Thread { result.set(runCatching(block)) }.apply { start(); join() }
+        return result.get().getOrThrow()
+    }
+
     @Before
     fun registerHub() {
         shadowOf(app).setComponentNameAndServiceForBindServiceForIntent(HubConnection.bindIntent(), hubComponent, hub)
@@ -80,7 +88,7 @@ class HubConnectionTest {
     @Test
     fun `shared sign-in is available and the connection is released`() {
         hub.bundle = sharedBundle()
-        val status = HubConnection(app).status()
+        val status = offMain { HubConnection(app).status() }
         assertTrue(status is HubStatus.Available)
         val bundle = (status as HubStatus.Available).bundle
         assertEquals("hub-id-token-value", bundle.idToken)
@@ -91,7 +99,7 @@ class HubConnectionTest {
 
     @Test
     fun `no bundle means not signed in`() {
-        assertEquals(HubStatus.Unavailable(HubException.Reason.NOT_SIGNED_IN), HubConnection(app).status())
+        assertEquals(HubStatus.Unavailable(HubException.Reason.NOT_SIGNED_IN), offMain { HubConnection(app).status() })
     }
 
     @Test
@@ -103,20 +111,20 @@ class HubConnectionTest {
         )
         for ((code, reason) in cases) {
             hub.refusal = FamilySsoContract.exceptionFor(code, "refused")
-            assertEquals(HubStatus.Unavailable(reason), HubConnection(app).status())
+            assertEquals(HubStatus.Unavailable(reason), offMain { HubConnection(app).status() })
         }
     }
 
     @Test
     fun `Android refusing the bind (no family permission) is BIND_REFUSED`() {
         shadowOf(app).setThrowInBindService(SecurityException("Not allowed to bind to service Intent"))
-        assertEquals(HubStatus.Unavailable(HubException.Reason.BIND_REFUSED), HubConnection(app).status())
+        assertEquals(HubStatus.Unavailable(HubException.Reason.BIND_REFUSED), offMain { HubConnection(app).status() })
     }
 
     @Test
     fun `Hub not installed is HUB_MISSING`() {
         shadowOf(app).declareComponentUnbindable(hubComponent)
-        assertEquals(HubStatus.Unavailable(HubException.Reason.HUB_MISSING), HubConnection(app).status())
+        assertEquals(HubStatus.Unavailable(HubException.Reason.HUB_MISSING), offMain { HubConnection(app).status() })
     }
 
     @Test
@@ -124,7 +132,7 @@ class HubConnectionTest {
         // The connection callback is posted to the main looper, which this blocked test thread never runs.
         shadowOf(app).setBindServiceCallsOnServiceConnectedDirectly(false)
         val started = System.nanoTime()
-        assertEquals(HubStatus.Unavailable(HubException.Reason.TIMEOUT), HubConnection(app, timeoutMillis = 200).status())
+        assertEquals(HubStatus.Unavailable(HubException.Reason.TIMEOUT), offMain { HubConnection(app, timeoutMillis = 200).status() })
         assertTrue((System.nanoTime() - started) / 1_000_000 >= 200)
         assertTrue(shadowOf(app).boundServiceConnections.isEmpty())
     }
@@ -133,26 +141,31 @@ class HubConnectionTest {
     fun `another contract version is VERSION_MISMATCH`() {
         hub.contractVersion = FamilySsoContract.VERSION + 1
         hub.bundle = sharedBundle()
-        assertEquals(HubStatus.Unavailable(HubException.Reason.VERSION_MISMATCH), HubConnection(app).status())
+        assertEquals(HubStatus.Unavailable(HubException.Reason.VERSION_MISMATCH), offMain { HubConnection(app).status() })
     }
 
     @Test
     fun `proof source forwards the request and surfaces Hub's htu refusal`() {
-        val proof = HubConnection(app).use { HubDpopProofSource(it).proof(DpopRequest("POST", "http://localhost:38088/token", null, "n-1")) }
+        val proof = offMain { HubConnection(app).use { HubDpopProofSource(it).proof(DpopRequest("POST", "http://localhost:38088/token", null, "n-1")) } }
         assertEquals("proof-for-POST", proof)
         assertEquals(listOf(listOf("POST", "http://localhost:38088/token", null, "n-1")), hub.proofRequests)
 
         hub.refusal = FamilySsoContract.exceptionFor(FamilySsoContract.ERROR_HTU_NOT_ALLOWED, "not allowed")
         val e = assertThrows(HubException::class.java) {
-            HubConnection(app).use { HubDpopProofSource(it).proof(DpopRequest("POST", "https://attacker.example/token")) }
+            offMain { HubConnection(app).use { HubDpopProofSource(it).proof(DpopRequest("POST", "https://attacker.example/token")) } }
         }
         assertEquals(HubException.Reason.HTU_NOT_ALLOWED, e.reason)
     }
 
     @Test
+    fun `use on the main thread is refused instead of waiting out the timeout`() {
+        assertThrows(IllegalStateException::class.java) { HubConnection(app).use { it.version } }
+    }
+
+    @Test
     fun `an exception without a code is not swallowed`() {
         hub.refusal = IllegalArgumentException("ath must be 43 base64url characters")
-        assertThrows(IllegalArgumentException::class.java) { HubConnection(app).use { it.ssoBundle } }
+        assertThrows(IllegalArgumentException::class.java) { offMain { HubConnection(app).use { it.ssoBundle } } }
         assertTrue(FamilySsoContract.errorCodeOf(IllegalStateException("plain")) == null)
         assertTrue(FamilySsoContract.errorCodeOf(SecurityException("FAMILY_SSO_ERROR x: y")) == null)
     }

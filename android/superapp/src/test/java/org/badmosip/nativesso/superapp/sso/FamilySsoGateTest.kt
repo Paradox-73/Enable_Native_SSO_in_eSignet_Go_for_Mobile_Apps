@@ -126,6 +126,15 @@ class FamilySsoGateTest {
     }
 
     @Test
+    fun `a caller sharing only one of several certificates is refused`() {
+        hubCerts = listOf(familyCert, otherCert)
+        packages[childUid] = listOf(CallerPackage(FamilySsoContract.CHILD_APP_PACKAGE, listOf(familyCert)))
+        refusedWith(FamilySsoContract.ERROR_CALLER_NOT_ALLOWED) { gate().bundle(childUid) }
+        packages[childUid] = listOf(CallerPackage(FamilySsoContract.CHILD_APP_PACKAGE, listOf(otherCert, familyCert)))
+        assertNotNull(gate().bundle(childUid))
+    }
+
+    @Test
     fun `nobody is admitted when Hub cannot read its own certificate`() {
         hubCerts = emptyList()
         refusedWith(FamilySsoContract.ERROR_CALLER_NOT_ALLOWED) { gate().bundle(childUid) }

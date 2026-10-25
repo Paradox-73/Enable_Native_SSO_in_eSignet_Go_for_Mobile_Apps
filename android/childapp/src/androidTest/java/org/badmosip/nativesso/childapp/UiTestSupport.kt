@@ -15,6 +15,8 @@ import org.badmosip.nativesso.uitest.AccessibilityScan
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Pattern
 
@@ -39,7 +41,13 @@ internal class CardUi {
 
     /** Fails with a clear message unless Hub shares a sign-in. */
     fun requireHubSignedInWithSharing() {
-        val status = HubConnection(context).status()
+        // The previous test may have used up Hub's per-app rate window (30 calls in 60 s): retry until it has passed.
+        val deadline = System.currentTimeMillis() + 180_000
+        var status = HubConnection(context).status()
+        while (status == HubStatus.Unavailable(HubException.Reason.RATE_LIMITED) && System.currentTimeMillis() < deadline) {
+            device.waitForIdle(2_000)
+            status = HubConnection(context).status()
+        }
         assertTrue(
             "Hub shares no sign-in ($status). Run Hub's SuperAppSignInTest first: bash android/scripts/run-ui-test.sh all",
             status is HubStatus.Available,
@@ -100,10 +108,11 @@ internal class CardUi {
     inner class BrowserWatcher : AutoCloseable {
         val sawBrowser = AtomicBoolean(false)
         private val running = AtomicBoolean(true)
+        private val stop = CountDownLatch(1)
         private val thread = Thread {
             while (running.get()) {
                 if (device.currentPackageName in BROWSERS) sawBrowser.set(true)
-                Thread.sleep(200)
+                stop.await(200, TimeUnit.MILLISECONDS)
             }
         }.apply {
             isDaemon = true
@@ -112,6 +121,7 @@ internal class CardUi {
 
         override fun close() {
             running.set(false)
+            stop.countDown()
             thread.join(1_000)
         }
     }
@@ -134,7 +144,7 @@ internal class CardUi {
             if (device.hasObject(By.pkg(CHROME).text(LEAVE_SITE))) {
                 device.findObject(By.pkg(CHROME).text(STAY_ON_PAGE))?.click()
                 step("\"Leave site?\" answered with Cancel")
-                Thread.sleep(1_000)
+                device.wait(Until.gone(By.pkg(CHROME).text(LEAVE_SITE)), 5_000)
                 continue
             }
             val fields = device.findObjects(By.pkg(CHROME).clazz("android.widget.EditText"))
@@ -168,15 +178,15 @@ internal class CardUi {
                             captcha.click()
                             captchaTicked = true
                             step("captcha box tapped")
-                            Thread.sleep(3_000)
+                            device.waitForIdle(3_000)
                         }
                         button != null && button.isEnabled -> {
                             val label = button.text ?: button.contentDescription
                             button.click()
                             step("tapped \"$label\"")
-                            Thread.sleep(2_000)
+                            device.waitForIdle(2_000)
                         }
-                        else -> Thread.sleep(1_000)
+                        else -> device.waitForIdle(1_000)
                     }
                 }
             }
@@ -186,14 +196,21 @@ internal class CardUi {
 
     /** Presses Back only while the keyboard is shown, so that Chrome does not navigate back. */
     private fun closeKeyboard() {
-        Thread.sleep(500)
-        val ime = device.executeShellCommand("dumpsys input_method")
-        if (ime.contains("mInputShown=true") || ime.contains("isInputViewShown=true")) device.pressBack()
+        // The keyboard needs a moment to appear after typing: poll for it instead of waiting a fixed time.
+        val deadline = System.currentTimeMillis() + 1_000
+        do {
+            val ime = device.executeShellCommand("dumpsys input_method")
+            if (ime.contains("mInputShown=true") || ime.contains("isInputViewShown=true")) {
+                device.pressBack()
+                return
+            }
+            device.waitForIdle(100)
+        } while (System.currentTimeMillis() < deadline)
     }
 
     private fun typeText(text: String) {
         device.executeShellCommand("input text $text")
-        Thread.sleep(500)
+        device.waitForIdle(500)
     }
 
     private fun findWeb(pattern: Pattern): UiObject2? {

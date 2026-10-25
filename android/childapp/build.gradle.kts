@@ -10,6 +10,13 @@ plugins {
 
 val issuer: String = providers.gradleProperty("ps03.issuer").get()
 
+// A release build blocks cleartext, so an http issuer would compile and then fail at runtime.
+gradle.taskGraph.whenReady {
+    if (!issuer.startsWith("https://") && allTasks.any { it.project == project && it.name.matches(Regex("(assemble|bundle|package)Release")) }) {
+        throw GradleException("Release builds need an https issuer: pass -Pps03.issuer=https://... (got $issuer)")
+    }
+}
+
 // Test builds of an app that is NOT part of the family (android/scripts/build-apks.sh):
 //   -Pps03.intruder=true      Health Card's package name, signed with the Android debug certificate,
 //                             without declaring the family permission: Android must refuse its bind.

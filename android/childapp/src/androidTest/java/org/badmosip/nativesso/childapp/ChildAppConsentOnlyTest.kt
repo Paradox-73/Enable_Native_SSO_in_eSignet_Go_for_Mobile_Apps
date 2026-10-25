@@ -36,15 +36,10 @@ class ChildAppConsentOnlyTest {
         ui.waitFor("home_name")
     }
 
-    /**
-     * Keeps the evidence, then waits out Hub's per-app rate limit (30 calls in 60 s): this test makes
-     * about ten Hub calls in a few seconds, and `ChildAppReconsentTest`, which runs next, was refused
-     * with "too many calls" on the emulator run of 2026-10-06 without the pause.
-     */
+    /** Hub's per-app rate limit (30 calls in 60 s) is waited out by `CardUi.requireHubSignedInWithSharing` in the next test. */
     @After
-    fun keepEvidenceAndLetHubsRateWindowPass() {
+    fun keepEvidence() {
         ui.keepEvidence()
-        Thread.sleep(HUB_RATE_WINDOW_MILLIS)
     }
 
     @Test
@@ -80,7 +75,7 @@ class ChildAppConsentOnlyTest {
             val session = ui.services.authenticator.currentSession()
             if (session != null && CardConfig.SHARE_SCOPE in session.scopes && ui.device.hasObject(By.res("home_name"))) break
             ui.device.findObject(By.res("error_text"))?.let { throw AssertionError("Health Card shows an error: ${it.text}") }
-            Thread.sleep(500)
+            ui.device.waitForIdle(500)
         }
         ui.waitFor("home_name")
         val session = ui.services.authenticator.currentSession()
@@ -125,7 +120,6 @@ class ChildAppConsentOnlyTest {
     }
 
     private companion object {
-        const val HUB_RATE_WINDOW_MILLIS = 61_000L
         val PAGE_TITLE: Pattern = Pattern.compile("(?i)\\s*allow more access\\?\\s*")
         val NO_LOGIN: Pattern = Pattern.compile("(?i).*no new login.*")
         val NOT_NOW: Pattern = Pattern.compile("(?i)\\s*not now\\s*")

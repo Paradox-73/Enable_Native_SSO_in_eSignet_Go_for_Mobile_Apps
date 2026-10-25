@@ -115,9 +115,10 @@ class FamilySsoGate(
 
     private fun admit(uid: Int): String {
         val own = familyCertificates()
+        // The whole set must match: one shared certificate is not enough when a package has several signers.
+        val ownSet = own.mapTo(HashSet()) { it.toList() }
         val match = callers.packagesFor(uid).firstOrNull { pkg ->
-            pkg.packageName in allowedPackages &&
-                pkg.certificateSha256.any { theirs -> own.any { it.contentEquals(theirs) } }
+            pkg.packageName in allowedPackages && pkg.certificateSha256.mapTo(HashSet()) { it.toList() } == ownSet
         }
         if (own.isEmpty() || match == null) {
             log("caller uid $uid refused: not a family app")

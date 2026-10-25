@@ -128,7 +128,7 @@ class SuperAppSignInTest {
             if (device.hasObject(By.pkg(CHROME).text(LEAVE_SITE))) {
                 device.findObject(By.pkg(CHROME).text(STAY_ON_PAGE))?.click()
                 step("\"Leave site?\" answered with Cancel")
-                Thread.sleep(1_000)
+                device.wait(Until.gone(By.pkg(CHROME).text(LEAVE_SITE)), 5_000)
                 continue
             }
 
@@ -164,7 +164,7 @@ class SuperAppSignInTest {
                             captcha.click()
                             captchaTicked = true
                             step("captcha box tapped")
-                            Thread.sleep(3_000)
+                            device.waitForIdle(3_000)
                         }
                         // Optional claims start switched off on eSignet's consent page; Hub asks for the
                         // email as optional so that Health Card can show it.
@@ -172,15 +172,15 @@ class SuperAppSignInTest {
                             if (!optional.isChecked) optional.click()
                             optionalOn = true
                             step("optional attributes switched on")
-                            Thread.sleep(1_000)
+                            device.waitForIdle(1_000)
                         }
                         button != null && button.isEnabled -> {
                             val label = button.text ?: button.contentDescription
                             button.click()
                             step("tapped \"$label\"")
-                            Thread.sleep(2_000)
+                            device.waitForIdle(2_000)
                         }
-                        else -> Thread.sleep(1_000)
+                        else -> device.waitForIdle(1_000)
                     }
                 }
             }
@@ -190,14 +190,21 @@ class SuperAppSignInTest {
 
     /** Presses Back only while the keyboard is shown, so that Chrome does not navigate back. */
     private fun closeKeyboard() {
-        Thread.sleep(500)
-        val ime = device.executeShellCommand("dumpsys input_method")
-        if (ime.contains("mInputShown=true") || ime.contains("isInputViewShown=true")) device.pressBack()
+        // The keyboard needs a moment to appear after typing: poll for it instead of waiting a fixed time.
+        val deadline = System.currentTimeMillis() + 1_000
+        do {
+            val ime = device.executeShellCommand("dumpsys input_method")
+            if (ime.contains("mInputShown=true") || ime.contains("isInputViewShown=true")) {
+                device.pressBack()
+                return
+            }
+            device.waitForIdle(100)
+        } while (System.currentTimeMillis() < deadline)
     }
 
     private fun typeText(text: String) {
         device.executeShellCommand("input text $text")
-        Thread.sleep(500)
+        device.waitForIdle(500)
     }
 
     /** A Chrome node whose text or content description matches [pattern], preferring buttons. */
