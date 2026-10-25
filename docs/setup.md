@@ -126,7 +126,6 @@ Setup, Go and Docker:
 
 | Symptom | Cause and fix |
 |---|---|
-| `Waiting for lock go-PS03`, `docker-stack` or `emulator` | another job on the machine holds the lock. A waiting script removes any lock older than 90 minutes (`PS03_LOCK_STALE_MIN`) as stale; `demo.sh` instead refuses to start while the emulator lock exists. Check that nobody uses it (`docker ps`, the emulator window), then remove that one directory under `$PS03_LOCK_DIR` yourself |
 | `An Application Control policy has blocked this file` on Windows | do not run `go test` natively; `scripts/go-test.sh` runs it in Linux. eSignet's keymanager tests also fail natively on Windows ("symmetric key not found") |
 | Lint times out on a busy machine | `bash scripts/go-lint.sh thunder/backend -- --timeout=30m` |
 | Container killed for memory | raise Docker's memory or run fewer jobs at once; limits are `PS03_GO_MEMORY` and `PS03_GO_LINT_MEMORY` |

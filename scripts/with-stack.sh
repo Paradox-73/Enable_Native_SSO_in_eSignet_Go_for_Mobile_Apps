@@ -7,7 +7,7 @@
 #   bash scripts/with-stack.sh <command...>
 #   bash scripts/with-stack.sh bash e2e/run.sh -run 'TestE2E_FAPI2Login|TestE2E_PSUTProbe'
 #
-# - Holds the docker-stack lock for the whole run (shared with other projects on this machine).
+# - With PS03_LOCK_DIR set, holds the docker-stack lock there for the whole run.
 # - Runs `deploy/stack.sh up` and `deploy/stack.sh smoke` (prints `stack smoke: PASS`), then the
 #   command, then `docker compose down -v` even when a step fails or the run is interrupted.
 # - Set PS03_KEEP_STACK=1 to leave the stack running afterwards (the lock is still released).

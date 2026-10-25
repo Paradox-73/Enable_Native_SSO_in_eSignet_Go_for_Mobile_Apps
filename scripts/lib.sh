@@ -8,12 +8,11 @@
 #
 # It sets:
 #   PS03_ROOT          repository root (absolute, POSIX form)
-#   PS03_RUN_DIR       runtime folder outside git: keys, logs, test results, evidence.
-#                      Default: <repo>/../run when that folder exists (team laptops), else <repo>/run (ignored).
+#   PS03_RUN_DIR       runtime folder: keys, logs, test results, evidence. Default: <repo>/run (ignored by git).
 #   PS03_UPSTREAM_DIR  folder with upstream clones used for import checks.
 #                      Default: <repo>/../upstream when it exists, else $PS03_RUN_DIR/upstream-cache.
 #   PS03_LOCK_DIR      folder of mkdir-style locks shared with other build jobs on the machine.
-#                      Default: /e/Projects/MOSIP/toolchain/locks when it exists, else $PS03_RUN_DIR/locks.
+#                      Default: empty, which turns locking off; set it to share a lock folder.
 #   PS03_GO_IMAGE      container image for Go work (default golang:1.26-bookworm).
 #   PS03_SDK           Android SDK folder: ANDROID_HOME, else ANDROID_SDK_ROOT (may be empty).
 #
@@ -31,17 +30,12 @@ fi
 PS03_SCRIPT_NAME=${PS03_SCRIPT_NAME:-$(basename "${0%.sh}")}
 PS03_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
-if [ -z "${PS03_RUN_DIR:-}" ]; then
-  if [ -d "$PS03_ROOT/../run" ]; then PS03_RUN_DIR=$(cd "$PS03_ROOT/../run" && pwd); else PS03_RUN_DIR=$PS03_ROOT/run; fi
-fi
+PS03_RUN_DIR=${PS03_RUN_DIR:-$PS03_ROOT/run}
 if [ -z "${PS03_UPSTREAM_DIR:-}" ]; then
   if [ -d "$PS03_ROOT/../upstream" ]; then PS03_UPSTREAM_DIR=$(cd "$PS03_ROOT/../upstream" && pwd)
   else PS03_UPSTREAM_DIR=$PS03_RUN_DIR/upstream-cache; fi
 fi
-if [ -z "${PS03_LOCK_DIR:-}" ]; then
-  if [ -d /e/Projects/MOSIP/toolchain/locks ]; then PS03_LOCK_DIR=/e/Projects/MOSIP/toolchain/locks
-  else PS03_LOCK_DIR=$PS03_RUN_DIR/locks; fi
-fi
+PS03_LOCK_DIR=${PS03_LOCK_DIR:-}
 PS03_GO_IMAGE=${PS03_GO_IMAGE:-golang:1.26-bookworm}
 export PS03_ROOT PS03_RUN_DIR PS03_UPSTREAM_DIR PS03_LOCK_DIR PS03_GO_IMAGE
 
@@ -93,8 +87,7 @@ ps03_install_apk() {
 }
 
 # ---------------------------------------------------------------------------------------------
-# Locks. A lock is a directory: mkdir is atomic on every file system the team uses, and the same
-# convention is used by the shared toolchain, so these locks interoperate with it.
+# Locks, off unless PS03_LOCK_DIR is set. A lock is a directory: mkdir is atomic on every file system.
 # The names held by this process tree are kept in PS03_HELD_LOCKS, so a script started by another
 # script that already holds a lock does not wait for itself.
 # ---------------------------------------------------------------------------------------------
@@ -105,8 +98,8 @@ ps03_lock_held() { case ":${PS03_HELD_LOCKS:-}:" in *":$1:"*) return 0 ;; *) ret
 
 ps03_lock_acquire() {
   local name=$1 dir="$PS03_LOCK_DIR/$1" waited=0
-  mkdir -p "$PS03_LOCK_DIR"
-  until mkdir "$dir" 2>/dev/null; do
+  [ -n "$PS03_LOCK_DIR" ] && mkdir -p "$PS03_LOCK_DIR"
+  until [ -z "$PS03_LOCK_DIR" ] || mkdir "$dir" 2>/dev/null; do
     # A lock older than the stale limit belongs to a job that died without releasing it.
     if [ -n "$(find "$dir" -maxdepth 0 -mmin +"$PS03_LOCK_STALE_MIN" 2>/dev/null)" ]; then
       ps03_warn "removing stale lock $name (older than $PS03_LOCK_STALE_MIN min)"
@@ -122,7 +115,7 @@ ps03_lock_acquire() {
 }
 
 ps03_lock_release() {
-  rmdir "$PS03_LOCK_DIR/$1" 2>/dev/null || true
+  [ -z "$PS03_LOCK_DIR" ] || rmdir "$PS03_LOCK_DIR/$1" 2>/dev/null || true
   PS03_HELD_LOCKS=$(printf '%s' "${PS03_HELD_LOCKS:-}" | sed "s/:$1\$//; s/:$1:/:/")
   export PS03_HELD_LOCKS
 }

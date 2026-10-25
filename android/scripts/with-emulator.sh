@@ -7,7 +7,7 @@
 #   bash android/scripts/with-emulator.sh <command...>
 #   bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh superapp SuperAppSignInTest
 #
-# - Holds the `emulator` lock for the whole run (shared with other projects on this machine). A caller
+# - With PS03_LOCK_DIR set, holds the `emulator` lock there for the whole run. A caller
 #   that already holds it (for example through the toolchain's `with_lock emulator`) sets
 #   PS03_HELD_LOCKS=:emulator so this script does not wait for itself.
 # - AVD `$PS03_AVD` (default ps03_api34) on console port `$PS03_EMULATOR_PORT` (default 5584, serial

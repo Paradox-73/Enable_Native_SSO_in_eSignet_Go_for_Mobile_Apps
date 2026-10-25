@@ -20,7 +20,7 @@
 # Without --check the stack and a visible emulator stay up until you press Enter or Ctrl-C; the
 # runbook is docs/demo-script.md. Environment: JAVA_HOME (17+), ANDROID_HOME, and the variables of
 # scripts/lib.sh. PS03_AVD and PS03_EMULATOR_PORT (default ps03_api34, 5584) pick the emulator.
-# - Takes the `docker-stack` lock and the `emulator` lock. It never removes a lock: when the emulator
+# - With PS03_LOCK_DIR set, takes the `docker-stack` and `emulator` locks. It never removes a lock: when the emulator
 #   lock directory exists it stops and tells you which directory to remove after checking nobody uses it.
 # - A caller that already holds docker-stack (for example `with_lock docker-stack`) sets
 #   PS03_HELD_LOCKS=:docker-stack, exactly as for scripts/with-stack.sh.
@@ -55,7 +55,7 @@ preflight() {
   if [ $BUILD -eq 1 ] || [ $EMU -eq 1 ]; then
     [ -n "$PS03_SDK" ] && [ -d "$PS03_SDK" ] || ps03_die "set ANDROID_HOME to the Android SDK"
   fi
-  if [ $EMU -eq 1 ] && ! ps03_lock_held emulator && [ -d "$PS03_LOCK_DIR/emulator" ]; then
+  if [ $EMU -eq 1 ] && ! ps03_lock_held emulator && [ -n "$PS03_LOCK_DIR" ] && [ -d "$PS03_LOCK_DIR/emulator" ]; then
     ps03_die "the emulator lock $PS03_LOCK_DIR/emulator exists (created $(date -r "$PS03_LOCK_DIR/emulator" '+%F %T')). Another job may be using the emulator. If none is, remove that one directory yourself (rmdir) and run this again; this script never removes it. Use --no-emulator to run the server part meanwhile."
   fi
 }

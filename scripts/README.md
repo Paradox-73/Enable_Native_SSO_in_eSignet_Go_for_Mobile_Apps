@@ -16,8 +16,8 @@ Go always runs in the `golang:1.26-bookworm` Linux container, with the whole rep
   (bind-mounting a Windows module cache was far too slow).
 - The container runs as root, so git inside it is told the mounted repository is safe
   (`safe.directory /repo`); `go build` and `golangci-lint --new-from-rev` both run git.
-- A Go container takes the `go-PS03` lock, so at most one runs at a time (2 GB memory cap, 3 GB for lint) on the
-  shared Docker VM. A script started by a script that already holds the lock does not wait for itself.
+- A Go container is capped at 2 GB memory (3 GB for lint). With `PS03_LOCK_DIR` set, it also takes the `go-PS03`
+  lock there, so at most one runs at a time; a script started by a script that holds the lock does not wait for itself.
 
 ## Commands
 
@@ -97,9 +97,9 @@ Checks only what git would commit (ignored files are skipped):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PS03_RUN_DIR` | `../run` if it exists, else `./run` (ignored by git) | test results, logs, keys, upstream cache |
+| `PS03_RUN_DIR` | `./run` (ignored by git) | test results, logs, keys, upstream cache |
 | `PS03_UPSTREAM_DIR` | `../upstream` if it exists, else `$PS03_RUN_DIR/upstream-cache` | upstream clones |
-| `PS03_LOCK_DIR` | `/e/Projects/MOSIP/toolchain/locks` if it exists, else `$PS03_RUN_DIR/locks` | lock folders; one older than 90 minutes is removed as stale |
+| `PS03_LOCK_DIR` | empty (no locks) | folder of lock directories shared with other jobs on the machine; one older than 90 minutes is removed as stale |
 | `PS03_GO_IMAGE` | `golang:1.26-bookworm` | Go container image |
 | `PS03_GO_MEMORY`, `PS03_GO_LINT_MEMORY`, `PS03_GO_CPUS` | `2g`, `3g`, `6` | container limits; the CPU count is lowered to what Docker has |
 | `PS03_GO_TEST_P` | `4` | packages tested in parallel |

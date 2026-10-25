@@ -29,7 +29,7 @@ Run from the repository root (Git Bash on Windows).
 
 | Command | What it does |
 |---|---|
-| `bash scripts/with-stack.sh <command...>` | takes the `docker-stack` lock, `up`, `smoke`, runs the command, always `down` |
+| `bash scripts/with-stack.sh <command...>` | `up`, `smoke` (and the `docker-stack` lock when `PS03_LOCK_DIR` is set), runs the command, always `down` |
 | `bash deploy/stack.sh up` | builds the eSignet image, starts everything, waits until healthy; prints `stack up: ...` |
 | `bash deploy/stack.sh smoke` | health, discovery (issuer, PAR, DPoP ES256), JWKS, mock identity, login pages; prints `stack smoke: PASS` |
 | `bash deploy/stack.sh status` / `logs [service]` | `docker compose ps` / `docker compose logs` |
@@ -46,8 +46,7 @@ Run from the repository root (Git Bash on Windows).
   codes, consent tickets and DPoP `jti` entries then live in Redis, as several eSignet replicas need. Redis keeps
   no data on disk, so a restart of the Redis container ends every session, like a restart of the in-memory store.
 - Passwords: the Postgres password, the eSignet keystore password and the Redis password are random values written on first use to
-  `$PS03_RUN_DIR/stack.env` (outside git; `PS03_RUN_DIR` is `../run` next to the clone when it exists, else
-  `run/`, which is git-ignored). Delete the file to get new ones.
+  `$PS03_RUN_DIR/stack.env` (`PS03_RUN_DIR` defaults to `run/`, which is git-ignored). Delete the file to get new ones.
 - Keystore: eSignet creates its PKCS#12 keystore on first start in the `keystore` volume; `down` deletes it, so
   every `up` has new signing keys.
 

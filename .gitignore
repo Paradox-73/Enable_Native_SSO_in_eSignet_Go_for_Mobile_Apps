@@ -20,6 +20,8 @@ __pycache__/
 
 # Go
 /bin/
+# Eclipse/IDE class output of the Android modules
+android/*/bin/
 *.exe
 *.test
 

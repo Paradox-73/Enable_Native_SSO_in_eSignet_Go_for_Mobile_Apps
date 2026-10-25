@@ -137,7 +137,6 @@ bash scripts/demo/demo.sh
   registers both with eSignet and opens Hub.
 - Expect these lines on the way: `family-signing: OK`, `stack smoke: PASS`, `device ready: Hub in front, 2 clients registered`,
   then `demo ready`. Leave the window open. The stack and the emulator stay up until you press Enter.
-- If it stops with "the emulator lock ... exists", read the message. The script never removes the lock itself.
 
 ## C. App walkthrough
 
@@ -185,7 +184,7 @@ id_token while Hub's device secret (8 hours) and login session live.
 Headless checks in the terminal. They need Docker only.
 
 **MT19. Live end-to-end tests.** Run `bash scripts/with-stack.sh bash e2e/run.sh`. Expect the last line
-`e2e: 32 passed, 0 failed`. The run takes several minutes. It waits out a real 120 s id_token lifetime.
+`e2e: N passed, 0 failed`, with N as in [test-report.md](test-report.md). The run takes several minutes. It waits out a real 120 s id_token lifetime.
 
 **MT20. Postman folder under newman.** Needs newman 6 (`npm install -g newman@6`). Run
 `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh`. Expect 0 failed.

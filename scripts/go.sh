@@ -12,7 +12,7 @@
 #
 # - The whole repository is mounted at /repo, so relative replace directives between modules
 #   (esignet-service -> ../../thunder/backend) resolve exactly as on a developer machine.
-# - Holds the go-PS03 lock while the container runs: at most one PS03 Go container (2 GB cap)
+# - With PS03_LOCK_DIR set, holds the go-PS03 lock while the container runs: at most one PS03 Go container (2 GB cap)
 #   at a time on the shared Docker VM.
 # - Exit status is the go command's.
 set -euo pipefail

@@ -26,12 +26,10 @@ plugins {
 // Overrides (Gradle property, then environment variable):
 //   ps03.familyKeystore / PS03_FAMILY_KEYSTORE            keystore path
 //   ps03.familyKeystorePassword / PS03_FAMILY_KEYSTORE_PASSWORD
-//   PS03_RUN_DIR                                          run folder (default: <repo>/../run if it
-//                                                         exists, else <repo>/run, as scripts/lib.sh)
+//   PS03_RUN_DIR                                          run folder (default: <repo>/run, as scripts/lib.sh)
 // ---------------------------------------------------------------------------------------------
 val repoDir: File = rootDir.parentFile
 val runDir: File = System.getenv("PS03_RUN_DIR")?.takeIf { it.isNotBlank() }?.let(::file)
-    ?: repoDir.resolve("../run").canonicalFile.takeIf { it.isDirectory }
     ?: repoDir.resolve("run")
 
 val familyKeystore: File = providers.gradleProperty("ps03.familyKeystore")

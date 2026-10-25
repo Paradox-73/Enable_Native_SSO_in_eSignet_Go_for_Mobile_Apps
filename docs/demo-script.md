@@ -41,8 +41,6 @@ bash scripts/demo/demo.sh --no-emulator --check   # server part only
   only resets the apps) and `bash scripts/demo/teardown.sh` (stack and emulator; afterwards no `ps03-` container
   runs and the emulator is gone).
 - Order of heavy steps: APK build, then stack, then emulator (the build and the emulator compete for memory).
-- The scripts never remove a lock directory. If `demo.sh` reports that the emulator lock exists, check that no
-  other job uses the emulator, remove that directory yourself, and run again.
 
 ## Fixed inputs
 
@@ -106,7 +104,6 @@ Start state: Hub in front, signed out. Health Card installed, signed out.
 
 | Symptom | Cause | Do |
 |---|---|---|
-| `the emulator lock ... exists` | an earlier job left the lock directory | check nobody uses the emulator, `rmdir` that directory yourself, run again |
 | `stack smoke` fails or the stack does not start | ports in use, Docker out of memory | `bash scripts/demo/teardown.sh`, free the ports, raise the Docker memory to 4 GB or more |
 | Chrome shows a first-run screen | the command-line file was not written | `bash scripts/demo/reset.sh --device` |
 | eSignet page shows a captcha | the login page may ask for hCaptcha | tick the box; the UI test does this too |
