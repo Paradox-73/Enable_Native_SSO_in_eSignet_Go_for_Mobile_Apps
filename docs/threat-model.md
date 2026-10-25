@@ -142,5 +142,5 @@ Why it is safe here: an expired id_token is accepted only when **all** of these 
   store would not share session records, consent tickets or DPoP `jti` entries, so a proof replayed at the other
   replica would pass. A deployment with more than one replica must use the Redis runtime store (architecture 2.8). The
   local stack runs with it when `PS03_RUNTIME_STORE=redis` is set (compose profile `redis`), and the e2e suite
-  passed 32 of 32 against it (test report row E2E-REDIS); the demo uses the in-memory store.
+  passed 31 of 31 against it (test report row E2E-REDIS); the demo uses the in-memory store.
 - The local demo runs over HTTP on `localhost`; every deployment beyond the laptop must use TLS (FAPI 2.0).

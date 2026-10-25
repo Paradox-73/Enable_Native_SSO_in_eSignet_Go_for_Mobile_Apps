@@ -11,7 +11,8 @@
 #   that already holds it (for example through the toolchain's `with_lock emulator`) sets
 #   PS03_HELD_LOCKS=:emulator so this script does not wait for itself.
 # - AVD `$PS03_AVD` (default ps03_api34) on console port `$PS03_EMULATOR_PORT` (default 5584, serial
-#   emulator-5584), `-no-window -no-audio -no-boot-anim -gpu host`; waits for boot and network.
+#   emulator-5584), `-no-window -no-audio -no-boot-anim -gpu host`, RAM in MB from
+#   `$PS03_EMULATOR_MEMORY` (default 2048); waits for boot and network.
 # - `adb reverse` for the stack ports 38088 (eSignet) and 38300 (login pages), so the phone reaches
 #   the issuer as http://localhost:38088, exactly as the laptop does.
 # - Chrome: first-run screens off (command-line file plus `am set-debug-app`).
@@ -55,7 +56,7 @@ run_with_emulator() {
   else
     local log="$PS03_RUN_DIR/logs/emulator-$(date +%Y%m%d-%H%M%S).log"
     ps03_log "starting AVD $AVD on port $PORT (log: $log)"
-    "$PS03_SDK/emulator/emulator" -avd "$AVD" -port "$PORT" -no-window -no-audio -no-boot-anim -gpu host -memory 2048 \
+    "$PS03_SDK/emulator/emulator" -avd "$AVD" -port "$PORT" -no-window -no-audio -no-boot-anim -gpu host -memory "${PS03_EMULATOR_MEMORY:-2048}" \
       -no-snapshot-save >"$log" 2>&1 &
     emu_pid=$!
     started=1

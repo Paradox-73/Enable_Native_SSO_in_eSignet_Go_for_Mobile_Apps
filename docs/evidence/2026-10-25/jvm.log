@@ -1,0 +1,189 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+> Task :sso-contract:preBuild UP-TO-DATE
+> Task :secure-store:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :oidc-client:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :superapp:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :childapp:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :superapp:preBuild UP-TO-DATE
+> Task :sso-contract:preDebugBuild UP-TO-DATE
+> Task :childapp:preBuild UP-TO-DATE
+> Task :secure-store:preBuild UP-TO-DATE
+> Task :secure-store:preDebugBuild UP-TO-DATE
+> Task :superapp:preDebugBuild UP-TO-DATE
+> Task :childapp:preDebugBuild UP-TO-DATE
+> Task :secure-store:generateDebugResValues
+> Task :sso-contract:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :sso-contract:generateDebugResValues
+> Task :childapp:generateDebugBuildConfig
+> Task :superapp:generateDebugBuildConfig
+> Task :childapp:generateDebugResValues
+> Task :superapp:generateDebugResValues
+> Task :secure-store:generateDebugResources
+> Task :sso-contract:generateDebugResources
+> Task :childapp:generateDebugResources
+> Task :superapp:generateDebugResources
+> Task :secure-store:packageDebugResources
+> Task :sso-contract:packageDebugResources
+> Task :secure-store:preDebugUnitTestBuild UP-TO-DATE
+> Task :secure-store:javaPreCompileDebugUnitTest
+> Task :secure-store:javaPreCompileDebug
+> Task :sso-contract:javaPreCompileDebug
+> Task :superapp:packageDebugResources
+> Task :childapp:packageDebugResources
+> Task :sso-contract:compileDebugLibraryResources
+> Task :secure-store:compileDebugLibraryResources
+> Task :sso-contract:extractDeepLinksDebug
+> Task :secure-store:extractDeepLinksDebug
+> Task :secure-store:writeDebugAarMetadata
+> Task :sso-contract:writeDebugAarMetadata
+> Task :secure-store:parseDebugLocalResources
+> Task :sso-contract:parseDebugLocalResources
+> Task :secure-store:mergeDebugShaders
+> Task :sso-contract:mergeDebugShaders
+> Task :secure-store:compileDebugShaders NO-SOURCE
+> Task :sso-contract:compileDebugShaders NO-SOURCE
+> Task :sso-contract:generateDebugAssets UP-TO-DATE
+> Task :secure-store:generateDebugAssets UP-TO-DATE
+> Task :sso-contract:packageDebugAssets
+> Task :secure-store:packageDebugAssets
+> Task :secure-store:mergeDebugJniLibFolders
+> Task :sso-contract:mergeDebugJniLibFolders
+> Task :secure-store:mergeDebugNativeLibs NO-SOURCE
+> Task :sso-contract:mergeDebugNativeLibs NO-SOURCE
+> Task :secure-store:copyDebugJniLibsProjectOnly
+> Task :sso-contract:copyDebugJniLibsProjectOnly
+> Task :secure-store:generateDebugRFile
+> Task :sso-contract:generateDebugRFile
+> Task :secure-store:processDebugManifest
+> Task :sso-contract:processDebugManifest
+> Task :sso-contract:compileDebugAidl
+> Task :oidc-client:processResources NO-SOURCE
+> Task :oidc-client:processTestResources NO-SOURCE
+> Task :secure-store:generateDebugUnitTestStubRFile
+> Task :childapp:mapDebugSourceSetPaths
+> Task :superapp:mapDebugSourceSetPaths
+> Task :childapp:checkDebugAarMetadata
+> Task :superapp:checkDebugAarMetadata
+> Task :childapp:createDebugCompatibleScreenManifests
+> Task :childapp:extractDeepLinksDebug
+> Task :superapp:createDebugCompatibleScreenManifests
+> Task :superapp:extractDeepLinksDebug
+> Task :superapp:parseDebugLocalResources
+> Task :childapp:parseDebugLocalResources
+> Task :superapp:processDebugMainManifest
+> Task :childapp:processDebugMainManifest
+> Task :superapp:processDebugManifest
+> Task :childapp:processDebugManifest
+> Task :childapp:preDebugUnitTestBuild UP-TO-DATE
+> Task :childapp:javaPreCompileDebug
+> Task :childapp:javaPreCompileDebugUnitTest
+> Task :superapp:preDebugUnitTestBuild UP-TO-DATE
+> Task :superapp:javaPreCompileDebug
+> Task :superapp:javaPreCompileDebugUnitTest
+> Task :childapp:mergeDebugShaders
+> Task :childapp:compileDebugShaders NO-SOURCE
+> Task :childapp:generateDebugAssets UP-TO-DATE
+> Task :superapp:mergeDebugShaders
+> Task :superapp:compileDebugShaders NO-SOURCE
+> Task :superapp:generateDebugAssets UP-TO-DATE
+> Task :superapp:mergeDebugAssets
+> Task :superapp:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :superapp:compressDebugAssets
+> Task :superapp:desugarDebugFileDependencies
+> Task :superapp:mergeDebugResources
+> Task :childapp:mergeDebugAssets
+> Task :childapp:mergeDebugResources
+> Task :childapp:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :childapp:compressDebugAssets
+> Task :childapp:desugarDebugFileDependencies
+> Task :childapp:mergeDebugJniLibFolders
+> Task :superapp:processDebugManifestForPackage
+> Task :childapp:validateSigningDebug
+> Task :childapp:writeDebugAppMetadata
+> Task :childapp:writeDebugSigningConfigVersions
+> Task :childapp:checkDebugDuplicateClasses
+> Task :childapp:processDebugManifestForPackage
+> Task :superapp:mergeDebugJniLibFolders
+> Task :superapp:validateSigningDebug
+> Task :superapp:writeDebugAppMetadata
+> Task :superapp:writeDebugSigningConfigVersions
+> Task :superapp:checkDebugDuplicateClasses
+> Task :superapp:processDebugResources
+> Task :childapp:processDebugResources
+> Task :childapp:packageDebugUnitTestForUnitTest
+> Task :superapp:packageDebugUnitTestForUnitTest
+> Task :superapp:generateDebugUnitTestConfig
+> Task :childapp:generateDebugUnitTestConfig
+> Task :sso-contract:compileDebugKotlin
+> Task :secure-store:compileDebugKotlin
+> Task :secure-store:compileDebugJavaWithJavac NO-SOURCE
+> Task :secure-store:processDebugJavaRes
+> Task :secure-store:bundleLibRuntimeToDirDebug
+> Task :secure-store:bundleLibRuntimeToJarDebug
+> Task :secure-store:bundleLibCompileToJarDebug
+> Task :sso-contract:compileDebugJavaWithJavac
+> Task :sso-contract:processDebugJavaRes
+> Task :sso-contract:bundleLibRuntimeToDirDebug
+> Task :sso-contract:bundleLibRuntimeToJarDebug
+> Task :sso-contract:bundleLibCompileToJarDebug
+> Task :secure-store:compileDebugUnitTestKotlin
+> Task :secure-store:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :secure-store:processDebugUnitTestJavaRes
+> Task :superapp:mergeExtDexDebug
+> Task :oidc-client:compileKotlin
+> Task :oidc-client:compileJava NO-SOURCE
+> Task :oidc-client:classes UP-TO-DATE
+> Task :childapp:mergeExtDexDebug
+> Task :oidc-client:jar
+> Task :superapp:mergeLibDexDebug
+> Task :childapp:mergeLibDexDebug
+> Task :superapp:mergeDebugNativeLibs
+> Task :childapp:mergeDebugNativeLibs
+
+> Task :childapp:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
+> Task :superapp:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
+> Task :secure-store:testDebugUnitTest
+> Task :oidc-client:compileTestKotlin
+> Task :oidc-client:compileTestJava NO-SOURCE
+> Task :oidc-client:testClasses UP-TO-DATE
+> Task :oidc-client:test
+> Task :superapp:compileDebugKotlin
+> Task :childapp:compileDebugKotlin
+> Task :superapp:compileDebugJavaWithJavac
+> Task :childapp:compileDebugJavaWithJavac
+> Task :childapp:processDebugJavaRes
+> Task :superapp:processDebugJavaRes
+> Task :superapp:bundleDebugClassesToCompileJar
+> Task :superapp:bundleDebugClassesToRuntimeJar
+> Task :childapp:bundleDebugClassesToCompileJar
+> Task :childapp:bundleDebugClassesToRuntimeJar
+> Task :superapp:dexBuilderDebug
+> Task :childapp:dexBuilderDebug
+> Task :superapp:mergeDebugGlobalSynthetics
+> Task :childapp:mergeDebugGlobalSynthetics
+> Task :superapp:mergeProjectDexDebug
+> Task :childapp:mergeProjectDexDebug
+> Task :superapp:mergeDebugJavaResource
+> Task :childapp:compileDebugUnitTestKotlin
+> Task :childapp:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :childapp:processDebugUnitTestJavaRes
+> Task :superapp:compileDebugUnitTestKotlin
+> Task :childapp:mergeDebugJavaResource
+> Task :superapp:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :superapp:processDebugUnitTestJavaRes
+> Task :superapp:testDebugUnitTest
+> Task :superapp:packageDebug
+> Task :superapp:createDebugApkListingFileRedirect
+> Task :superapp:assembleDebug
+> Task :childapp:testDebugUnitTest
+> Task :childapp:packageDebug
+> Task :childapp:createDebugApkListingFileRedirect
+> Task :childapp:assembleDebug
+
+BUILD SUCCESSFUL in 1m 12s
+139 actionable tasks: 139 executed

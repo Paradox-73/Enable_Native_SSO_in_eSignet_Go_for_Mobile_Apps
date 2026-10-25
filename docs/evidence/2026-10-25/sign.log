@@ -1,0 +1,3 @@
+superapp: CN=PS03 App Family (test only), SHA-256 1ad1963c5ef88e051f29a5783f835845b19631a0d21d01330eacc75822cbc426
+childapp: CN=PS03 App Family (test only), SHA-256 1ad1963c5ef88e051f29a5783f835845b19631a0d21d01330eacc75822cbc426
+family-signing: OK 1ad1963c5ef88e051f29a5783f835845b19631a0d21d01330eacc75822cbc426

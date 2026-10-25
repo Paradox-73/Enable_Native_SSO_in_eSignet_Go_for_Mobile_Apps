@@ -1,0 +1,3 @@
+go-lint: thunder/backend: golangci-lint v1.64.8, config .golangci.yml, lines changed since import c4c54439d7aa
+0 issues.
+go-lint: thunder/backend: OK (lines changed since import c4c54439d7aa)

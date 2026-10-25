@@ -26,8 +26,8 @@ RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 
 ## Try it in 10 minutes
 
-1. Start the server stack, run its 32 live tests and stop it again: `bash scripts/with-stack.sh bash e2e/run.sh`
-   (needs Docker; expect `e2e: 32 passed, 0 failed`).
+1. Start the server stack, run its 31 live tests and stop it again: `bash scripts/with-stack.sh bash e2e/run.sh`
+   (needs Docker; expect `e2e: 31 passed, 0 failed`).
 2. Build both apps: `( cd android && bash gradlew --no-daemon assembleDebug )` (needs JDK 17 and the Android SDK).
 3. Start the stack, an emulator, both installed apps and Hub in front: `bash scripts/demo/demo.sh`.
    Without an emulator, `bash scripts/demo/demo.sh --no-emulator --check` runs the server part only.
@@ -53,13 +53,13 @@ Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](d
     that eSignet set in the user's own browser login, so the app cannot approve for the user. Only new user data
     (the phone number) still needs a fresh login, because eSignet's identity system releases user data only after
     an authentication.
-  - Server: 2468 Thunder (1 skipped by upstream) and 1607 eSignet unit tests, 0 failed, golangci-lint 0 findings in
+  - Server: 2465 Thunder (1 skipped by upstream) and 1613 eSignet unit tests, 0 failed, golangci-lint 0 findings in
     Thunder, eSignet and e2e; changed-line coverage 98.6 % (Thunder) and 91.7 % (eSignet); the live end-to-end suite
-    (32 of 32 passed with the in-memory store and 32 of 32 with the Redis store, including device secret revocation
+    (31 of 31 passed with the in-memory store and 31 of 31 with the Redis store, 2026-10-25, including device secret revocation
     with Health Card's tokens refused afterwards, R27, and consent-only re-consent, R28); the Postman folder under
-    newman (43 requests, 152 assertions, 0 failed, including consent-only re-consent); govulncheck on eSignet: 0
+    newman (40 requests, 146 assertions, 0 failed, including consent-only re-consent); govulncheck on eSignet: 0
     vulnerabilities in called code (2026-10-14 at `fd48556`).
-  - Apps: 206 Android JVM tests, 0 failed (62 of them for Hub, rerun 2026-10-22); on the Android emulator the UI tests (6 of 6 passed, including the
+  - Apps: 210 Android JVM tests, 0 failed (63 of them for Hub, rerun 2026-10-25); on the Android emulator the UI tests (6 of 6 passed, including the
     consent-only approval and refusal on eSignet's branded consent page, "Not now" on the consent screen and Health
     Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
     passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
@@ -124,7 +124,7 @@ cd esignet-native-sso
 bash scripts/install-hooks.sh                         # local git settings
 bash scripts/repo-lint.sh                             # repo-lint: OK
 
-bash scripts/with-stack.sh bash e2e/run.sh            # stack up, 32 live tests, stack down: "e2e: 32 passed, 0 failed"
+bash scripts/with-stack.sh bash e2e/run.sh            # stack up, 31 live tests, stack down: "e2e: 31 passed, 0 failed"
 bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh   # Postman folder under newman (needs newman)
 
 bash scripts/demo/demo.sh --no-emulator --check       # server part of the demo: "demo ready (server part only ...)", "teardown ok"
