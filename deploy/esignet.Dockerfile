@@ -29,6 +29,9 @@ RUN --mount=type=cache,id=ps03-gomod,target=/go/pkg/mod \
 WORKDIR /src
 COPY thunder/backend thunder/backend
 COPY esignet/esignet-service esignet/esignet-service
+COPY deploy/native-sso-demo.patch /tmp/native-sso-demo.patch
+# Demo settings (Native SSO on, Health Card resource server); the shipped deployment.yaml keeps it off.
+RUN git apply /tmp/native-sso-demo.patch
 WORKDIR /src/esignet/esignet-service
 RUN --mount=type=cache,id=ps03-gomod,target=/go/pkg/mod \
     --mount=type=cache,id=ps03-gobuild,target=/root/.cache/go-build \
@@ -47,7 +50,7 @@ RUN apt-get update \
  && chown mosip:mosip /home/mosip/keystore
 WORKDIR /home/mosip
 COPY --from=build /out/esignet /home/mosip/esignet
-COPY --chown=mosip:mosip esignet/esignet-service/data /home/mosip/data
+COPY --from=build --chown=mosip:mosip /src/esignet/esignet-service/data /home/mosip/data
 USER ${UID}:${GID}
 ENV DATA_DIR=/home/mosip/data \
     PORT=8080 \

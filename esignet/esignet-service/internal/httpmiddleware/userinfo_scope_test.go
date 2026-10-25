@@ -189,9 +189,16 @@ func engineUserinfo(body string, status int) http.Handler {
 	})
 }
 
+// serveUserinfo runs the middleware with ResignAll on, the setting of the local stack.
 func serveUserinfo(t *testing.T, signer UserinfoSigner, next http.Handler, method, path, authorization string) *httptest.ResponseRecorder {
 	t.Helper()
-	mw := UserinfoScope(UserinfoScopeConfig{ScopeClaims: testScopeClaims, SigningKeyID: testSigningKey, Signer: signer})
+	return serveUserinfoWith(t, UserinfoScopeConfig{ScopeClaims: testScopeClaims, SigningKeyID: testSigningKey,
+		Signer: signer, ResignAll: true}, next, method, path, authorization)
+}
+
+func serveUserinfoWith(t *testing.T, cfg UserinfoScopeConfig, next http.Handler, method, path, authorization string) *httptest.ResponseRecorder {
+	t.Helper()
+	mw := UserinfoScope(cfg)
 	req := httptest.NewRequest(method, path, nil)
 	if authorization != "" {
 		req.Header.Set("Authorization", authorization)
@@ -312,6 +319,43 @@ func TestUserinfoScope_PassesThroughUnchanged(t *testing.T) {
 			assert.Equal(t, tc.wantBody, rr.Body.String())
 		})
 	}
+}
+
+// With ResignAll off (the shipped default) the userinfo answer of an ordinary login reaches the
+// client exactly as the engine wrote it: same status, headers and bytes, and nothing is signed.
+func TestUserinfoScope_OrdinaryLoginUntouchedByDefault(t *testing.T) {
+	bodies := map[string]string{
+		"identity system RS256 token": identitySystemUserinfo(t),
+		"encrypted for the client":    "a.b.c.d.e",
+		"JSON":                        `{"sub":"psut-1","email":"a@b.c"}`,
+		"not a JWT":                   "a.!!!.c",
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			signer := newFakeUserinfoSigner(t)
+			cfg := UserinfoScopeConfig{ScopeClaims: testScopeClaims, SigningKeyID: testSigningKey, Signer: signer}
+			direct := httptest.NewRecorder()
+			engineUserinfo(body, http.StatusOK).ServeHTTP(direct, httptest.NewRequest(http.MethodGet, UserinfoPath, nil))
+
+			rr := serveUserinfoWith(t, cfg, engineUserinfo(body, http.StatusOK), http.MethodGet, UserinfoPath,
+				"DPoP "+accessToken(t, "authorization_code", "openid email", testHubClient))
+
+			assert.Equal(t, direct.Code, rr.Code)
+			assert.Equal(t, direct.Body.String(), rr.Body.String())
+			assert.Equal(t, direct.Header().Get("Content-Type"), rr.Header().Get("Content-Type"))
+			assert.Equal(t, direct.Header().Get("Cache-Control"), rr.Header().Get("Cache-Control"))
+			assert.Empty(t, signer.gotAlg, "nothing may be signed for an ordinary login")
+		})
+	}
+	// A token-exchange access token is still filtered with ResignAll off.
+	signer := newFakeUserinfoSigner(t)
+	rr := serveUserinfoWith(t, UserinfoScopeConfig{ScopeClaims: testScopeClaims, SigningKeyID: testSigningKey,
+		Signer: signer}, engineUserinfo(identitySystemUserinfo(t), http.StatusOK), http.MethodGet, UserinfoPath,
+		"DPoP "+accessToken(t, tokenExchange, "openid email", testChildClient))
+	require.Equal(t, http.StatusOK, rr.Code)
+	signer.verify(t, rr.Body.String())
+	_, claims := payloadOf(t, rr.Body.String())
+	assert.NotContains(t, claims, "name")
 }
 
 func TestUserinfoScope_NoSignerPassesThrough(t *testing.T) {

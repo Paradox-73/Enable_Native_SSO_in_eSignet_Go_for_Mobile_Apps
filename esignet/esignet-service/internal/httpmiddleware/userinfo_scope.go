@@ -57,6 +57,9 @@ type UserinfoScopeConfig struct {
 	SigningKeyID string
 	// Signer signs the filtered token; nil turns the filter off.
 	Signer UserinfoSigner
+	// ResignAll also signs the userinfo token of every other grant again with the engine's key.
+	// Off, the answer for an access token of any other grant is passed on untouched.
+	ResignAll bool
 }
 
 // identitySystemAlgorithms are the algorithms accepted on the identity system's userinfo token
@@ -64,30 +67,27 @@ type UserinfoScopeConfig struct {
 // with RS256; what reaches the client is always signed with the engine's key.
 var identitySystemAlgorithms = []jose.SignatureAlgorithm{jose.RS256, jose.PS256, jose.ES256, jose.EdDSA}
 
-// UserinfoScope makes the signed userinfo answer a token of the engine's own key, and for access
-// tokens issued by the token-exchange grant (OpenID Connect Native SSO for Mobile Apps 1.0, 4.4)
-// limits it to the claims of the scopes granted to that token.
+// UserinfoScope limits the userinfo answer for an access token issued by the token-exchange grant
+// (OpenID Connect Native SSO for Mobile Apps 1.0, 4.4) to the claims of the scopes granted to that
+// token. The answer for an access token of any other grant is passed on untouched, unless
+// ResignAll is set.
 //
 // The identity system returns the user's attributes as one signed token (the attribute
 // providers.RawJWTAttributeKey), cached at the login of the first app, and the engine passes
-// that token through unchanged. Two problems follow, and this middleware fixes both:
+// that token through unchanged, so a second app that was granted a narrower scope would read
+// every claim the first app's login released. For a token-exchange access token the token is
+// checked against the identity system's key (by kid), its claims are limited to the token's
+// scopes (scope_claims) and the registered JWT claims, aud is set to the requesting client, and
+// it is signed again with the engine's key, using the alg and kid /oauth2/jwks publishes for it.
 //
-//   - The identity system signs with RS256, which FAPI 2.0 does not allow, while /oauth2/jwks
-//     publishes its key with alg PS256; a client that requires the token's alg to equal the
-//     published alg rejects the token. For every grant, a userinfo token not already signed by
-//     the engine's key is checked against the identity system's key (by kid) and signed again
-//     with the engine's key, using the alg and kid /oauth2/jwks publishes for that key.
-//   - A second app that was granted a narrower scope would read every claim the first app's
-//     login released. For a token-exchange access token the claims are limited to the token's
-//     scopes (scope_claims) and the registered JWT claims, and aud is set to the requesting
-//     client.
+// ResignAll (off by default) also signs the userinfo token of every other grant again, without
+// changing its claims: the identity system signs with RS256, which FAPI 2.0 does not allow, while
+// /oauth2/jwks publishes its key with alg PS256, so a client that requires the two to match
+// rejects the token. With ResignAll an encrypted answer of another grant is passed on.
 //
-// The claims of access tokens of other grants are kept: their userinfo token was built for that
-// very login and also carries claims requested with the claims parameter, which no scope names.
-// An encrypted answer (a JWE for a client that registered an encryption key) is passed on for
-// other grants and refused with server_error for a token-exchange access token, as it cannot be
-// filtered. Any other answer the middleware cannot check or sign is refused with server_error
-// rather than passed on.
+// An encrypted answer for a token-exchange access token is refused with server_error, as it
+// cannot be filtered. Any other answer the middleware cannot check or sign is refused with
+// server_error rather than passed on.
 func UserinfoScope(cfg UserinfoScopeConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +110,10 @@ func UserinfoScope(cfg UserinfoScopeConfig) func(http.Handler) http.Handler {
 				return
 			}
 			exchange := token.GrantType == string(providers.GrantTypeTokenExchange)
+			if !exchange && !cfg.ResignAll {
+				buf.copyTo(w, buf.body.Bytes())
+				return
+			}
 			body := bytes.TrimSpace(buf.body.Bytes())
 			if len(body) > 0 && body[0] == '{' {
 				// A JSON answer is built by the engine from individual claims, already limited

@@ -50,6 +50,10 @@ type NativeSSOConfig struct {
 	// be the key that signs the engine's tokens, so that an id_token can never pass as a device
 	// secret signature and the other way round (RFC 8725, 3.12).
 	SigningKeyRefID string `yaml:"signing_key_ref_id"`
+	// ResignAllUserinfo also signs the userinfo of every other grant again with the engine's key.
+	// Off (the default) only token-exchange userinfo is changed; every other login is answered as
+	// upstream eSignet answers it.
+	ResignAllUserinfo bool `yaml:"resign_all_userinfo"`
 }
 
 // Validate rejects settings the device secret provider cannot work with. tokenSigningKeyRefID is
@@ -78,6 +82,8 @@ func (c NativeSSOConfig) Validate(tokenSigningKeyRefID string) error {
 // precedence order: MOSIP_ESIGNET_NATIVE_SSO_* env var, then deployment.yaml, then the default.
 func applyNativeSSODefaults(cfg *AppConfig) {
 	cfg.NativeSSO.Enabled = envBoolOrConfig("MOSIP_ESIGNET_NATIVE_SSO_ENABLED", cfg.NativeSSO.Enabled)
+	cfg.NativeSSO.ResignAllUserinfo = envBoolOrConfig("MOSIP_ESIGNET_NATIVE_SSO_RESIGN_ALL_USERINFO",
+		cfg.NativeSSO.ResignAllUserinfo)
 	cfg.NativeSSO.DeviceSecretValiditySeconds = int64(envIntOrConfigOrDefault(
 		"MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS",
 		int(cfg.NativeSSO.DeviceSecretValiditySeconds), defaultDeviceSecretValiditySeconds))
@@ -86,7 +92,7 @@ func applyNativeSSODefaults(cfg *AppConfig) {
 	cfg.NativeSSO.SigningKeyRefID = envOrConfigOrDefault("MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID",
 		cfg.NativeSSO.SigningKeyRefID, defaultDeviceSecretSigningKeyRefID)
 
-	// No cap by default (Native SSO 6.3 accepts an expired id_token; decision D8): the first app cannot
+	// No cap by default (Native SSO 6.3 accepts an expired id_token): the first app cannot
 	// renew its id_token without a new login, so a cap also ends silent sign-in that long after the login.
 	// A positive value is a hardening option; the env var set to 0 turns a yaml cap off.
 	cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = int64(envIntOrConfigOrDefaultAllowEnvZero(

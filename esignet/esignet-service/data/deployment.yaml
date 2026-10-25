@@ -133,15 +133,15 @@ oauth:
     allowed_algs: ["ES256", "PS256", "ES384", "ES512", "EdDSA", "RS256"]
     max_jti_length: 256
   allowed_subject_types: ["pairwise"]
-  # The token-exchange grant (RFC 8693) carries OpenID Connect Native SSO: an app trades another
-  # app's id_token and device secret for its own tokens. A client also needs it in its grantTypes.
-  allowed_grant_types: ["authorization_code", "urn:ietf:params:oauth:grant-type:token-exchange"]
+  # Native SSO also needs "urn:ietf:params:oauth:grant-type:token-exchange" here (RFC 8693) and in
+  # the client's grantTypes.
+  allowed_grant_types: ["authorization_code"]
   allowed_response_types: ["code"]
   allowed_auth_methods: ["private_key_jwt"]
-  # device_sso asks for a device secret (Native SSO 3.1). A client may request it only when its
+  # Native SSO also needs "device_sso" here (Native SSO 3.1). A client may request it only when its
   # additional_config.allowed_authorization_scopes lists it; never add it to scope_claims below,
   # whose keys become every client's allowed scopes.
-  allowed_scopes: ["openid","profile","email","phone","device_sso"]
+  allowed_scopes: ["openid","profile","email","phone"]
   allowed_claims: ["name","address","gender","birthdate","picture","email","phone_number"]
   default_scope_claims_mapping: 
     openid: ["sub"]
@@ -172,8 +172,7 @@ oauth:
     consent_ticket_ttl_seconds: 300             # lifetime of a consent_uri, at most 600
     # Text the consent page shows for a scope (env: MOSIP_ESIGNET_NATIVE_SSO_CONSENT_SCOPE_DESCRIPTIONS,
     # a JSON object). A scope with no entry is shown by its raw value.
-    consent_scope_descriptions:
-      health_card_share: Share your health card with clinics
+    consent_scope_descriptions: {}
 
 # Device secrets of OpenID Connect Native SSO, read by the device secret provider. Env overrides:
 # MOSIP_ESIGNET_NATIVE_SSO_ENABLED, MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS,
@@ -181,10 +180,14 @@ oauth:
 # Native SSO is off (opt-in). Both keys live under OIDC_SERVICE; the signing key
 # must differ from jwt.preferred_key_id (start-up fails otherwise).
 native_sso:
-  enabled: true                          # false or absent: device_sso refused, as upstream eSignet
+  enabled: false                         # false or absent: device_sso refused, as upstream eSignet
   device_secret_validity_seconds: 28800  # device secret, session record and cached claims
   encryption_key_ref_id: DEVICE_SECRET    # RSA-OAEP-256 JWE key, created on first start
   signing_key_ref_id: EC_SECP256R1_SIGN   # ES256 key of the inner JWS
+  # Also sign userinfo of every other grant again with eSignet's key (for an identity system that
+  # signs RS256 while /oauth2/jwks publishes its key as PS256). Off: only token-exchange userinfo
+  # is changed, and every other login gets the engine's answer as is.
+  resign_all_userinfo: false
 
 security_config:
   issuer_url: ""  # override via MOSIP_ESIGNET_SECURITY_ISSUER_URL
@@ -259,9 +262,3 @@ resource_servers:
     default: true
     scopes:
       mosip_identity_vc_ldp: "Issue a Verifiable Credential"
-  # Permission of the Health Card demo app (Native SSO consent-only re-consent): it releases no
-  # user claim, so the user approves it without logging in again.
-  - id: health-card
-    identifier: "${MOSIP_ESIGNET_HOST}/health-card"
-    scopes:
-      health_card_share: "Show your health card to a clinic"

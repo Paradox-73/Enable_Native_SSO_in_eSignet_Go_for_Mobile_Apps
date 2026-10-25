@@ -88,11 +88,14 @@ services:
       MOSIP_ESIGNET_CAPTCHA_SITE_KEY: 10000000-ffff-ffff-ffff-000000000001
       MOSIP_ESIGNET_AUTHN_PROVIDER: mock
       MOSIP_ESIGNET_MOCK_DOMAIN_URL: http://mock-identity-system:8082
-      # OpenID Connect Native SSO (the image's data/deployment.yaml sets the same; stated here so the stack
-      # does not depend on that default): device_sso and the token-exchange grant are allowed there, and
+      # OpenID Connect Native SSO (deploy/native-sso-demo.patch sets the same in the image's deployment.yaml;
+      # stated here so the stack does not depend on it): device_sso and the token-exchange grant are allowed there, and
       # the token exchange accepts only a device secret as actor_token. Discovery then shows
       # native_sso_supported: true. Each Native SSO client registers the token-exchange grant itself.
       MOSIP_ESIGNET_NATIVE_SSO_ENABLED: "true"
+      # Also sign the userinfo of ordinary logins with eSignet's key: the mock identity system signs RS256
+      # while /oauth2/jwks publishes its key as PS256, and Hub requires the two to match.
+      MOSIP_ESIGNET_NATIVE_SSO_RESIGN_ALL_USERINFO: "true"
       MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY: "true"
       MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR: interaction_required
       # Consent-only re-consent: extra scopes that need no new user data are approved on

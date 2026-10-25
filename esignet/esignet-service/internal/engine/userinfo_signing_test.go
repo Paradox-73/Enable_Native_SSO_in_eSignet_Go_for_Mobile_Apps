@@ -69,6 +69,7 @@ func TestUserinfo_SignedWithTheAlgAndKidOfTheJWKS(t *testing.T) {
 		ScopeClaims:  map[string][]string{"email": {"email"}},
 		SigningKeyID: keymanager.RefIDRSA2048,
 		Signer:       p,
+		ResignAll:    true,
 	})
 	engineAnswer := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/jwt")

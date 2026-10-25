@@ -138,6 +138,15 @@ func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_EnvTurnsOff() {
 	ts.False(cfg.NativeSSO.Enabled)
 }
 
+func (ts *NativeSSOConfigTestSuite) TestApplyNativeSSODefaults_ResignAllUserinfo() {
+	cfg := &AppConfig{}
+	applyNativeSSODefaults(cfg)
+	ts.False(cfg.NativeSSO.ResignAllUserinfo, "off by default")
+	ts.T().Setenv("MOSIP_ESIGNET_NATIVE_SSO_RESIGN_ALL_USERINFO", "true")
+	applyNativeSSODefaults(cfg)
+	ts.True(cfg.NativeSSO.ResignAllUserinfo)
+}
+
 func (ts *NativeSSOConfigTestSuite) TestNativeSSOConfig_Validate() {
 	valid := NativeSSOConfig{DeviceSecretValiditySeconds: 60, EncryptionKeyRefID: "DEVICE_SECRET",
 		SigningKeyRefID: "EC_SECP256R1_SIGN"}
@@ -181,9 +190,13 @@ func (ts *NativeSSOConfigTestSuite) TestShippedDeploymentYAML() {
 	cfg, err := LoadAppConfig()
 	ts.Require().NoError(err)
 
-	ts.Contains(cfg.OAuth.AllowedScopes, "device_sso")
-	ts.Contains(cfg.OAuth.AllowedGrantTypes, "urn:ietf:params:oauth:grant-type:token-exchange")
-	ts.True(cfg.NativeSSO.Enabled)
+	// Shipped off, as upstream eSignet: deploy/native-sso-demo.patch turns it on for the local stack.
+	ts.NotContains(cfg.OAuth.AllowedScopes, "device_sso")
+	ts.NotContains(cfg.OAuth.AllowedGrantTypes, "urn:ietf:params:oauth:grant-type:token-exchange")
+	ts.False(cfg.NativeSSO.Enabled)
+	ts.False(cfg.NativeSSO.ResignAllUserinfo)
+	ts.Nil(cfg.ResourceServerByID("health-card"))
+	ts.Empty(cfg.OAuth.NativeSSO.ConsentScopeDescriptions)
 	ts.True(cfg.OAuth.NativeSSO.ExchangeOnly)
 	ts.NoError(cfg.OAuth.NativeSSO.Validate())
 	ts.NoError(cfg.NativeSSO.Validate(cfg.JWT.PreferredKeyID))

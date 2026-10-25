@@ -153,19 +153,22 @@ aliases. Enforcement only activates when both `issuer_url` and `jwks_url` are no
 
 OpenID Connect Native SSO for Mobile Apps 1.0 lets apps of one vendor share a login on a device: the first app
 asks for the `device_sso` scope and receives a `device_secret` with its tokens; a sibling app then trades that
-app's id_token and device secret for its own tokens at the token endpoint (token-exchange grant, RFC 8693). The
-`device_sso` scope and the token-exchange grant in the lists above enable it server-wide; each client still needs
+app's id_token and device secret for its own tokens at the token endpoint (token-exchange grant, RFC 8693). It is off
+in the shipped `deployment.yaml`. To turn it on, set `native_sso.enabled: true` and add `device_sso` to
+`oauth.allowed_scopes` and `urn:ietf:params:oauth:grant-type:token-exchange` to `oauth.allowed_grant_types`
+(`deploy/native-sso-demo.patch` in this repository does exactly that for the local stack); each client still needs
 them in its own registration (see [12. Per-client configuration](#12-per-client-configuration)).
 
 | Variable | YAML key | Default | Meaning |
 |---|---|---|---|
-| `MOSIP_ESIGNET_NATIVE_SSO_ENABLED` | `native_sso.enabled` | `false`; `true` in `deployment.yaml` | Turns OpenID Connect Native SSO on: the device secret provider and the userinfo filter for token-exchange tokens. Off, `device_sso` and the device-secret token exchange are refused and the service behaves as upstream eSignet |
+| `MOSIP_ESIGNET_NATIVE_SSO_ENABLED` | `native_sso.enabled` | `false` | Turns OpenID Connect Native SSO on: the device secret provider and the userinfo filter for token-exchange tokens. Off, `device_sso` and the device-secret token exchange are refused and the service behaves as upstream eSignet |
 | `MOSIP_ESIGNET_NATIVE_SSO_ID_TOKEN_MAX_AGE_SECONDS` | `oauth.native_sso.id_token_max_age_seconds` | `0` (no cap) | Hardening option. Oldest id_token (seconds since its `iat`) accepted in the exchange. Without a cap an expired id_token is accepted while the device secret and its login session live (Native SSO 6.3). A cap shortens how long a stolen id_token and device secret work, but it also ends silent sign-in that long after the first app's login, because the first app cannot renew its id_token without a new login and cannot tell its user. The env var set to `0` turns off a cap set in YAML |
 | `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `oauth.native_sso.scope_exceeded_error` | `interaction_required` | Error for an exchange asking for more scopes than the device secret carries: `interaction_required` or `invalid_scope` |
 | `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | `oauth.native_sso.exchange_only` | `true` in `deployment.yaml` | Allow the token-exchange grant only with a device secret as `actor_token` |
 | `MOSIP_ESIGNET_NATIVE_SSO_DEVICE_SECRET_VALIDITY_SECONDS` | `native_sso.device_secret_validity_seconds` | `28800` | Lifetime of a device secret, of its session record and of the cached claims of that login |
 | `MOSIP_ESIGNET_NATIVE_SSO_ENCRYPTION_KEY_REF_ID` | `native_sso.encryption_key_ref_id` | `DEVICE_SECRET` | Key (under `OIDC_SERVICE`) the device secret is encrypted to (RSA-OAEP-256, A256GCM); created at the first start |
 | `MOSIP_ESIGNET_NATIVE_SSO_SIGNING_KEY_REF_ID` | `native_sso.signing_key_ref_id` | `EC_SECP256R1_SIGN` | Key (under `OIDC_SERVICE`) that signs the device secret (ES256, `typ: ds+jwt`) |
+| `MOSIP_ESIGNET_NATIVE_SSO_RESIGN_ALL_USERINFO` | `native_sso.resign_all_userinfo` | `false` | Also sign the userinfo of every other grant again with eSignet's key (see below). Off, only token-exchange userinfo is changed |
 
 - The `oauth.native_sso` keys are the engine's own settings; the top-level `native_sso` keys are read only by
   eSignet's device secret provider (`internal/engine/device_secret_provider.go`).
@@ -175,6 +178,11 @@ them in its own registration (see [12. Per-client configuration](#12-per-client-
 - A device secret holds no user identifier or claim value. The user, the relying party and the cached claims
   stay in a session record in the runtime store (namespace `nativesso:session`) that ends with the device
   secret; with the in-memory store a restart ends every Native SSO session.
+- Data retention: when a login is granted `device_sso`, the user attributes the identity system released
+  (name, email, phone number and the other claims of that login) stay in the runtime store (Redis, or memory)
+  for `device_secret_validity_seconds`, 8 hours by default, instead of the few minutes an ordinary login keeps
+  them. Lower the validity if identity data must not stay that long; silent
+  sign-in of sibling apps then ends sooner too.
 - A client may request `device_sso` only when its `additionalConfig.allowed_authorization_scopes` lists it.
   Never add `device_sso` to the top-level `scope_claims`: every key of that map becomes an allowed scope of
   every client.
@@ -185,8 +193,8 @@ them in its own registration (see [12. Per-client configuration](#12-per-client-
   sibling app granted `openid email` does not read the name the first app's login released
   (`internal/httpmiddleware/userinfo_scope.go`). An encrypted userinfo token cannot be filtered and is
   refused with `server_error`.
-- Userinfo of every grant is signed with the `jwt.preferred_key_id` key, with the `alg` and `kid` the JWKS
-  publishes for it (PS256 for the default `RSA_2048` key). The identity system's token (the MOSIP mock
+- With `native_sso.resign_all_userinfo: true` (off by default) userinfo of every other grant is also signed
+  with the `jwt.preferred_key_id` key, with the `alg` and `kid` the JWKS publishes for it (PS256 for the default `RSA_2048` key). The identity system's token (the MOSIP mock
   identity system signs it with RS256, which FAPI 2.0 does not allow) is first verified against the identity
   system key of the same `kid`, then signed again with its claims unchanged; a token that does not verify is
   refused with `server_error`. A userinfo token encrypted for the client is passed on unchanged.

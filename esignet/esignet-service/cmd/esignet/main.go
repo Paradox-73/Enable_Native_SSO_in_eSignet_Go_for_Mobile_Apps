@@ -395,6 +395,7 @@ func newHandler(mux http.Handler, appCfg *config.AppConfig, signer httpmiddlewar
 			ScopeClaims:  appCfg.ScopeClaims,
 			SigningKeyID: appCfg.JWT.PreferredKeyID,
 			Signer:       signer,
+			ResignAll:    appCfg.NativeSSO.ResignAllUserinfo,
 		})(mux)
 	}
 	return httpmiddleware.CorrelationID(httpmiddleware.AccessLog(next))

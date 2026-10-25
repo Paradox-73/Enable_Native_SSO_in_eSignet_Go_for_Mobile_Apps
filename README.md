@@ -67,8 +67,8 @@ Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](d
   golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-24 at
   `9bba2d7` ([run 40134113684](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/40134113684)).
   Later commits run on GitHub when they are pushed; see the repository's Actions tab.
-- **Optional**: Native SSO is switched on by `native_sso.enabled` in eSignet's `deployment.yaml`; without it eSignet
-  behaves as upstream.
+- **Optional**: eSignet's shipped `deployment.yaml` keeps Native SSO off (`native_sso.enabled: false`), so eSignet
+  behaves as upstream; the local stack turns it on with `deploy/native-sso-demo.patch`.
 - **Real phone**: on 2026-10-24 a OnePlus CPH2569 (Android 15) passed Hub sign-in and Health Card's silent sign-in, and a
   team member's TalkBack and large-font pass found no issues ([docs/evidence/2026-10-24/phone-run.md](docs/evidence/2026-10-24/phone-run.md)).
 - **Not run**: the upstream Postman folders in the Postman desktop app (limit L07). Work packages and open decisions: [docs/changes.md](docs/changes.md#work-packages).
