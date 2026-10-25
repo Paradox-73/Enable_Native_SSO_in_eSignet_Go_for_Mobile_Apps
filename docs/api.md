@@ -9,7 +9,7 @@ requests. The full request and response schemas are in the OpenAPI files; this p
 |---|---|
 | [../esignet/docs/esignet-openapi.yaml](../esignet/docs/esignet-openapi.yaml) | eSignet's public API as served on port 38088 (`/oauth2/par`, `/oauth2/authorize`, `/oauth2/token`, `/oauth2/revoke`, `/oauth2/userinfo`, `/client-mgmt/client`, discovery, login `/flow/execute`), with the Native SSO additions marked in each section and a client registration example for a Native SSO app |
 | [../thunder/api/oauth2.yaml](../thunder/api/oauth2.yaml) | Thunder's token endpoint with the Native SSO token exchange, and its revocation endpoint with device secrets (the file has no discovery path) |
-| [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | the Postman folder "Native SSO": 43 requests, how it signs, how to run it |
+| [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | the Postman folder "Native SSO": how it signs, how to run it |
 | [../esignet/docs/configuration.md](../esignet/docs/configuration.md) | the settings `oauth.native_sso.*` and `native_sso.*` and their `MOSIP_ESIGNET_NATIVE_SSO_*` variables |
 | [design.md](design.md) sections 6, 9, 11, 13, 14 | flows, device secret format, validation order, error table, configuration |
 | [../android/README.md](../android/README.md) | the binder contract between the two apps (`IFamilySso.aidl`) and the OpenID Connect client library |
@@ -24,7 +24,7 @@ Lint results (2026-10-05): the eSignet file `0 errors, 8 warnings` (the import h
 | Discovery `/.well-known/openid-configuration` | `native_sso_supported: true`, `device_sso` in `scopes_supported`, the token-exchange grant in `grant_types_supported` (only when the server has a Device Secret Provider and allows the grant) | R24 |
 | Client registration `POST /client-mgmt/client` | grant type `urn:ietf:params:oauth:grant-type:token-exchange`; `additionalConfig.allowed_authorization_scopes` lists `device_sso` | R25, R02 |
 | `POST /oauth2/par`, `GET /oauth2/authorize` | scope `device_sso` asks for a device secret; refused with `invalid_scope` for a client not allowed it; a DPoP key (header or `dpop_jkt`) is needed because the secret is bound to it | R01, R02, R07 |
-| `POST /oauth2/token`, grant `authorization_code` | with `device_sso` granted: response also has `device_secret`; the id_token has `sid` and `ds_hash`; the access token and the secret are bound to the DPoP key (`cnf.jkt`) | R01, R04-R06 |
+| `POST /oauth2/token`, grant `authorization_code` | with `device_sso` granted: response also has `device_secret`; the id_token has `sid` and `ds_hash` (the left half of SHA-256 of the device secret, base64url: the `at_hash` construction of OpenID Connect Core 3.1.3.6, not the full hash of the statement's diagram 1; both meet Native SSO 3.4.1, see D2 in [design.md](design.md)); the access token and the secret are bound to the DPoP key (`cnf.jkt`) | R01, R04-R06 |
 | `POST /oauth2/token`, grant `urn:ietf:params:oauth:grant-type:token-exchange` | the device-secret profile below | R09-R23, R26 |
 | `GET /oauth2/userinfo` | for a token from an exchange, only the claims of the granted scope | R17 |
 | `POST /oauth2/revoke` (RFC 7009) | the first app revokes its `device_secret` (`token_type_hint=device_secret`); the login session ends and every later exchange with it is `invalid_grant`; discovery lists `revocation_endpoint` | R27 |
@@ -44,9 +44,8 @@ whose proof is signed by the first app's DPoP key (the key the device secret is 
 | `audience` | exactly the issuer, `http://localhost:38088` on the local stack |
 | `scope` | optional; must contain `openid`, must not contain `device_sso`, must lie within the first app's scope; default is that scope without `device_sso` |
 | `client_assertion_type`, `client_assertion` | the second app's own `private_key_jwt` (ES256, `aud` = issuer) |
-| `dpop_jkt` | optional eSignet profile extension, not sent by the demo apps. RFC 9449 section 10 defines `dpop_jkt` for the authorization request; at the token endpoint it is this profile's own parameter. Value: the SHA-256 thumbprint of the second app's own DPoP key; the issued access token is bound to it, so the second app signs its own proofs for userinfo and its APIs. Without it (the statement's flow) the token is bound to the first app's key, and the first app signs the second app's userinfo proofs. The named key is not proven (see the threat model, section 6). Not a 43-character base64url value: `invalid_request` |
 
-Success: `200` with `access_token` (`token_type` DPoP, `cnf.jkt` = the first app's key, or the `dpop_jkt` key with the extension, and the login's `sid`), `id_token` (`aud` = second app,
+Success: `200` with `access_token` (`token_type` DPoP, `cnf.jkt` = the first app's key, and the login's `sid`), `id_token` (`aud` = second app,
 same `sub` and `sid`, no `ds_hash`), `issued_token_type`, `expires_in`, `scope`. No `device_secret` and no `ds_hash`.
 
 Example with the values shortened (a worked run with real tokens is the Postman folder, request "Card 01 Token exchange with the device secret"):
@@ -134,9 +133,9 @@ user enters the UIN and a new OTP there. Full description: [oauth2.yaml](../thun
 
 | Way | Command | Needs |
 |---|---|---|
-| Newman (Postman CLI) | `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` | Docker, newman 6; 43 requests (results: [test-report.md](test-report.md)) |
+| Newman (Postman CLI) | `bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh` | Docker, newman 6 (results: [test-report.md](test-report.md)) |
 | Postman app | import the collection and the environment "Go-eSignet Native SSO (local stack)", start the stack with `bash deploy/stack.sh up`, run the folder "Native SSO" top to bottom | Postman desktop; not run by the team (limit L07) for the upstream folders |
-| Go client | `bash scripts/with-stack.sh bash e2e/run.sh` | Docker; 32 live tests, `e2e/client` shows each request |
+| Go client | `bash scripts/with-stack.sh bash e2e/run.sh` | Docker; `e2e/client` shows each request (results: [test-report.md](test-report.md)) |
 
 The folder signs its own client assertions and DPoP proofs in pre-request scripts, so no key is pasted by hand. Seeded
 user and OTP: [test-data.md](test-data.md).
