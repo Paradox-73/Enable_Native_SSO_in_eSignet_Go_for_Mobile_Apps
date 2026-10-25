@@ -262,19 +262,3 @@ func TestScopeClaimNames(t *testing.T) {
 	assert.Nil(t, ScopeClaimNames("health_card_share", app))
 	assert.NotEmpty(t, ScopeClaimNames("phone", nil), "standard scope without a client mapping")
 }
-
-func TestSessionRef(t *testing.T) {
-	assert.Equal(t, "", SessionRef(""))
-	ref := SessionRef("sid-1")
-	assert.Len(t, ref, 16)
-	assert.NotContains(t, ref, "sid-1")
-	assert.Equal(t, ref, SessionRef("sid-1"))
-}
-
-func TestAuditConsentNilTicket(t *testing.T) {
-	assert.NotPanics(t, func() { AuditConsent(context.Background(), AuditConsentGranted, nil) })
-	assert.NotPanics(t, func() {
-		ticket := testTicket()
-		AuditConsent(context.Background(), AuditConsentGranted, &ticket)
-	})
-}

@@ -433,6 +433,10 @@ sequenceDiagram
   whether that session is still active (`IsDeviceSecretSessionActive`; eSignet looks for the session record). An
   ended session answers like a revoked token (`401 invalid_token` at userinfo, `active: false` at
   introspection); a session store that cannot answer refuses the token (fail closed). No deny list is needed.
+  Cost: one runtime-store read (an in-memory map lookup, or one Redis `GET` with the Redis store) for every
+  request that presents an access token carrying a `sid`, which only exchanged tokens do; tokens without `sid`
+  skip the lookup (`tokenservice/validator_native_sso.go`). A deployment with many Child App API calls sizes Redis
+  for that read rate.
   Limits: a resource server that checks the JWT itself, without introspection, still accepts the token until its
   `exp`, and the Super App's own code-grant access token carries no `sid`, so it lives until its `exp` (the Super
   App has already deleted it).
