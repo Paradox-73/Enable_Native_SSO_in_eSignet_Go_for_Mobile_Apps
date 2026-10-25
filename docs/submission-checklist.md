@@ -40,7 +40,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 
 1. On the day: `bash scripts/demo/demo.sh --check` (expect `demo ready`, then `teardown ok`), then
    `bash scripts/evidence.sh --check`.
-2. The video is recorded ([video-script.md](video-script.md)); the link is added later. The deck is ready ([ppt-outline.md](ppt-outline.md) is its outline); export PPT, PDF and video. Keep the deck's team slide in step with the README's Team table.
+2. The video is recorded ([video-script.md](video-script.md)); link: https://youtu.be/KlTitpsxiIo. The deck is ready ([ppt-outline.md](ppt-outline.md) is its outline); export PPT, PDF and video. Keep the deck's team slide in step with the README's Team table.
 3. `bash scripts/repo-lint.sh`, `bash make.sh docs-check`, `bash scripts/fresh-clone-check.sh` (each must pass).
 4. Push `main`; open the Actions tab and record the run of `ci` (URL and result) in `docs/test-evidence.tsv`, row CI,
    then `bash scripts/evidence.sh` to rewrite the report.

@@ -8,6 +8,8 @@ A second Android app from the same publisher (Health Card) then signs the user i
 a second OTP: it trades Hub's device secret for its own tokens at the token endpoint (OAuth 2.0 Token Exchange,
 RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 
+**Demo video:** https://youtu.be/KlTitpsxiIo
+
 ## Judge's path
 
 1. See it: three screens below ([Screens](#screens)); every screen of both apps is in [docs/ux.md](docs/ux.md#screenshots).
@@ -164,7 +166,7 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 | Updated API documentation | [docs/api.md](docs/api.md), [esignet-openapi.yaml](esignet/docs/esignet-openapi.yaml), [oauth2.yaml](thunder/api/oauth2.yaml) |
 | Design document | [docs/design.md](docs/design.md), [docs/threat-model.md](docs/threat-model.md) |
 | Presentation | slide deck, kept outside this repository and submitted with the other deliverables; outline in [docs/ppt-outline.md](docs/ppt-outline.md) |
-| Demo video | script in [docs/video-script.md](docs/video-script.md); the recording is submitted with the other deliverables |
+| Demo video | script in [docs/video-script.md](docs/video-script.md); recording: https://youtu.be/KlTitpsxiIo |
 | Submission items | [docs/submission-checklist.md](docs/submission-checklist.md) |
 
 ## Documents
