@@ -3,21 +3,27 @@
 package org.badmosip.nativesso.superapp
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import kotlin.math.pow
 
 /**
- * Hub's colors (the same palette as Health Card's), light and dark. Every text color reaches a WCAG 2.1 contrast of at least
+ * Hub's colors (Hub blue; Health Card uses teal), light and dark. Every text color reaches a WCAG 2.1 contrast of at least
  * 4.5:1 on every background it is drawn on ([textPairs], checked by `HubThemeTest`).
  */
 object HubColors {
     class Palette(
         val primary: Long,
         val onPrimary: Long,
+        val background: Long,
         val surface: Long,
         val onSurface: Long,
         val surfaceVariant: Long,
@@ -30,18 +36,19 @@ object HubColors {
             get() = listOf(
                 onSurface to surface, onSurface to surfaceVariant, onSurfaceVariant to surfaceVariant,
                 onSurfaceVariant to surface, primary to surface, onPrimary to primary, error to surface,
-                error to surfaceVariant, onError to error,
+                error to surfaceVariant, onError to error, onSurface to background, onSurfaceVariant to background,
+                primary to background, error to background,
             )
     }
 
     val light = Palette(
-        primary = 0xFF0B57A4, onPrimary = 0xFFFFFFFF, surface = 0xFFFFFFFF, onSurface = 0xFF1A1C20,
+        primary = 0xFF0B57A4, onPrimary = 0xFFFFFFFF, background = 0xFFF3F6FB, surface = 0xFFFFFFFF, onSurface = 0xFF1A1C20,
         surfaceVariant = 0xFFE6ECF4, onSurfaceVariant = 0xFF3D4550, error = 0xFFB3261E, onError = 0xFFFFFFFF,
     )
 
     val dark = Palette(
-        primary = 0xFFA8C8FF, onPrimary = 0xFF00315F, surface = 0xFF111318, onSurface = 0xFFE3E3E8,
-        surfaceVariant = 0xFF29303A, onSurfaceVariant = 0xFFC4CAD4, error = 0xFFFFB4AB, onError = 0xFF690005,
+        primary = 0xFFA8C8FF, onPrimary = 0xFF00315F, background = 0xFF0E1014, surface = 0xFF1A1D23, onSurface = 0xFFE3E3E8,
+        surfaceVariant = 0xFF2A313B, onSurfaceVariant = 0xFFC4CAD4, error = 0xFFFFB4AB, onError = 0xFF690005,
     )
 
     /** WCAG 2.1 contrast ratio of two opaque ARGB colors (1 to 21). */
@@ -66,18 +73,33 @@ fun HubTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> U
     val p = if (dark) HubColors.dark else HubColors.light
     val scheme = if (dark) {
         darkColorScheme(
-            primary = Color(p.primary), onPrimary = Color(p.onPrimary), background = Color(p.surface),
+            primary = Color(p.primary), onPrimary = Color(p.onPrimary), background = Color(p.background),
             onBackground = Color(p.onSurface), surface = Color(p.surface), onSurface = Color(p.onSurface),
             surfaceVariant = Color(p.surfaceVariant), onSurfaceVariant = Color(p.onSurfaceVariant),
             error = Color(p.error), onError = Color(p.onError), outline = Color(p.onSurfaceVariant),
+            surfaceTint = Color(p.surface),
         )
     } else {
         lightColorScheme(
-            primary = Color(p.primary), onPrimary = Color(p.onPrimary), background = Color(p.surface),
+            primary = Color(p.primary), onPrimary = Color(p.onPrimary), background = Color(p.background),
             onBackground = Color(p.onSurface), surface = Color(p.surface), onSurface = Color(p.onSurface),
             surfaceVariant = Color(p.surfaceVariant), onSurfaceVariant = Color(p.onSurfaceVariant),
             error = Color(p.error), onError = Color(p.onError), outline = Color(p.onSurfaceVariant),
+            surfaceTint = Color(p.surface),
         )
     }
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(colorScheme = scheme, typography = HubTypography, shapes = HubShapes, content = content)
 }
+
+/** Material 3's type scale with heavier titles and labels, so headings and field names stand out from values. */
+private val HubTypography = Typography().let {
+    it.copy(
+        headlineMedium = it.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
+        headlineSmall = it.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+        titleLarge = it.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+        labelLarge = it.labelLarge.copy(fontWeight = FontWeight.Medium),
+    )
+}
+
+/** Cards (medium) and the header band (large) use softer corners than Material's defaults. */
+private val HubShapes = Shapes(medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(24.dp))

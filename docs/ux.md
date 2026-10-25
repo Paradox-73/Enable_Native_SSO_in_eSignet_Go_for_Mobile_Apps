@@ -118,8 +118,12 @@ Signed out of Health Card: "You signed out of Health Card. Hub is still signed i
 
 ## Design decisions
 
-- Both apps share one layout and one colour palette: the app mark and name at the top, then what is happening,
-  then what the user can do, then the folded technical details. Only the mark's colour tells them apart.
+- Both apps share one layout: the app mark and name on a band in the app's brand colour, then what is happening,
+  then what the user can do, then the folded technical details. Each app has one brand colour, used for the band, the
+  buttons and the launcher icon: Hub blue (`#0B57A4`), Health Card teal (`#00696B`); dark mode uses lighter tones of
+  the same hues. Values sit on white cards with a light shadow on a background tinted with the brand colour; titles
+  and labels use Material 3's type scale in a heavier weight. `HubThemeTest` and `CardThemeTest` check every text and
+  background pair of both palettes.
 - The re-consent screen tells the user before the browser opens whether a new OTP will be asked. A permission that
   needs no new user data is approved on eSignet's own page with one tap and no login; only new user data (the phone
   number) needs the ID and a new OTP, because eSignet's identity system releases user data only after an

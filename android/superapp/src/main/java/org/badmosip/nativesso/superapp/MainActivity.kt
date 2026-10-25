@@ -14,7 +14,6 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,8 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -102,7 +101,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             HubTheme {
-                Surface(Modifier.fillMaxSize()) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val url = model.browserUrl
                     LaunchedEffect(url) {
                         if (url != null) {
@@ -177,18 +176,39 @@ internal fun HubContent(
     }
 }
 
-/** App mark and name, the same layout as in Health Card. The mark is decoration: TalkBack reads the name. */
+/**
+ * App mark and name on a band in the app's brand colour, the same layout as in Health Card. The mark is decoration:
+ * TalkBack reads the name.
+ */
 @Composable
 private fun Header() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(colorResource(R.color.brand))) {
-            Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.fillMaxSize())
+    Surface(
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        shape = MaterialTheme.shapes.large,
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Image(
+                painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimary),
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f)),
+            )
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.testTag("app_title").semantics { heading() },
+            )
         }
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.testTag("app_title").semantics { heading() },
-        )
     }
 }
 
@@ -242,7 +262,11 @@ private fun Working(inBrowser: Boolean, onCancel: () -> Unit) {
 @Composable
 private fun Home(session: TokenBundle, familyApps: List<FamilyAccess>, now: Instant, appLabel: (String) -> String?, onSignOut: () -> Unit) {
     val format = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault())
-    Text(stringResource(R.string.signed_in_as), style = MaterialTheme.typography.labelLarge)
+    Text(
+        stringResource(R.string.signed_in_as),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     Text(
         session.displayName ?: stringResource(R.string.name_unknown),
         style = MaterialTheme.typography.headlineSmall,
@@ -296,12 +320,13 @@ private fun LabelledValue(label: String, value: String, modifier: Modifier = Mod
     Card(
         modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.bodyLarge)
         }
     }
