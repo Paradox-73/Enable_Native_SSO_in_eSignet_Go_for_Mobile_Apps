@@ -198,13 +198,13 @@ Full text with ids: [docs/test-report.md](docs/test-report.md#known-limits).
 Team **Badmosip**, MOSIP Decode 2026, problem statement 03. Each member's college ID proof is uploaded with the other
 deliverables.
 
-| Member | GitHub account |
-|---|---|
-| Kanav Bhardwaj | [@Paradox-73](https://github.com/Paradox-73) |
-| Ivan Bhargava | [@Ivan825](https://github.com/Ivan825) |
-| Ishaan Sodhi | not listed |
-| Nikunj Mahajan | [@nikunj169](https://github.com/nikunj169) |
-| Harsh Modi | - |
+| Member | GitHub | Area |
+|---|---|---|
+| Kanav Bhardwaj | [Paradox-73](https://github.com/Paradox-73) | Thunder Native SSO engine |
+| Ivan Bhargava | [Ivan825](https://github.com/Ivan825) | eSignet Device Secret Provider |
+| Nikunj Mahajan | [nikunj169](https://github.com/nikunj169) | Hub Android app |
+| Ishaan Sodhi | [aloofdevil](https://github.com/aloofdevil) | Health Card app and re-consent |
+| Harsh Modi | [h4rshmodi007](https://github.com/h4rshmodi007) | local stack, end-to-end tests and documentation |
 
 ## Licence
 
