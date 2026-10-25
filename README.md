@@ -66,8 +66,8 @@ Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](d
     tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`) passed on 2026-10-14 at `4c6e6cd`
     to `b580a4f` ([docs/evidence/2026-10-14/](docs/evidence/2026-10-14)).
 - **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job (repo-lint, Go unit tests and
-  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-24 at
-  `9bba2d7` ([run 40134113684](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/40134113684)).
+  golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-25 at
+  `dc450ee` ([run 40190961830](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/40190961830)).
   Later commits run on GitHub when they are pushed; see the repository's Actions tab.
 - **Optional**: eSignet's shipped `deployment.yaml` keeps Native SSO off (`native_sso.enabled: false`), so eSignet
   behaves as upstream; the local stack turns it on with `deploy/native-sso-demo.patch`.

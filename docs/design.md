@@ -605,7 +605,8 @@ the `device_secret` field of the token response.
   (`MOSIP_ESIGNET_NATIVE_SSO_DS_HASH_FULL_SHA256`) makes Thunder put the full 43-character
   `BASE64URL(SHA-256(device_secret))` in the id_token and check that form in the exchange. The default stays the
   `at_hash` form, which Hub (`IdTokenValidator`'s `dsHash` parameter) and the e2e suite check; a deployment that turns
-  the setting on must give its apps the same rule.
+  the setting on must give its apps the same rule. Changing the setting on a running server makes every id_token
+  issued before the change fail the exchange with a `ds_hash` mismatch until the first app logs in again.
 
 ## 11. Validation order at the token exchange
 
