@@ -460,29 +460,6 @@ pm.test('userinfo has no phone_number (scope phone not granted)', () => pm.expec
 pm.test('userinfo has no name claim (scope profile not granted to the Health Card)', () => pm.expect(claims.name).to.be.undefined);"""},
     description="The Health Card token is bound to the Hub's DPoP key, so the userinfo proof is signed with that key and carries `ath`.")
 
-# The optional dpop_jkt profile extension (the demo apps do not send it): the Health Card names its own
-# DPoP key, and the access token is bound to that key instead of the Hub's.
-exchange_own_key = item(
-    "Card 03 Token exchange with dpop_jkt (optional extension)", "POST", ISS + "/oauth2/token",
-    pre=EXCHANGE_PRE % {"grant": GRANT_EX, "idtype": ID_TOKEN_TYPE, "dstype": DS_TYPE, "atype": ASSERT_TYPE,
-                        "overrides": """pm.environment.set('ns_card_dpop_key', JSON.stringify(L.newKey()));
-f.dpop_jkt = L.thumbprint(L.getKey('ns_card_dpop_key'));"""},
-    body=form([(k, "{{ns_ex_%s}}" % k) for k in EX_FIELDS + ["dpop_jkt"]]),
-    test=PRE + r"""
-pm.test('exchange answers 200', () => pm.response.to.have.status(200));
-const t = pm.response.json();
-pm.test('access token cnf.jkt is the Health Card key, not the Hub key', () =>
-  pm.expect(L.decodeJwt(t.access_token).payload.cnf.jkt).to.eql(L.thumbprint(L.getKey('ns_card_dpop_key'))));
-pm.environment.set('ns_card_own_access_token', t.access_token);
-""",
-    description="Profile extension, not used by the demo apps: `dpop_jkt` names the Health Card's own DPoP key. The DPoP header is still signed with the Hub's key (the device secret's `cnf.jkt`); the issued access token is bound to the named key. RFC 9449 section 10 defines `dpop_jkt` for the authorization request only.")
-
-userinfo_own_key = item(
-    "Card 04 Userinfo with the dpop_jkt token and the Health Card key", "GET", ISS + "/oauth2/userinfo",
-    pre=USERINFO_PRE % {"tokenvar": "ns_card_own_access_token", "dpopkey": "ns_card_dpop_key"},
-    test=USERINFO_TEST % {"subvar": "ns_hub_sub", "extra": ""},
-    description="The token from Card 03 is bound to the Health Card's key, so the proof is signed with that key.")
-
 # ----------------------------------------------------------------------------------------------
 # Consent-only re-consent (bonus B1). Postman plays the user's browser: it kept the HttpOnly cookie that
 # /oauth2/authorize set at "Hub 02", so it may see and answer the consent page. The Health Card itself
@@ -490,7 +467,7 @@ userinfo_own_key = item(
 # ----------------------------------------------------------------------------------------------
 
 consent_ask = exchange(
-    "Card 05 Exchange for a permission beyond the Hub grant -> interaction_required with consent_uri",
+    "Card 03 Exchange for a permission beyond the Hub grant -> interaction_required with consent_uri",
     "f.scope = 'openid email %s';" % PERMISSION_SCOPE,
     expect_error(400, "interaction_required") + r"""
 const a = pm.response.json();
@@ -507,7 +484,7 @@ pm.environment.set('ns_consent_ticket', a.consent_uri.split('ticket=')[1]);
     "The scope `%s` needs no new user data, so eSignet answers with a one-time `consent_uri` instead of asking for a new login. Health Card opens it in the browser." % PERMISSION_SCOPE)
 
 consent_page = item(
-    "Card 06 Consent page in the browser of the Hub login -> 200", "GET", "{{ns_consent_uri}}",
+    "Card 04 Consent page in the browser of the Hub login -> 200", "GET", "{{ns_consent_uri}}",
     test=r"""
 pm.test('page answers 200', () => pm.response.to.have.status(200));
 const html = pm.response.text();
@@ -527,7 +504,7 @@ pm.test('page is not cached and cannot be framed', () => {
     description="Postman sends the HttpOnly cookie that `/oauth2/authorize` set at Hub 02, as the user's browser would. Without it the page answers 403 and shows no buttons.")
 
 consent_allow = item(
-    "Card 07 Allow on the consent page -> 303 to the Health Card", "POST", ISS + "/oauth2/native-sso/consent",
+    "Card 05 Allow on the consent page -> 303 to the Health Card", "POST", ISS + "/oauth2/native-sso/consent",
     headers=[{"key": "Origin", "value": ISS}],
     body=form([("ticket", "{{ns_consent_ticket}}"), ("decision", "allow")]),
     test=r"""
@@ -539,14 +516,14 @@ pm.test('redirects to the Health Card with native_sso_consent=granted', () =>
     follow=False)
 
 consent_used = item(
-    "Card 08 The same ticket again -> 400 (answered once)", "POST", ISS + "/oauth2/native-sso/consent",
+    "Card 06 The same ticket again -> 400 (answered once)", "POST", ISS + "/oauth2/native-sso/consent",
     headers=[{"key": "Origin", "value": ISS}],
     body=form([("ticket", "{{ns_consent_ticket}}"), ("decision", "allow")]),
     test="pm.test('a used ticket answers 400', () => pm.response.to.have.status(400));",
     follow=False)
 
 consent_exchange = exchange(
-    "Card 09 Exchange for the permission after Allow -> 200", "f.scope = 'openid email %s';" % PERMISSION_SCOPE,
+    "Card 07 Exchange for the permission after Allow -> 200", "f.scope = 'openid email %s';" % PERMISSION_SCOPE,
     PRE + r"""
 pm.test('exchange answers 200', () => pm.response.to.have.status(200));
 const t = pm.response.json();
@@ -650,17 +627,13 @@ pm.test('body is empty (RFC 7009 2.2)', () => pm.expect(pm.response.text()).to.e
          pre=USERINFO_PRE % {"tokenvar": "ns_card_access_token", "dpopkey": "ns_hub_dpop_key"},
          test=USERINFO_REVOKED_TEST,
          description="The Health Card token from Card 01 (bound to the Hub key, the apps' path) carries the login's `sid`. The session ended at Rev 02, so userinfo refuses the token although it has not expired."),
-    item("Rev 05 Card userinfo with the dpop_jkt token after the revocation -> 401", "GET", ISS + "/oauth2/userinfo",
-         pre=USERINFO_PRE % {"tokenvar": "ns_card_own_access_token", "dpopkey": "ns_card_dpop_key"},
-         test=USERINFO_REVOKED_TEST,
-         description="Same for the token from Card 03 (the optional extension, bound to the Health Card key)."),
 ]
 
 cleanup = item(
     "99 Cleanup: remove keys and tokens from the environment", "GET", ISS + "/oauth2/jwks",
     pre=r"""
 ['hub', 'card', 'plain', 'other'].forEach((n) => ['key', 'pub', 'id'].forEach((s) => pm.environment.unset('ns_' + n + '_' + s)));
-['ns_hub_dpop_key', 'ns_card_dpop_key', 'ns_card_own_access_token', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',
+['ns_hub_dpop_key', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',
  'ns_card_id_token', 'ns_code', 'ns_code_verifier', 'ns_assertion', 'ns_challenge_token', 'ns_request_uri',
  'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt', 'ns_consent_uri',
  'ns_consent_ticket'].forEach((k) => pm.environment.unset(k));
@@ -673,7 +646,7 @@ FOLDER = {
     "item": [
         {"name": "Setup", "item": setup},
         {"name": "Hub sign-in (first app)", "item": hub},
-        {"name": "Health Card sign-in (second app)", "item": [exchange_ok, userinfo_card, exchange_own_key, userinfo_own_key]},
+        {"name": "Health Card sign-in (second app)", "item": [exchange_ok, userinfo_card]},
         {"name": "Consent-only re-consent (bonus)", "item": [consent_ask, consent_page, consent_allow, consent_used,
                                                              consent_exchange]},
         {"name": "Negative cases", "item": negatives},

@@ -81,7 +81,7 @@ Each answer is behind one constant or setting. The decision ids (D2 to D8) are i
 | Question | Current choice | Where it is decided |
 |---|---|---|
 | Is `ds_hash` plus `sid` in the id_token the intended reading of "device secret embedded into the id_token" (T4a ix)? | `ds_hash` and `sid` in the id_token, device secret as its own response field | Thunder token builder (WP-07); D2 |
-| Child App tokens bound to Hub's DPoP key (T8), or to the Child App's own key? | Hub's key, as the statement's diagram 2 shows; the optional parameter `dpop_jkt` (own key) exists on the server and the apps do not use it | WP-10, WP-15, WP-20; D3 |
+| Child App tokens bound to Hub's DPoP key (T8), or to the Child App's own key? | Hub's key, as the statement's diagram 2 shows | WP-10, WP-15, WP-20; D3 |
 | `interaction_required` or `invalid_scope` for a wider scope; OTP again on re-consent for new user data acceptable? | `interaction_required`, plus `consent_uri` when consent alone is enough | `oauth.native_sso.scope_exceeded_error`; D6 |
 | "Same vendor" = same eSignet relying party, both clients allow `device_sso`? | yes | WP-10; D7 |
 | Meaning of `auth_id` and `claims` in the device secret | authorization request id; names of released claims | WP-07, WP-08 |

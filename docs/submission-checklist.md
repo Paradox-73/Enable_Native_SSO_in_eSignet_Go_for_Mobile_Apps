@@ -31,7 +31,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 | Deliverable | Where | State |
 |---|---|---|
 | Native apps showing the full flow | [../android/README.md](../android/README.md) | READY: JVM-tested (rows JVM-*) and run on the emulator (UI-HUB, UI-CARD, UI-FAMILY, DEMO-FULL) |
-| Updated Postman collection | [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | READY: run under newman (row NEWMAN), including consent-only re-consent (Card 05 to Card 09) |
+| Updated Postman collection | [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | READY: run under newman (row NEWMAN), including consent-only re-consent (Card 03 to Card 07) |
 | Updated API documentation | [api.md](api.md) | READY |
 | Design document based on MOSIP/eSignet design and RFC behaviour | [design.md](design.md), [threat-model.md](threat-model.md) | READY; section 17 lists where the statement, its sequence diagrams and the specifications differ |
 | PPT summarising approach and implementation | [ppt-outline.md](ppt-outline.md) | READY (see Pitch deck) |

@@ -37,7 +37,6 @@ type ExchangeRequest struct {
 	Scope            string // empty sends none
 	DPoPKey          *ECKey // nil sends no proof
 	DPoPProof        string // a ready proof, sent as it is (replay tests); overrides DPoPKey
-	DPoPJkt          string // sent as dpop_jkt: the key the issued tokens are bound to; empty sends none
 }
 
 // TokenExchange sends req and returns the answer as it is. A DPoP-Nonce challenge is answered
@@ -68,9 +67,6 @@ func (c *Client) TokenExchange(req ExchangeRequest) (*Response, error) {
 		}
 		if req.Scope != "" {
 			form.Set("scope", req.Scope)
-		}
-		if req.DPoPJkt != "" {
-			form.Set("dpop_jkt", req.DPoPJkt)
 		}
 		header := http.Header{}
 		switch {

@@ -109,8 +109,8 @@ public class OidcClient(
     /**
      * Native SSO token exchange (Native SSO 1.0 section 4.1, RFC 8693 section 2.1): the Super App's
      * id_token as subject_token, its device secret as actor_token, the issuer as audience.
-     * [dpop] must sign with the Super App's key, the key the device secret is bound to. With
-     * [DeviceSecretExchange.dpopJkt] the issued tokens are bound to that key instead of [dpop]'s.
+     * [dpop] must sign with the Super App's key, the key the device secret is bound to; the issued
+     * tokens are bound to that key.
      *
      * A server that wants the user to consent to more than the original login answers
      * interaction_required: [OAuthErrorException.requiresInteraction] is then true.
@@ -125,7 +125,6 @@ public class OidcClient(
             "audience" to metadata.issuer,
             "scope" to ScopeStrings.format(exchange.scope),
         )
-        exchange.dpopJkt?.let { params[DpopHttp.JKT_PARAM] = it }
         val response = tokenResponse(postForm(metadata.tokenEndpoint, params, dpop))
         if (response.issuedTokenType != null && response.issuedTokenType != TokenTypes.ACCESS_TOKEN) {
             throw InvalidResponseException("token exchange issued ${response.issuedTokenType}, expected an access token")

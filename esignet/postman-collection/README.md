@@ -146,11 +146,10 @@ Both **Initiate PAR** and **Exchange Code for Token** sign their own `private_ke
 
 The **Native SSO** folder runs OpenID Connect Native SSO for Mobile Apps 1.0 end to end against the local stack
 (`deploy/` at the repository root): a first app ("Hub") signs in with `device_sso` and receives a `device_secret`; a
-second app ("Health Card") of the same relying party signs in without a browser by token exchange. It has 43
+second app ("Health Card") of the same relying party signs in without a browser by token exchange. It has 40
 requests: setup (discovery check, four client registrations), the Hub sign-in, the Health Card exchange and userinfo,
-the same with the optional `dpop_jkt` profile extension (`Card 03`, `Card 04`; the demo apps do not send it),
-consent-only re-consent on eSignet's consent page (`Card 05` to `Card 09`, bonus B1), 13 negative requests with tests, five revocation requests (only the Hub may revoke its device secret; the
-exchange fails afterwards, and userinfo refuses both Health Card tokens with 401), and a cleanup request.
+consent-only re-consent on eSignet's consent page (`Card 03` to `Card 07`, bonus B1), 13 negative requests with tests, four revocation requests (only the Hub may revoke its device secret; the
+exchange fails afterwards, and userinfo refuses the Health Card token with 401), and a cleanup request.
 
 ### Run it in newman
 
@@ -160,7 +159,7 @@ bash scripts/with-stack.sh bash esignet/postman-collection/native-sso/run.sh
 
 `with-stack.sh` starts the stack, runs the command and stops the stack. `run.sh` calls
 `newman run Go-eSignet.postman_collection.json -e "Go-eSignet Native SSO (local stack).postman_environment.json" --folder "Native SSO"`.
-It needs newman 6. Expected result: 43 requests, 152 assertions, 0 failed (2026-10-14).
+It needs newman 6. Expected result: 40 requests, 146 assertions, 0 failed.
 
 ### Run it in the Postman app
 
@@ -176,7 +175,7 @@ It needs newman 6. Expected result: 43 requests, 152 assertions, 0 failed (2026-
 | Client assertion | Every token, PAR request is authenticated with a `private_key_jwt` (ES256) whose `aud` is the **issuer**, `http://localhost:38088`. The upstream folders use the endpoint URL; this server answers `invalid_client` to that. |
 | DPoP | Each request sets its `DPoP` header: `htm` and `htu` of that request, `ath` for userinfo. The Hub's DPoP key signs the Hub requests **and the Health Card's token exchange**, because the device secret is bound to the Hub's key (in the Android apps the Hub signs that proof for the Health Card). |
 | Login | `Hub 04` to `Hub 07` post the screens of the login page to `/flow/execute` (identifier and captcha token, OTP, consent). No browser is opened: the collection takes `authId` and `executionId` from the `Location` header of `Hub 02 Authorize` (the request does not follow the redirect), and the code from the `/oauth2/auth/callback` answer. The headless login helper `e2e/client/fapi.go` (`runFlow`) posts the same JSON in the same order, so the two can be compared. Seeded user: UIN `1774231323`, OTP `111111`. |
-| Consent-only re-consent | `Card 05` asks for the permission `health_card_share`, which needs no new user data: the answer is `interaction_required` with a one-time `consent_uri`. `Card 06` opens that page and `Card 07` posts "Allow" with `Origin` set to the issuer, as the page's form does; `Card 08` shows that a ticket answers once; `Card 09` repeats the exchange and gets the permission, bound to the Hub's key. This works from Postman because Postman keeps the `HttpOnly` cookie that `/oauth2/authorize` set at `Hub 02`, so it plays the user's own browser. The Health Card app never has that cookie: from its own HTTP client the page answers 403 (e2e `TestE2E_Exchange_ConsentOnlyReconsent`, subtest "the app cannot answer for the user"). |
+| Consent-only re-consent | `Card 03` asks for the permission `health_card_share`, which needs no new user data: the answer is `interaction_required` with a one-time `consent_uri`. `Card 04` opens that page and `Card 05` posts "Allow" with `Origin` set to the issuer, as the page's form does; `Card 06` shows that a ticket answers once; `Card 07` repeats the exchange and gets the permission, bound to the Hub's key. This works from Postman because Postman keeps the `HttpOnly` cookie that `/oauth2/authorize` set at `Hub 02`, so it plays the user's own browser. The Health Card app never has that cookie: from its own HTTP client the page answers 403 (e2e `TestE2E_Exchange_ConsentOnlyReconsent`, subtest "the app cannot answer for the user"). |
 | Re-consent | `Neg 01` shows the `interaction_required` answer (scope `openid email phone`, the Hub was granted `openid profile email device_sso`). The follow-up (the Health Card's own PAR with `prompt=consent`, a new login, its own token request) uses the same requests as the Hub sign-in with the Health Card's client and key; the Go e2e suite and the Android test `ChildAppReconsentTest` run it. |
 
 ### Why it runs in newman
@@ -197,8 +196,7 @@ Postman desktop app. To change the folder, edit `native-sso/lib.js` or `native-s
 | `client_mgmt_token` | you | Bearer JWT for `/client-mgmt/*`; empty on the local stack |
 | `ns_hub_*`, `ns_card_*`, `ns_plain_*`, `ns_other_*` (`_id`, `_key`, `_pub`) | script | Client ids and key pairs of the Hub, the Health Card, a client without `device_sso`, and an app of another relying party |
 | `ns_hub_dpop_key` | script | The Hub's DPoP key |
-| `ns_card_dpop_key`, `ns_card_own_access_token` | script | The Health Card's own DPoP key and the token bound to it (`dpop_jkt` extension, `Card 03`) |
-| `ns_consent_uri`, `ns_consent_ticket` | script | The `consent_uri` of `Card 05` and its ticket, answered at `Card 07` |
+| `ns_consent_uri`, `ns_consent_ticket` | script | The `consent_uri` of `Card 03` and its ticket, answered at `Card 05` |
 | `ns_request_uri`, `ns_auth_id`, `ns_execution_id`, `ns_challenge_token`, `ns_action_ref`, `ns_assertion`, `ns_code`, `ns_code_verifier`, `ns_state`, `ns_nonce` | script | State of the authorization and login steps |
 | `ns_device_secret`, `ns_hub_id_token`, `ns_hub_access_token`, `ns_card_id_token`, `ns_card_access_token`, `ns_hub_sub`, `ns_hub_sid` | script | Results of the token requests |
 

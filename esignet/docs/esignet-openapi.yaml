@@ -2747,10 +2747,6 @@ paths:
                 scope:
                   type: string
                   description: Token exchange only. Space delimited, must contain `openid`, must not contain `device_sso`, must lie within the first app's granted scope. Default is the granted scope without `device_sso`.
-                dpop_jkt:
-                  type: string
-                  pattern: '^[A-Za-z0-9_-]{43}$'
-                  description: 'Token exchange only, optional profile extension, not sent by the demo apps (RFC 9449 section 10 defines dpop_jkt for the authorization request; at the token endpoint it is this profile''s own, and the named key is not proven). SHA-256 JWK thumbprint of the second app''s own DPoP key. The issued access token is bound to it (`cnf.jkt`), so the second app signs its own proofs for userinfo and its APIs; the `DPoP` header of this request must still be signed with the first app''s key. Without it the token is bound to the first app''s key. Any other value is `invalid_request`.'
               required:
                 - grant_type
                 - client_assertion_type

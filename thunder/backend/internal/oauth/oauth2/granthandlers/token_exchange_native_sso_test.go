@@ -251,8 +251,6 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_ValidateGrant_RequestSha
 		{"two audiences", func(r *model.TokenRequest) {
 			r.Audiences = append(r.Audiences, "https://other.example.com")
 		}, constants.ErrorInvalidTarget},
-		{"dpop_jkt not a thumbprint", func(r *model.TokenRequest) { r.DPoPJkt = "not-a-thumbprint" },
-			constants.ErrorInvalidRequest},
 	}
 	for _, tc := range cases {
 		s.Run(tc.name, func() {
@@ -510,31 +508,6 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_FirstAppLook
 		_, errResp := s.handle()
 		s.assertError(errResp, constants.ErrorServerError)
 	})
-}
-
-// F2: the second app names its own DPoP key in dpop_jkt; its access token is bound to that key, while
-// the request's proof must still come from the device secret's key (rules R14, R23).
-func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_BindsToRequestedKey() {
-	childJkt := "Q2hpbGRBcHBEUG9QS2V5VGh1bWJwcmludDQzY2hhcnM"
-	s.Require().Len(childJkt, 43)
-	s.request.DPoPJkt = childJkt
-	s.Require().Nil(s.handler.ValidateGrant(s.ctx, s.request, s.childApp))
-	s.expectChecksPass()
-	s.expectIssue()
-
-	_, errResp := s.handle()
-
-	s.Require().Nil(errResp)
-	s.Require().Len(s.builtAccess, 1)
-	s.Equal(childJkt, s.builtAccess[0].DPoPJkt)
-
-	s.SetupTest()
-	s.request.DPoPJkt = childJkt
-	s.ctx = dpop.WithJkt(context.Background(), childJkt)
-	s.expectChecksPass()
-	_, errResp = s.handle()
-	s.assertError(errResp, constants.ErrorInvalidGrant)
-	s.Empty(s.builtAccess, "a proof from the second app's own key does not stand in for the device secret's key")
 }
 
 // T9 iii.4: the DPoP proof must be signed with the key the device secret is bound to (rule R14).

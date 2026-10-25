@@ -2756,177 +2756,7 @@
           ]
         },
         {
-          "name": "Card 03 Token exchange with dpop_jkt (optional extension)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{ns_issuer}}/oauth2/token",
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "grant_type",
-                  "value": "{{ns_ex_grant_type}}",
-                  "type": "text"
-                },
-                {
-                  "key": "subject_token",
-                  "value": "{{ns_ex_subject_token}}",
-                  "type": "text"
-                },
-                {
-                  "key": "subject_token_type",
-                  "value": "{{ns_ex_subject_token_type}}",
-                  "type": "text"
-                },
-                {
-                  "key": "actor_token",
-                  "value": "{{ns_ex_actor_token}}",
-                  "type": "text"
-                },
-                {
-                  "key": "actor_token_type",
-                  "value": "{{ns_ex_actor_token_type}}",
-                  "type": "text"
-                },
-                {
-                  "key": "audience",
-                  "value": "{{ns_ex_audience}}",
-                  "type": "text"
-                },
-                {
-                  "key": "scope",
-                  "value": "{{ns_ex_scope}}",
-                  "type": "text"
-                },
-                {
-                  "key": "client_id",
-                  "value": "{{ns_ex_client_id}}",
-                  "type": "text"
-                },
-                {
-                  "key": "client_assertion_type",
-                  "value": "{{ns_ex_client_assertion_type}}",
-                  "type": "text"
-                },
-                {
-                  "key": "client_assertion",
-                  "value": "{{ns_ex_client_assertion}}",
-                  "type": "text"
-                },
-                {
-                  "key": "dpop_jkt",
-                  "value": "{{ns_ex_dpop_jkt}}",
-                  "type": "text"
-                }
-              ]
-            },
-            "description": "Profile extension, not used by the demo apps: `dpop_jkt` names the Health Card's own DPoP key. The DPoP header is still signed with the Hub's key (the device secret's `cnf.jkt`); the issued access token is bound to the named key. RFC 9449 section 10 defines `dpop_jkt` for the authorization request only."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
-                  "",
-                  "const issuer = pm.environment.get('ns_issuer');",
-                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
-                  "const dpop = (keyVar, htm, path, ath) => {",
-                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
-                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
-                  "};",
-                  "",
-                  "const f = {",
-                  "  grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',",
-                  "  subject_token: pm.environment.get('ns_hub_id_token'),",
-                  "  subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',",
-                  "  actor_token: pm.environment.get('ns_device_secret'),",
-                  "  actor_token_type: 'urn:openid:params:token-type:device-secret',",
-                  "  audience: issuer,",
-                  "  scope: 'openid email',",
-                  "  client_id: pm.environment.get('ns_card_id'),",
-                  "  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',",
-                  "  client_assertion: sign('card'),",
-                  "};",
-                  "let dpopKey = 'ns_hub_dpop_key';",
-                  "let sendDpop = true;",
-                  "pm.environment.set('ns_card_dpop_key', JSON.stringify(L.newKey()));",
-                  "f.dpop_jkt = L.thumbprint(L.getKey('ns_card_dpop_key'));",
-                  "Object.keys(f).forEach((k) => pm.variables.set('ns_ex_' + k, f[k] === null ? '' : f[k]));",
-                  "Object.keys(f).filter((k) => f[k] === null).forEach((k) => pm.request.body.urlencoded.remove(k));",
-                  "if (sendDpop) dpop(dpopKey, 'POST', '/oauth2/token');"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
-                  "",
-                  "pm.test('exchange answers 200', () => pm.response.to.have.status(200));",
-                  "const t = pm.response.json();",
-                  "pm.test('access token cnf.jkt is the Health Card key, not the Hub key', () =>",
-                  "  pm.expect(L.decodeJwt(t.access_token).payload.cnf.jkt).to.eql(L.thumbprint(L.getKey('ns_card_dpop_key'))));",
-                  "pm.environment.set('ns_card_own_access_token', t.access_token);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Card 04 Userinfo with the dpop_jkt token and the Health Card key",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{ns_issuer}}/oauth2/userinfo",
-            "description": "The token from Card 03 is bound to the Health Card's key, so the proof is signed with that key."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
-                  "",
-                  "const issuer = pm.environment.get('ns_issuer');",
-                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
-                  "const dpop = (keyVar, htm, path, ath) => {",
-                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
-                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
-                  "};",
-                  "",
-                  "const at = pm.environment.get('ns_card_own_access_token');",
-                  "pm.request.headers.upsert({ key: 'Authorization', value: 'DPoP ' + at });",
-                  "dpop('ns_card_dpop_key', 'GET', '/oauth2/userinfo', at);"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
-                  "",
-                  "pm.test('userinfo answers 200', () => pm.response.to.have.status(200));",
-                  "// eSignet signs the userinfo response (a JWT); a JSON body is accepted too.",
-                  "const body = pm.response.text().trim();",
-                  "const claims = body.split('.').length === 3 ? L.decodeJwt(body).payload : JSON.parse(body);",
-                  "pm.test('userinfo sub equals the sub of the id_token', () => pm.expect(claims.sub).to.eql(pm.environment.get('ns_hub_sub')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Card 05 Exchange for a permission beyond the Hub grant -> interaction_required with consent_uri",
+          "name": "Card 03 Exchange for a permission beyond the Hub grant -> interaction_required with consent_uri",
           "request": {
             "method": "POST",
             "header": [],
@@ -3052,7 +2882,7 @@
           ]
         },
         {
-          "name": "Card 06 Consent page in the browser of the Hub login -> 200",
+          "name": "Card 04 Consent page in the browser of the Hub login -> 200",
           "request": {
             "method": "GET",
             "header": [],
@@ -3086,7 +2916,7 @@
           ]
         },
         {
-          "name": "Card 07 Allow on the consent page -> 303 to the Health Card",
+          "name": "Card 05 Allow on the consent page -> 303 to the Health Card",
           "request": {
             "method": "POST",
             "header": [
@@ -3132,7 +2962,7 @@
           }
         },
         {
-          "name": "Card 08 The same ticket again -> 400 (answered once)",
+          "name": "Card 06 The same ticket again -> 400 (answered once)",
           "request": {
             "method": "POST",
             "header": [
@@ -3175,7 +3005,7 @@
           }
         },
         {
-          "name": "Card 09 Exchange for the permission after Allow -> 200",
+          "name": "Card 07 Exchange for the permission after Allow -> 200",
           "request": {
             "method": "POST",
             "header": [],
@@ -4912,49 +4742,6 @@
           ]
         },
         {
-          "name": "Rev 05 Card userinfo with the dpop_jkt token after the revocation -> 401",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{ns_issuer}}/oauth2/userinfo",
-            "description": "Same for the token from Card 03 (the optional extension, bound to the Health Card key)."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const L = new Function('CryptoJS', 'pm', pm.collectionVariables.get('ns_lib'))(CryptoJS, pm);",
-                  "",
-                  "const issuer = pm.environment.get('ns_issuer');",
-                  "const sign = (who) => L.clientAssertion(pm.environment.get('ns_' + who + '_id'), L.getKey('ns_' + who + '_key'), issuer);",
-                  "const dpop = (keyVar, htm, path, ath) => {",
-                  "  const p = L.dpopProof(L.getKey(keyVar), htm, issuer + path, ath);",
-                  "  pm.request.headers.upsert({ key: 'DPoP', value: p });",
-                  "};",
-                  "",
-                  "const at = pm.environment.get('ns_card_own_access_token');",
-                  "pm.request.headers.upsert({ key: 'Authorization', value: 'DPoP ' + at });",
-                  "dpop('ns_card_dpop_key', 'GET', '/oauth2/userinfo', at);"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('userinfo answers 401 after the sign-out', () => pm.response.to.have.status(401));",
-                  "pm.test('the answer names invalid_token', () =>",
-                  "  pm.expect((pm.response.headers.get('WWW-Authenticate') || '') + pm.response.text()).to.include('invalid_token'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "99 Cleanup: remove keys and tokens from the environment",
           "request": {
             "method": "GET",
@@ -4969,7 +4756,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "['hub', 'card', 'plain', 'other'].forEach((n) => ['key', 'pub', 'id'].forEach((s) => pm.environment.unset('ns_' + n + '_' + s)));",
-                  "['ns_hub_dpop_key', 'ns_card_dpop_key', 'ns_card_own_access_token', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',",
+                  "['ns_hub_dpop_key', 'ns_device_secret', 'ns_hub_access_token', 'ns_hub_id_token', 'ns_card_access_token',",
                   " 'ns_card_id_token', 'ns_code', 'ns_code_verifier', 'ns_assertion', 'ns_challenge_token', 'ns_request_uri',",
                   " 'ns_auth_id', 'ns_execution_id', 'ns_hub_sub', 'ns_hub_sid', 'ns_consent_prompt', 'ns_consent_uri',",
                   " 'ns_consent_ticket'].forEach((k) => pm.environment.unset(k));"

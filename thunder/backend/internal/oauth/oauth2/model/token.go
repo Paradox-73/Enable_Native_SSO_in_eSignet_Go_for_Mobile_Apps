@@ -25,10 +25,6 @@ type TokenRequest struct {
 	Audiences          []string `json:"audiences,omitempty"`
 	AuthReqID          string   `json:"auth_req_id,omitempty"`
 	Assertion          string   `json:"assertion,omitempty"`
-	// DPoPJkt is the dpop_jkt parameter, a profile extension at the token endpoint (RFC 9449 section 10
-	// defines it for the authorization request). Only the Native SSO token exchange reads it: the second
-	// app's tokens are bound to this key instead of the key of the request's DPoP proof.
-	DPoPJkt string `json:"dpop_jkt,omitempty"`
 }
 
 // TokenResponse represents the OAuth2 token response.

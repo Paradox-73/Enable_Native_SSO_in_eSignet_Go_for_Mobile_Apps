@@ -244,23 +244,7 @@ class OidcClientTest {
         assertEquals("hub-client", form["client_id"])
         assertTrue(form.containsKey("client_assertion"))
         assertEquals("POST", proofClaims(recorded.getHeader("DPoP"))["htm"])
-        assertFalse("no dpop_jkt unless asked", form.containsKey("dpop_jkt"))
-    }
-
-    @Test
-    fun `token exchange with dpopJkt asks for tokens bound to that key`() {
-        server.enqueue(json(200, tokenJson(idToken = "child.id.token", issuedTokenType = TokenTypes.ACCESS_TOKEN)))
-        val childKey = "A".repeat(43)
-        client.exchangeDeviceSecret(DeviceSecretExchange("hub.id.token", "ds-jwe", setOf("openid"), dpopJkt = childKey), dpop)
-
-        val recorded = server.takeRequest()
-        assertEquals(childKey, recorded.form()["dpop_jkt"])
-        assertTrue("the proof still comes from the given source", recorded.getHeader("DPoP")!!.isNotEmpty())
-        for (bad in listOf("", "short", "A".repeat(44), "A".repeat(42) + "=")) {
-            assertThrows(IllegalArgumentException::class.java) {
-                DeviceSecretExchange("id", "ds", setOf("openid"), dpopJkt = bad)
-            }
-        }
+        assertFalse("the exchange sends no dpop_jkt", form.containsKey("dpop_jkt"))
     }
 
     @Test

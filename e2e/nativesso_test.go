@@ -454,47 +454,6 @@ func TestE2E_Exchange_ChildTokens(t *testing.T) {
 	}
 }
 
-// R23, optional dpop_jkt profile extension (the demo apps do not send it): with dpop_jkt the Health
-// Card's access token is bound to its own DPoP key, so it signs its own
-// userinfo proofs and the Hub's key no longer works for that token. The exchange proof must still come
-// from the Hub's key (R14), and dpop_jkt must be a thumbprint.
-func TestE2E_Exchange_ChildOwnDPoPKey(t *testing.T) {
-	f := nativeSSO(t)
-	c := newClient(t)
-	childKey, err := client.NewECKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := f.exchange(f.child)
-	req.DPoPJkt = childKey.Thumbprint()
-	out := expectExchangeOK(t, "R23", doExchange(t, c, req))
-	if !strings.EqualFold(out.TokenType, "DPoP") {
-		t.Errorf("token_type %q, want DPoP", out.TokenType)
-	}
-	if got := cnfJKT(t, out.AccessToken); got != childKey.Thumbprint() {
-		t.Errorf("access token cnf.jkt %q, want the Health Card key %q", got, childKey.Thumbprint())
-	}
-	if info := userinfoJWT(t, c, childKey, out.AccessToken); info.Str("sub") != f.idt.Str("sub") {
-		t.Errorf("userinfo sub %q, want %q", info.Str("sub"), f.idt.Str("sub"))
-	}
-	r, err := c.Userinfo(f.hubDPoP, out.AccessToken)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectError(t, "R23", r, http.StatusUnauthorized, "invalid_token")
-
-	t.Run("proof from the Health Card key", func(t *testing.T) {
-		req := f.exchange(f.child)
-		req.DPoPKey, req.DPoPJkt = childKey, childKey.Thumbprint()
-		expectError(t, "R14", doExchange(t, c, req), http.StatusBadRequest, "invalid_grant")
-	})
-	t.Run("dpop_jkt not a thumbprint", func(t *testing.T) {
-		req := f.exchange(f.child)
-		req.DPoPJkt = "not-a-thumbprint"
-		expectError(t, "R23", doExchange(t, c, req), http.StatusBadRequest, "invalid_request")
-	})
-}
-
 // R23: the sub the Health Card gets by exchange equals the one of its own direct login (sub is
 // per relying party).
 func TestE2E_Exchange_SubMatchesDirectLogin(t *testing.T) {
@@ -576,15 +535,6 @@ func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 	childTok := expectExchangeOK(t, "R27", doExchange(t, c, f.exchange(f.child)))
 	userinfoJWT(t, c, f.hubDPoP, childTok.AccessToken)
 	expectActive(t, c, f.child, childTok.AccessToken, true)
-	// The optional dpop_jkt extension: a token bound to Health Card's own key.
-	childKey, err := client.NewECKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	ownReq := f.exchange(f.child)
-	ownReq.DPoPJkt = childKey.Thumbprint()
-	ownTok := expectExchangeOK(t, "R27", doExchange(t, c, ownReq))
-	userinfoJWT(t, c, childKey, ownTok.AccessToken)
 
 	t.Run("other client of the vendor", func(t *testing.T) {
 		r, err := c.Revoke(f.child, f.tok.DeviceSecret, client.TokenTypeHintDeviceSecret)
@@ -606,16 +556,11 @@ func TestE2E_Revoke_DeviceSecret(t *testing.T) {
 		record(t, "R27", r.Status, client.OAuthError{}, "device secret revoked by the Hub")
 		expectError(t, "R27", doExchange(t, c, f.exchange(f.child)), http.StatusBadRequest, "invalid_grant")
 
-		for _, use := range []struct {
-			key   *client.ECKey
-			token string
-		}{{f.hubDPoP, childTok.AccessToken}, {childKey, ownTok.AccessToken}} {
-			info, err := c.Userinfo(use.key, use.token)
-			if err != nil {
-				t.Fatal(err)
-			}
-			expectError(t, "R27", info, http.StatusUnauthorized, "invalid_token")
+		info, err := c.Userinfo(f.hubDPoP, childTok.AccessToken)
+		if err != nil {
+			t.Fatal(err)
 		}
+		expectError(t, "R27", info, http.StatusUnauthorized, "invalid_token")
 		expectActive(t, c, f.child, childTok.AccessToken, false)
 	})
 

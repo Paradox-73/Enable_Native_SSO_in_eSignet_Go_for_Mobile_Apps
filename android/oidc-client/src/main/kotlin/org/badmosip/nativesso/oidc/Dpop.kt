@@ -24,7 +24,7 @@ public data class DpopRequest(
 /**
  * Produces DPoP proofs. The Super App answers with its own key ([DpopProofFactory]); the Child App
  * forwards each request to the Super App over the family binder, because the token exchange must
- * be proven with the key the device secret is bound to (statement task 9 iii.4).
+ * be proven with the key the device secret is bound to (Native SSO 4.1).
  */
 public fun interface DpopProofSource {
     public fun proof(request: DpopRequest): String

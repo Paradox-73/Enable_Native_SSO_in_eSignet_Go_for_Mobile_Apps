@@ -18,14 +18,13 @@ import (
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/revocation"
 	"github.com/thunder-id/thunderid/internal/oauth/oauth2/tokenservice"
 	oauth2utils "github.com/thunder-id/thunderid/internal/oauth/oauth2/utils"
-	"github.com/thunder-id/thunderid/internal/system/jose/jws"
 	"github.com/thunder-id/thunderid/internal/system/log"
 	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
 )
 
 // legacyDeviceSecretTokenType is the device-secret token type of Native SSO draft 06 and earlier. It is
-// recognized only to tell the client which type replaced it (rule R10).
+// recognized only to tell the client which type replaced it.
 const legacyDeviceSecretTokenType = "urn:x-oath:params:oauth:token-type:device-secret" //nolint:gosec // a type name
 
 // Error descriptions of the Native SSO token exchange. They name the rule that failed and carry no
@@ -60,7 +59,6 @@ const (
 	errDescNSSOConsentNeeded = "The requested scope exceeds the scope granted to the first app and can be " +
 		"approved at consent_uri without a new login; user consent is needed for: "
 	errDescNSSOAttributesGone = "The user attributes of the login session are no longer available"
-	errDescNSSOInvalidDPoPJkt = "Invalid dpop_jkt parameter"
 	errDescNSSOFailed         = "Failed to generate token"
 )
 
@@ -83,11 +81,11 @@ func (h *tokenExchangeGrantHandler) validateNativeSSOGrant(
 }
 
 // validateNativeSSORequest checks a token exchange whose actor_token_type is the device-secret type
-// (statement task 9 i). These checks need no token to be decrypted or verified, so they run before
-// the DPoP proof and the device secret are looked at (design section 11, steps 3 and 4).
+// (Native SSO 4.1). These checks need no token to be decrypted or verified, so they run before
+// the DPoP proof and the device secret are looked at.
 func (h *tokenExchangeGrantHandler) validateNativeSSORequest(tokenRequest *model.TokenRequest) *model.ErrorResponse {
 	// Without a DeviceSecretProvider Native SSO is off and the device-secret type is refused like any
-	// other unsupported token type (rule R03).
+	// other unsupported token type.
 	if h.deviceSecretProvider == nil {
 		return invalidRequest(errDescNSSONotSupported)
 	}
@@ -104,18 +102,15 @@ func (h *tokenExchangeGrantHandler) validateNativeSSORequest(tokenRequest *model
 		constants.TokenTypeIdentifier(tokenRequest.RequestedTokenType) != constants.TokenTypeIdentifierAccessToken {
 		return invalidRequest(errDescNSSORequestedType)
 	}
-	// Native SSO 4.1: audience is REQUIRED and is the issuer of the authorization server (rule R18).
+	// Native SSO 4.1: audience is REQUIRED and is the issuer of the authorization server.
 	if len(tokenRequest.Audiences) == 0 {
 		return invalidRequest(errDescNSSOMissingAudience)
 	}
 	if len(tokenRequest.Audiences) != 1 || tokenRequest.Audiences[0] != h.cfg.JWT.Issuer {
 		return &model.ErrorResponse{Error: constants.ErrorInvalidTarget, ErrorDescription: errDescNSSOAudience}
 	}
-	if tokenRequest.DPoPJkt != "" && !jws.IsValidJKT(tokenRequest.DPoPJkt) {
-		return invalidRequest(errDescNSSOInvalidDPoPJkt)
-	}
-	// Native SSO 4.1 and statement task 10b: a requested scope must include openid and must not include
-	// device_sso, which only an authorization-code grant may carry (rule R16). No scope is allowed and
+	// Native SSO 4.1: a requested scope must include openid and must not include
+	// device_sso, which only an authorization-code grant may carry. No scope is allowed and
 	// means the scope granted to the first app.
 	if requested := tokenservice.ParseScopes(tokenRequest.Scope); len(requested) > 0 {
 		if slices.Contains(requested, constants.ScopeDeviceSSO) {
@@ -128,16 +123,15 @@ func (h *tokenExchangeGrantHandler) validateNativeSSORequest(tokenRequest *model
 	return nil
 }
 
-// handleNativeSSOGrant performs the checks of Native SSO 4.3 in the order of design section 11 (steps 6
-// to 12) and then issues tokens for the requesting app. Any failure stops processing; no token is
-// issued.
+// handleNativeSSOGrant performs the checks of Native SSO 4.3 and then issues tokens for the requesting
+// app. Any failure stops processing; no token is issued.
 func (h *tokenExchangeGrantHandler) handleNativeSSOGrant(ctx context.Context, tokenRequest *model.TokenRequest,
 	oauthApp *providers.OAuthClient) (*model.TokenResponseDTO, *model.ErrorResponse) {
 	if h.deviceSecretProvider == nil {
 		return nil, invalidRequest(errDescNSSONotSupported)
 	}
 
-	// Step 6: the requesting app itself must be allowed device_sso (statement task 9 iii.3, rule R13).
+	// The requesting app itself must be allowed device_sso (Native SSO 4.3).
 	if oauthApp == nil || !slices.Contains(oauthApp.Scopes, constants.ScopeDeviceSSO) {
 		return nil, &model.ErrorResponse{
 			Error:            constants.ErrorUnauthorizedClient,
@@ -145,30 +139,30 @@ func (h *tokenExchangeGrantHandler) handleNativeSSOGrant(ctx context.Context, to
 		}
 	}
 
-	// Steps 7 and 8: the provider decrypts and verifies the device secret and checks that its login
-	// session is still active (statement task 9 ii, rules R09 and R12).
+	// The provider decrypts and verifies the device secret and checks that its login
+	// session is still active (Native SSO 4.3 step 4).
 	dsClaims, errResp := h.validateDeviceSecret(ctx, tokenRequest.ActorToken)
 	if errResp != nil {
 		return nil, errResp
 	}
 
-	// Steps 9 and 10: the id_token and its binding to the device secret (statement task 9 iii.1-2).
+	// The id_token and its binding to the device secret (Native SSO 4.3).
 	if errResp := h.checkNativeSSOIDToken(ctx, tokenRequest, dsClaims); errResp != nil {
 		return nil, errResp
 	}
 
-	// Step 11: same vendor (rule R19).
+	// Same vendor (Native SSO 4.3 step 5).
 	if errResp := h.checkSameVendor(ctx, oauthApp, dsClaims); errResp != nil {
 		return nil, errResp
 	}
 
-	// Step 12: the DPoP proof of this request is signed with the key the device secret is bound to
-	// (statement task 9 iii.4, rule R14). VerifyProofBinding answers invalid_grant on a mismatch.
+	// The DPoP proof of this request is signed with the key the device secret is bound to
+	// (RFC 9449 section 6). VerifyProofBinding answers invalid_grant on a mismatch.
 	if errResp := dpop.VerifyProofBinding(ctx, dsClaims.DPoPJkt, "device secret"); errResp != nil {
 		return nil, errResp
 	}
 
-	// Step 13: scope rules (statement task 10a, bonus B1).
+	// Scope rules (Native SSO 4.3 step 6).
 	scopes, errResp := h.resolveNativeSSOScopes(ctx, tokenRequest.Scope, oauthApp, dsClaims)
 	if errResp != nil {
 		return nil, errResp
@@ -179,8 +173,7 @@ func (h *tokenExchangeGrantHandler) handleNativeSSOGrant(ctx context.Context, to
 		return nil, errResp
 	}
 
-	// Step 15: the consent was reused with no consent screen; record it before the tokens leave
-	// (statement diagram 2, "append consent_history row").
+	// The consent was reused with no consent screen; record it before the tokens leave.
 	if errResp := h.recordConsentReuse(ctx, oauthApp, dsClaims, scopes); errResp != nil {
 		return nil, errResp
 	}
@@ -207,7 +200,7 @@ func (h *tokenExchangeGrantHandler) recordConsentReuse(ctx context.Context, oaut
 }
 
 // validateDeviceSecret asks the DeviceSecretProvider to validate the device secret and maps its outcome
-// to a token error (design section 8): ErrorDeviceSecretSessionEnded is invalid_grant (Native SSO 4.3
+// to a token error: ErrorDeviceSecretSessionEnded is invalid_grant (Native SSO 4.3
 // step 4), any other client error is invalid_request (RFC 8693 2.2.2), a server error is server_error.
 func (h *tokenExchangeGrantHandler) validateDeviceSecret(
 	ctx context.Context, deviceSecret string,
@@ -250,11 +243,11 @@ func (h *tokenExchangeGrantHandler) validateDeviceSecret(
 }
 
 // checkNativeSSOIDToken validates the id_token presented as subject_token and its binding to the device
-// secret (design section 11, steps 9 and 10):
+// secret (Native SSO 4.3):
 //   - signed by this server, issued by this server, issued to the client of the device secret and for
-//     the same user (rule R20); its expiry is not required (design section 11.1, rule R21);
-//   - ds_hash equals the hash of the presented device secret (statement task 9 iii.1, rule R11);
-//   - sid equals the session of the device secret (statement task 9 iii.2, rule R12);
+//     the same user; its expiry is not required (Native SSO 6.3);
+//   - ds_hash equals the hash of the presented device secret (Native SSO 4.3);
+//   - sid equals the session of the device secret (Native SSO 4.3);
 //   - last, an optional cap (oauth.native_sso.id_token_max_age_seconds) on its age since iat; an older
 //     id_token is invalid_grant, as for an ended session, because the first app must log in again.
 func (h *tokenExchangeGrantHandler) checkNativeSSOIDToken(ctx context.Context, tokenRequest *model.TokenRequest,
@@ -294,7 +287,7 @@ func (h *tokenExchangeGrantHandler) checkNativeSSOIDToken(ctx context.Context, t
 }
 
 // checkSameVendor applies Native SSO 4.3 step 5 ("SHOULD maintain a list of client_ids that can share")
-// as decision D7: the requesting app and the app the device secret was issued to belong to the same
+// this way: the requesting app and the app the device secret was issued to belong to the same
 // organization unit (in eSignet, the same relying party), and that app still allows device_sso. Its
 // settings are read now, not taken from the device secret, so a change takes effect at once.
 func (h *tokenExchangeGrantHandler) checkSameVendor(ctx context.Context, oauthApp *providers.OAuthClient,
@@ -316,15 +309,15 @@ func (h *tokenExchangeGrantHandler) checkSameVendor(ctx context.Context, oauthAp
 	return nil
 }
 
-// resolveNativeSSOScopes applies the scope rules of design section 12 to the scope requested in the
+// resolveNativeSSOScopes applies the scope rules of Native SSO 4.3 step 6 to the scope requested in the
 // exchange, given the scope granted with the device secret:
-//   - no scope: the granted scope without device_sso (RFC 8693 2.1 makes scope optional; rule R17);
-//   - equal or narrower: allowed, the response carries what was issued (statement task 10a; rule R17);
+//   - no scope: the granted scope without device_sso (RFC 8693 2.1 makes scope optional);
+//   - equal or narrower: allowed, the response carries what was issued (RFC 8693 2.2.1);
 //   - a value outside the granted scope that the user already approved for this app in this login
-//     session on the consent page (consent-only re-consent, bonus B1; rule R28): allowed;
+//     session on the consent page (consent-only re-consent): allowed;
 //   - any other value outside the granted scope: the exchange fails with interaction_required, or
-//     invalid_scope when oauth.native_sso.scope_exceeded_error says so (statement task 10a, Native SSO
-//     4.3 step 6 and 4.4; rule R15). interaction_required is the re-consent signal of bonus B1. The
+//     invalid_scope when oauth.native_sso.scope_exceeded_error says so (Native SSO
+//     4.3 step 6 and 4.4). interaction_required is the re-consent signal. The
 //     description names the missing scope values only, so the app can tell the user which permission
 //     it needs. When the missing values need consent only, the answer also carries consent_uri.
 //
@@ -442,12 +435,11 @@ func (h *tokenExchangeGrantHandler) scopeExceeded(ctx context.Context, oauthApp 
 }
 
 // issueNativeSSOTokens issues the second app's tokens for the login of the device secret (Native SSO
-// 4.4, rule R23):
+// 4.4):
 //   - access token: the same user, the resolved scope, the attribute-cache id (aci) of the login so that
 //     userinfo answers with the claims the user released, and carrying the sid of the login, so that it
-//     stops working when that session ends (sign-out, rule R27). It is bound to the DPoP key of this
-//     request, which step 12 proved is the key of the device secret (statement task 8, decision D3); with
-//     the optional dpop_jkt profile extension, to the key the second app names there instead;
+//     stops working when that session ends (sign-out). It is bound to the DPoP key of this
+//     request, which the proof check proved is the key of the device secret (Native SSO 4.4, RFC 9449 section 6);
 //   - id_token: aud is the second app, the same sub, sid, acr and auth_time as the login, and no ds_hash
 //     (no device secret is issued to the second app);
 //   - user attributes: only the claims both released to the first app (the device secret's claims) and
@@ -462,12 +454,6 @@ func (h *tokenExchangeGrantHandler) issueNativeSSOTokens(ctx context.Context, to
 		return nil, errResp
 	}
 
-	// The request's proof is the first app's key (step 12). With the dpop_jkt extension the second app names
-	// its own key; it is not proven here (threat model section 6).
-	boundJkt := dpop.GetJkt(ctx)
-	if tokenRequest.DPoPJkt != "" {
-		boundJkt = tokenRequest.DPoPJkt
-	}
 	userSubConfig := oauthApp.UserAccessTokenConfig()
 	accessToken, err := h.tokenBuilder.BuildAccessToken(ctx, &tokenservice.AccessTokenBuildContext{
 		Subject:           dsClaims.Subject,
@@ -479,7 +465,7 @@ func (h *tokenExchangeGrantHandler) issueNativeSSOTokens(ctx context.Context, to
 		GrantType:         string(providers.GrantTypeTokenExchange),
 		OAuthApp:          oauthApp,
 		ValidityPeriod:    userSubConfig.ValidityPeriodOrZero(),
-		DPoPJkt:           boundJkt,
+		DPoPJkt:           dpop.GetJkt(ctx),
 		SessionID:         dsClaims.SessionID,
 	})
 	if err != nil {
@@ -561,7 +547,7 @@ func releasedClaimNames(oauthApp *providers.OAuthClient, dsClaims *providers.Dev
 }
 
 // grantedNativeSSOScopes returns the scope granted with a device secret without device_sso: the
-// device_sso scope is never passed on by a token exchange (statement task 10b).
+// device_sso scope is never passed on by a token exchange (Native SSO 4.1).
 func grantedNativeSSOScopes(deviceSecretScopes []string) []string {
 	scopes := make([]string, 0, len(deviceSecretScopes))
 	for _, scope := range deviceSecretScopes {
