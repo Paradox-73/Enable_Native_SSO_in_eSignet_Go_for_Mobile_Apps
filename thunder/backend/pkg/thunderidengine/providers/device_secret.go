@@ -87,7 +87,7 @@ type DeviceSecretClaims struct {
 
 // ConsentReuse describes a token exchange that issued tokens to a second app under the consent the
 // user gave at the first app's login (or on the consent page of this login), without asking again.
-// The statement's Child App diagram records such a silent reuse in the consent history.
+// Such a silent reuse is recorded in the consent history.
 type ConsentReuse struct {
 	// ClientID is the second app the tokens were issued to.
 	ClientID string

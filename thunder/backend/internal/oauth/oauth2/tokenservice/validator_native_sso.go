@@ -31,7 +31,7 @@ type NativeSSOIDTokenClaims struct {
 }
 
 // ValidateNativeSSOIDToken validates the id_token of a Native SSO token exchange (Native SSO 4.1 and
-// 4.3, statement task 9 iii). The token must:
+// 4.3). The token must:
 //   - be a signed id_token: typ JWT (an access token has at+jwt) and no access_token_sub claim (a
 //     refresh token has one);
 //   - be issued by this server and carry a valid signature of one of its keys;

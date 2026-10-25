@@ -49,7 +49,7 @@ import java.time.temporal.ChronoUnit
  *   `sid` of Hub's id_token) -> userinfo with a Hub-signed proof carrying `ath` -> encrypted storage.
  *   No browser, no password, no OTP.
  * - [startConsentLogin] and [completeConsentLogin]: when the exchange asks for more than Hub's login
- *   granted, eSignet answers `interaction_required` (bonus B1); Health Card then runs its own PAR
+ *   granted, eSignet answers `interaction_required`; Health Card then runs its own PAR
  *   login with `prompt=consent` and its own DPoP key.
  *
  * Blocking; call from a background thread. Failures are [OidcException], [HubException] or

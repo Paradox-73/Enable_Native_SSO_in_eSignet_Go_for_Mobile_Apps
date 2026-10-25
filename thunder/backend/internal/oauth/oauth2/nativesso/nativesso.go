@@ -38,7 +38,7 @@ func RequestsDeviceSSO(scopes []string) bool {
 // ValidateDeviceSSOScope checks a request whose scopes include device_sso and returns nil when it
 // may proceed, or when device_sso is not requested at all. The pushed authorization request, the
 // authorization request and the authorization-code grant all apply it, the last one again because the
-// client's settings can change between the login and the token request (statement task 2).
+// client's settings can change between the login and the token request.
 //
 //   - enabled is false when the engine has no DeviceSecretProvider: Native SSO is off and device_sso
 //     is refused like any scope the server does not support.
@@ -96,7 +96,7 @@ func DeviceSecretHash(deviceSecret string) string {
 // map, names without a value are left out; when they are one opaque token from the identity system
 // (providers.RawJWTAttributeKey, as in eSignet), the engine cannot see the values and keeps every
 // released name. Only names are returned, never values: the device secret carries them as its claims
-// entry (statement task 4a vii).
+// entry.
 func ReleasedClaimNames(
 	scopes []string, scopeClaims map[string][]string, claimsRequest *model.ClaimsRequest,
 	userAttributes map[string]interface{},

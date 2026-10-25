@@ -155,7 +155,7 @@ func (ds *discoveryService) getAllowedScopes() []string {
 
 // isNativeSSOSupported reports whether OpenID Connect Native SSO can be used: the engine has a
 // DeviceSecretProvider and the token-exchange grant is allowed (an empty allow list allows every grant),
-// so the token-exchange handler that accepts device secrets exists (Native SSO 5; rules R03, R24).
+// so the token-exchange handler that accepts device secrets exists (Native SSO 5).
 func (ds *discoveryService) isNativeSSOSupported() bool {
 	grants := ds.cfg.OAuth.AllowedGrantTypes
 	return ds.cfg.NativeSSOEnabled &&
@@ -164,7 +164,7 @@ func (ds *discoveryService) isNativeSSOSupported() bool {
 
 // getOIDCScopesSupported returns the allowed scopes with device_sso listed exactly when Native SSO is
 // supported: added when a deployment did not list it, and removed when Native SSO is off, because the
-// authorization endpoint then refuses it (rule R03). The configured list itself is never modified.
+// authorization endpoint then refuses it. The configured list itself is never modified.
 func (ds *discoveryService) getOIDCScopesSupported() []string {
 	scopes := slices.DeleteFunc(slices.Clone(ds.getAllowedScopes()), func(scope string) bool {
 		return scope == constants.ScopeDeviceSSO

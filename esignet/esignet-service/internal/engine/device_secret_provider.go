@@ -454,7 +454,7 @@ func (p *deviceSecretProvider) loadSession(ctx context.Context, claims *deviceSe
 }
 
 // RecordConsentReuse appends a consent_history row for the second app of a token exchange that reused
-// the login's consent without a consent screen (statement diagram 2). The row's user is the sub, as in
+// the login's consent without a consent screen, so the reuse is auditable. The row's user is the sub, as in
 // every eSignet consent record; it expires with the device secret, the reuse's limit.
 func (p *deviceSecretProvider) RecordConsentReuse(ctx context.Context,
 	reuse providers.ConsentReuse) *common.ServiceError {

@@ -14,9 +14,9 @@
 #   private_key_jwt, PAR and PKCE required, DPoP-bound tokens, relying party `$PS03_RELYING_PARTY`
 #   (default ps03-family). Both apps get the authorization-code and token-exchange grants and may ask
 #   for `device_sso` (additionalConfig.allowed_authorization_scopes): Hub to receive a device secret,
-#   Health Card because eSignet lets only a client allowed `device_sso` use one (Native SSO, rule R13).
+#   Health Card because eSignet lets only a client allowed `device_sso` use one (Native SSO 4.3).
 #   Health Card may also ask for the permission `health_card_share`, which the user approves on
-#   eSignet's consent page without a new login (consent-only re-consent, rule R28). The client name
+#   eSignet's consent page without a new login (consent-only re-consent). The client name
 #   ("Hub" or "Health Card") is what eSignet's pages show. A client_id that already exists counts as
 #   registered (the client_id is derived from the key, so the same id means the same key).
 # - Prints `register-client: <client_id> ACTIVE` (or `already registered`). Uses ANDROID_SERIAL when set.

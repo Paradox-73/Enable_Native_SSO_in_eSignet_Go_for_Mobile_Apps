@@ -35,7 +35,7 @@ type issuedDeviceSecret struct {
 // checkDeviceSSOGrant checks an authorization code that was granted the device_sso scope (OpenID Connect
 // Native SSO for Mobile Apps 1.0), before any token is built:
 //   - the client must still allow device_sso and Native SSO must be on: the client's settings can change
-//     between the login and the token request (statement task 2), so the check of the authorization
+//     between the login and the token request, so the check of the authorization
 //     request is repeated here; a failure is invalid_scope.
 //   - the request must carry a DPoP proof, because the device secret is bound to its key (cnf.jkt). The
 //     token service already answers invalid_dpop_proof for a DPoP-bound client without a proof; any other

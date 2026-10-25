@@ -63,7 +63,7 @@ func (av *authorizationValidator) validateInitialAuthorizationRequest(ctx contex
 		return true, errResp.Error, errResp.ErrorDescription
 	}
 
-	// OpenID Connect Native SSO: only clients allowed device_sso may ask for a device secret (task 2).
+	// OpenID Connect Native SSO: only clients allowed device_sso may ask for a device secret (Native SSO 3.1).
 	scopes := utils.ParseStringArray(queryParams.Get(constants.RequestParamScope), " ")
 	if errResp := nativesso.ValidateDeviceSSOScope(scopes, oauthApp, av.nativeSSOEnabled); errResp != nil {
 		return true, errResp.Error, errResp.ErrorDescription

@@ -46,7 +46,7 @@ type AuthorizationCode struct {
 	TokenFamilyID string
 	// AuthID is the id of the authorization request (the login) the code was issued for. It is set only
 	// for a code granted the device_sso scope: the device secret carries it as auth_id (OpenID Connect
-	// Native SSO for Mobile Apps 1.0, statement task 5).
+	// Native SSO for Mobile Apps 1.0, 3.1).
 	AuthID string
 }
 

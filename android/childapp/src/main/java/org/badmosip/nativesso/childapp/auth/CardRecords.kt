@@ -13,7 +13,7 @@ import java.time.Instant
  *
  * @property scopes the silent sign-in: `openid profile email`, a subset of what Hub's login asks for
  * @property extraScope the permission behind "Add my phone number". Hub's login never asks for it, so
- *   asking for it in the token exchange is answered `interaction_required` (bonus B1) and Health Card
+ *   asking for it in the token exchange is answered `interaction_required` and Health Card
  *   runs its own login with `prompt=consent`. eSignet maps it to `phone_number`.
  * @property shareScope the permission behind "Allow card sharing". It releases no user data, so eSignet
  *   answers its `interaction_required` with a `consent_uri` and the user approves it on eSignet's
