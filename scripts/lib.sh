@@ -72,8 +72,8 @@ ps03_emulator_prepare() {
   ps03_adb shell am set-debug-app --persistent com.android.chrome >/dev/null
 }
 
-# ps03_install_apk FILE PACKAGE: installs FILE; when PACKAGE is installed with another certificate,
-# uninstalls it and installs again. Stops the script when the install fails.
+# ps03_install_apk FILE PACKAGE: installs FILE; when PACKAGE (or the app that owns its permission) is
+# installed with another certificate, uninstalls it and installs again. Stops the script when the install fails.
 ps03_install_apk() {
   local file=$1 pkg=$2 result
   [ -f "$file" ] || ps03_die "missing $file: build the apps first"
@@ -81,6 +81,10 @@ ps03_install_apk() {
   if printf '%s' "$result" | grep -q 'INSTALL_FAILED_UPDATE_INCOMPATIBLE\|INSTALL_FAILED_DUPLICATE_PERMISSION'; then
     ps03_warn "$pkg is installed with another certificate; uninstalling it first"
     ps03_adb uninstall "$pkg" >/dev/null 2>&1 || true
+    # The other family app may own the shared permission under the old certificate.
+    local owner
+    owner=$(printf '%s' "$result" | sed -n 's/.*already owned by \([A-Za-z0-9_.]*\).*/\1/p' | head -1)
+    [ -n "$owner" ] && ps03_adb uninstall "$owner" >/dev/null 2>&1 || true
     result=$(ps03_adb install -r -t "$(ps03_host_path "$file")" 2>&1 || true)
   fi
   printf '%s' "$result" | grep -q Success || ps03_die "install of $file failed: $result"

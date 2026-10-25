@@ -36,10 +36,15 @@ class ChildAppConsentOnlyTest {
         ui.waitFor("home_name")
     }
 
-    /** Hub's per-app rate limit (30 calls in 60 s) is waited out by `CardUi.requireHubSignedInWithSharing` in the next test. */
+    /**
+     * Keeps the evidence, then waits out Hub's per-app rate window (30 calls in 60 s): this test makes about ten Hub
+     * calls in a few seconds, and the next test's calls were refused with "too many calls" without the pause. The
+     * window has a fixed length and Hub does not report what is left of it, so there is no condition to poll.
+     */
     @After
-    fun keepEvidence() {
+    fun keepEvidenceAndLetHubsRateWindowPass() {
         ui.keepEvidence()
+        Thread.sleep(HUB_RATE_WINDOW_MILLIS)
     }
 
     @Test
@@ -120,6 +125,7 @@ class ChildAppConsentOnlyTest {
     }
 
     private companion object {
+        const val HUB_RATE_WINDOW_MILLIS = 61_000L
         val PAGE_TITLE: Pattern = Pattern.compile("(?i)\\s*allow more access\\?\\s*")
         val NO_LOGIN: Pattern = Pattern.compile("(?i).*no new login.*")
         val NOT_NOW: Pattern = Pattern.compile("(?i)\\s*not now\\s*")
