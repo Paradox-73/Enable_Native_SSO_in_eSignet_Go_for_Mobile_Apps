@@ -25,8 +25,12 @@ stack: building eSignet image and starting ps03-native-sso
 
 
 
-stack: mock identity ready after 4 s
-stack up: ps03-native-sso ready in 21 s (issuer http://localhost:38088)
+
+
+
+
+stack: mock identity ready after 8 s
+stack up: ps03-native-sso ready in 26 s (issuer http://localhost:38088)
 stack: ok   eSignet /health
 stack: ok   discovery issuer http://localhost:38088
 stack: ok   discovery PAR endpoint
@@ -36,13 +40,13 @@ stack: ok   mock identity health
 stack: ok   oidc-ui login pages
 stack: ok   oidc-ui proxy to eSignet
 stack smoke: PASS
-(node:13192) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(node:18844) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
 (Use `node --trace-deprecation ...` to show where the warning was created)
 Go-eSignet
 
 □ Native SSO
 └ 00 Discovery shows Native SSO
-  GET http://localhost:38088/.well-known/openid-configuration [200 OK, 2.02kB, 44ms]
+  GET http://localhost:38088/.well-known/openid-configuration [200 OK, 2.02kB, 38ms]
   √  discovery 200
   √  issuer is the configured issuer
   √  native_sso_supported is true
@@ -57,28 +61,28 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/client-mgmt/client [200 OK, 269B, 9ms]
+  POST http://localhost:38088/client-mgmt/client [200 OK, 269B, 28ms]
   √  client registration 200
   √  no errors
   √  client is ACTIVE
   √  client_id echoed
 
 └ 02 Register the Health Card (second app, same relying party)
-  POST http://localhost:38088/client-mgmt/client [200 OK, 270B, 6ms]
+  POST http://localhost:38088/client-mgmt/client [200 OK, 270B, 16ms]
   √  client registration 200
   √  no errors
   √  client is ACTIVE
   √  client_id echoed
 
 └ 03 Register a client that does not allow device_sso
-  POST http://localhost:38088/client-mgmt/client [200 OK, 271B, 6ms]
+  POST http://localhost:38088/client-mgmt/client [200 OK, 271B, 7ms]
   √  client registration 200
   √  no errors
   √  client is ACTIVE
   √  client_id echoed
 
 └ 04 Register an app of another relying party
-  POST http://localhost:38088/client-mgmt/client [200 OK, 271B, 18ms]
+  POST http://localhost:38088/client-mgmt/client [200 OK, 271B, 11ms]
   √  client registration 200
   √  no errors
   √  client is ACTIVE
@@ -89,23 +93,23 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/par [201 Created, 284B, 11ms]
+  POST http://localhost:38088/oauth2/par [201 Created, 284B, 6ms]
   √  PAR answers 201
   √  request_uri present
   √  expires_in is positive
 
 └ Hub 02 Authorize
-  GET http://localhost:38088/oauth2/authorize?client_id=ns-hub-1d6ad6fc&request_uri=<removed> [302 Found, 661B, 16ms]
+  GET http://localhost:38088/oauth2/authorize?client_id=ns-hub-ed065ed7&request_uri=<removed> [302 Found, 661B, 27ms]
   √  authorize redirects to the login page
   √  redirect carries no error
   √  authId and executionId present
 
 └ Hub 03 Login pages metadata
-  GET http://localhost:38088/flow/meta?type=APP&id=ns-hub-1d6ad6fc&language=en&namespace=auth [200 OK, 130.64kB, 23ms]
+  GET http://localhost:38088/flow/meta?type=APP&id=ns-hub-ed065ed7&language=en&namespace=auth [200 OK, 130.64kB, 26ms]
   √  flow meta answers 200
 
 └ Hub 04 Login screen: start the flow
-  POST http://localhost:38088/flow/execute [200 OK, 4.13kB, 7ms]
+  POST http://localhost:38088/flow/execute [200 OK, 4.13kB, 11ms]
   √  flow step answers 200
   ┌
   │ 'flow INCOMPLETE inputs=[username,captcha_token] actio
@@ -114,7 +118,7 @@ Go-eSignet
   √  flow is INCOMPLETE and asks for the identifier
 
 └ Hub 05 Login screen: enter the UIN
-  POST http://localhost:38088/flow/execute [200 OK, 2.68kB, 125ms]
+  POST http://localhost:38088/flow/execute [200 OK, 2.68kB, 117ms]
   √  flow step answers 200
   ┌
   │ 'flow INCOMPLETE inputs=[otp] action=action_submit_otp
@@ -123,7 +127,7 @@ Go-eSignet
   √  flow is INCOMPLETE and asks for the OTP
 
 └ Hub 06 Login screen: enter the OTP
-  POST http://localhost:38088/flow/execute [200 OK, 1.62kB, 44ms]
+  POST http://localhost:38088/flow/execute [200 OK, 1.62kB, 48ms]
   √  flow step answers 200
   ┌
   │ 'flow INCOMPLETE inputs=[consent_decisions] action=act
@@ -132,12 +136,12 @@ Go-eSignet
   √  flow is INCOMPLETE and asks for consent
 
 └ Hub 07 Consent screen: allow
-  POST http://localhost:38088/flow/execute [200 OK, 1.43kB, 56ms]
+  POST http://localhost:38088/flow/execute [200 OK, 1.43kB, 108ms]
   √  consent answers 200
   √  flow is COMPLETE with an assertion
 
 └ Hub 08 Callback: flow assertion to authorization code
-  POST http://localhost:38088/oauth2/auth/callback [200 OK, 325B, 7ms]
+  POST http://localhost:38088/oauth2/auth/callback [200 OK, 325B, 6ms]
   √  callback answers 200
   √  redirect goes to the Hub app scheme
   √  state is echoed
@@ -149,7 +153,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [200 OK, 3.89kB, 13ms]
+  POST http://localhost:38088/oauth2/token [200 OK, 3.89kB, 21ms]
   √  token answers 200
   √  token_type is DPoP
   √  device_secret is returned
@@ -169,7 +173,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  GET http://localhost:38088/oauth2/userinfo [200 OK, 927B, 12ms]
+  GET http://localhost:38088/oauth2/userinfo [200 OK, 927B, 13ms]
   √  userinfo answers 200
   ┌
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
@@ -183,7 +187,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [200 OK, 2.35kB, 23ms]
+  POST http://localhost:38088/oauth2/token [200 OK, 2.35kB, 19ms]
   √  exchange answers 200
   √  token_type is DPoP
   √  issued_token_type is access_token
@@ -203,7 +207,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  GET http://localhost:38088/oauth2/userinfo [200 OK, 889B, 15ms]
+  GET http://localhost:38088/oauth2/userinfo [200 OK, 889B, 9ms]
   √  userinfo answers 200
   ┌
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
@@ -219,7 +223,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 578B, 29ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 578B, 15ms]
   √  answers 400
   √  error is interaction_required
   √  no token is issued
@@ -229,7 +233,7 @@ Go-eSignet
   √  error_description names only the new permission
 
 └ Card 04 Consent page in the browser of the Hub login -> 200
-  GET http://localhost:38088/oauth2/native-sso/consent?ticket=<removed> [200 OK, 3.04kB, 11ms]
+  GET http://localhost:38088/oauth2/native-sso/consent?ticket=<removed> [200 OK, 3.04kB, 4ms]
   √  page answers 200
   √  page asks "Allow more access?" for the permission
   √  page has Allow and Not now
@@ -237,12 +241,12 @@ Go-eSignet
   √  page is not cached and cannot be framed
 
 └ Card 05 Allow on the consent page -> 303 to the Health Card
-  POST http://localhost:38088/oauth2/native-sso/consent [303 See Other, 552B, 7ms]
+  POST http://localhost:38088/oauth2/native-sso/consent [303 See Other, 552B, 4ms]
   √  answers 303
   √  redirects to the Health Card with native_sso_consent=granted
 
 └ Card 06 The same ticket again -> 400 (answered once)
-  POST http://localhost:38088/oauth2/native-sso/consent [400 Bad Request, 2.28kB, 6ms]
+  POST http://localhost:38088/oauth2/native-sso/consent [400 Bad Request, 2.28kB, 12ms]
   √  a used ticket answers 400
 
 └ Card 07 Exchange for the permission after Allow -> 200
@@ -250,7 +254,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [200 OK, 2.39kB, 18ms]
+  POST http://localhost:38088/oauth2/token [200 OK, 2.39kB, 19ms]
   √  exchange answers 200
   √  scope includes the approved permission
   ┌
@@ -288,7 +292,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 279B, 10ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 279B, 5ms]
   √  answers 400
   √  error is invalid_target
   √  no token is issued
@@ -299,7 +303,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 350B, 5ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 350B, 7ms]
   √  answers 400
   √  error is invalid_request
   √  no token is issued
@@ -310,7 +314,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 285B, 8ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 285B, 10ms]
   √  answers 400
   √  error is invalid_request
   √  no token is issued
@@ -321,7 +325,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 274B, 17ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 274B, 13ms]
   √  answers 400
   √  error is invalid_grant
   √  no token is issued
@@ -332,7 +336,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 245B, 6ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 245B, 5ms]
   √  answers 400
   √  error is invalid_dpop_proof
   √  no token is issued
@@ -343,7 +347,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 287B, 4ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 287B, 3ms]
   √  answers 400
   √  error is invalid_request
   √  no token is issued
@@ -354,7 +358,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 294B, 18ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 294B, 34ms]
   √  answers 400
   √  error is invalid_request
   √  no token is issued
@@ -365,7 +369,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 280B, 3ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 280B, 5ms]
   √  answers 400
   √  error is unauthorized_client
   √  no token is issued
@@ -382,11 +386,11 @@ Go-eSignet
   √  no request_uri is returned
 
 └ Neg 12 Userinfo without a DPoP proof -> 401
-  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 405B, 7ms]
+  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 405B, 2ms]
   √  userinfo without a proof answers 401
 
 └ Neg 13 Userinfo with the Bearer scheme for a DPoP-bound token -> 401
-  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 409B, 43ms]
+  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 409B, 15ms]
   √  a DPoP-bound token used as Bearer is refused with 401
 
 └ Rev 01 Revoke the Hub device secret as the Health Card -> invalid_grant
@@ -394,7 +398,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/revoke [400 Bad Request, 275B, 14ms]
+  POST http://localhost:38088/oauth2/revoke [400 Bad Request, 275B, 11ms]
   √  answers 400
   √  error is invalid_grant
 
@@ -403,7 +407,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/revoke [200 OK, 131B, 13ms]
+  POST http://localhost:38088/oauth2/revoke [200 OK, 131B, 36ms]
   √  answers 200
   √  body is empty (RFC 7009 2.2)
 
@@ -412,7 +416,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  POST http://localhost:38088/oauth2/token [400 Bad Request, 270B, 12ms]
+  POST http://localhost:38088/oauth2/token [400 Bad Request, 270B, 10ms]
   √  answers 400
   √  error is invalid_grant
   √  no token is issued
@@ -423,7 +427,7 @@ Go-eSignet
   │ `Using "CryptoJS" is deprecated. Use "require('crypto-
   │ js')" instead.`
   └
-  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 435B, 4ms]
+  GET http://localhost:38088/oauth2/userinfo [401 Unauthorized, 435B, 22ms]
   √  userinfo answers 401 after the sign-out
   √  the answer names invalid_token
 
@@ -448,6 +452,6 @@ Go-eSignet
 ├────────────────────────────────────────────────────────────────┤
 │ total data received: 162.01kB (approx)                         │
 ├────────────────────────────────────────────────────────────────┤
-│ average response time: 17ms [min: 3ms, max: 125ms, s.d.: 21ms] │
+│ average response time: 19ms [min: 2ms, max: 117ms, s.d.: 24ms] │
 └────────────────────────────────────────────────────────────────┘
 stack down: ps03-native-sso

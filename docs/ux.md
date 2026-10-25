@@ -1,7 +1,7 @@
 # UX: flows, screens and accessibility
 
 The user flows of the two apps, screenshots of every screen from the emulator, and what was done for accessibility.
-Written 2026-10-05, updated 2026-10-06 (consent-only re-consent) and 2026-10-21 (automated accessibility checks on the emulator), from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
+Written 2026-10-05, updated 2026-10-06 (consent-only re-consent), 2026-10-21 (automated accessibility checks on the emulator) and 2026-10-25 (one brand colour per app, new screenshots), from the apps' string files (`android/*/src/main/res/values/strings.xml`), the screen code, the
 unit tests and the emulator runs of 2026-10-05 and 2026-10-06.
 
 ## Screenshots
@@ -177,7 +177,9 @@ accessibility scan on the emulator during the UI tests.
 - Findings per screen: `$PS03_RUN_DIR/evidence/ui-<app>-<time>/ui-test/a11y/<screen>.txt` and log tag `PS03A11y`.
 - Result: `bash scripts/with-stack.sh bash android/scripts/with-emulator.sh bash android/scripts/run-ui-test.sh all`
   on 2026-10-21 (ended 13:52 IST, AVD `ps03_api34`, API 34): `OK (6 tests)`, 13 screens checked (Hub: 3, Health Card: 10), 0 errors,
-  0 warnings on every screen. Nothing in the apps had to change.
+  0 warnings on every screen. Nothing in the apps had to change. Again on 2026-10-25 (ended 17:21 IST) after the
+  brand-colour restyle: `OK (6 tests)`, the same 13 screens, 0 errors, 0 warnings
+  ([a11y-scan.txt](evidence/2026-10-25/a11y-scan.txt)); the screenshots above are from that run.
 - The scan was checked against a known fault: an unlabelled 20 dp clickable box added to Health Card's "Hub not
   installed" screen for one run made `ChildAppHubMissingTest` fail with `SpeakableTextPresentCheck` ("This item may
   not have a label readable by screen readers"); the same box made `CardScreensTest` fail on its size. The box was

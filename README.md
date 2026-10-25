@@ -15,8 +15,8 @@ RFC 8693), proving possession of Hub's DPoP key (RFC 9449).
 1. See it: three screens below ([Screens](#screens)); every screen of both apps is in [docs/ux.md](docs/ux.md#screenshots).
 2. Check each statement task (T1-T10, P1, P2, bonus B1) against its code and tests:
    [How each statement task is met](#how-each-statement-task-is-met).
-3. Read the dated results: [docs/test-report.md](docs/test-report.md) (every automated check PASS; the three manual
-   runs not done yet are listed with their reason).
+3. Read the dated results: [docs/test-report.md](docs/test-report.md) (every automated check PASS; the one manual
+   run not done yet, M01 in the Postman desktop app, is listed with its reason).
 4. Run it: [Try it in 10 minutes](#try-it-in-10-minutes).
 5. Read the design: [docs/design.md](docs/design.md), [docs/threat-model.md](docs/threat-model.md),
    [docs/api.md](docs/api.md), Postman folder in [esignet/postman-collection/](esignet/postman-collection/README.md#native-sso).
@@ -53,16 +53,18 @@ Every screen of both apps, taken on the emulator by the UI tests: [docs/ux.md](d
     that eSignet set in the user's own browser login, so the app cannot approve for the user. Only new user data
     (the phone number) still needs a fresh login, because eSignet's identity system releases user data only after
     an authentication.
-  - Server: 2465 Thunder (1 skipped by upstream) and 1613 eSignet unit tests, 0 failed, golangci-lint 0 findings in
-    Thunder, eSignet and e2e; changed-line coverage 98.6 % (Thunder) and 91.7 % (eSignet); the live end-to-end suite
+  - Server: 2468 Thunder (1 skipped by upstream) and 1613 eSignet unit tests, 0 failed, golangci-lint 0 findings in
+    Thunder, eSignet and e2e; changed-line coverage 98.6 % (Thunder) and 91.8 % (eSignet); the live end-to-end suite
     (31 of 31 passed with the in-memory store and 31 of 31 with the Redis store, 2026-10-25, including device secret revocation
     with Health Card's tokens refused afterwards, R27, and consent-only re-consent, R28); the Postman folder under
     newman (40 requests, 146 assertions, 0 failed, including consent-only re-consent); govulncheck on eSignet: 0
     vulnerabilities in called code (2026-10-14 at `fd48556`).
-  - Apps: 210 Android JVM tests, 0 failed (63 of them for Hub, rerun 2026-10-25); on the Android emulator the UI tests (6 of 6 passed, including the
-    consent-only approval and refusal on eSignet's branded consent page, "Not now" on the consent screen and Health
-    Card without Hub), the family sign-in tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`)
-    passed. All on 2026-10-14 at `4c6e6cd` to `b580a4f`; trimmed logs in [docs/evidence/](docs/evidence/2026-10-14).
+  - Apps: 210 Android JVM tests, 0 failed, and Android lint on both apps (2026-10-25). On the Android emulator the UI
+    tests passed 6 of 6 on 2026-10-25 at `86d56c4` (including the consent-only approval and refusal on eSignet's branded
+    consent page, "Not now" on the consent screen and Health Card without Hub), with the accessibility scan at 0
+    findings on all 13 screens; logs in [docs/evidence/2026-10-25/](docs/evidence/2026-10-25). The family sign-in
+    tests (5 steps) and the full demo check (`bash scripts/demo/demo.sh --check`) passed on 2026-10-14 at `4c6e6cd`
+    to `b580a4f` ([docs/evidence/2026-10-14/](docs/evidence/2026-10-14)).
 - **Hosted**: `main` on GitHub. The workflow `.github/workflows/ci.yml` passed every job (repo-lint, Go unit tests and
   golangci-lint for Thunder and eSignet, Android JVM tests and lint, the live e2e suite) on 2026-10-24 at
   `9bba2d7` ([run 40134113684](https://github.com/Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps/actions/runs/40134113684)).

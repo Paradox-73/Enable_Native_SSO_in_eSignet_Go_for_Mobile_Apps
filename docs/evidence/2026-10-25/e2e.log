@@ -31,8 +31,13 @@ stack: building eSignet image and starting ps03-native-sso
 
 
 
+
+
+
+
+
 stack: mock identity ready after 7 s
-stack up: ps03-native-sso ready in 28 s (issuer http://localhost:38088)
+stack up: ps03-native-sso ready in 127 s (issuer http://localhost:38088)
 stack: ok   eSignet /health
 stack: ok   discovery issuer http://localhost:38088
 stack: ok   discovery PAR endpoint
@@ -46,7 +51,7 @@ stack smoke: PASS
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-97d76924&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-0e2a6efe&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -60,13 +65,13 @@ stack smoke: PASS
     client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
     client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
     client.go:89: GET http://localhost:38088/oauth2/userinfo -> 401
-    fapi_login_test.go:164: login ok: client e2e-superapp-97d76924, sub MGzYhEUBd_E1ZEuCEoGladd5PpuQzhNrcxhkCSQHnHk, token_type DPoP
---- PASS: TestE2E_FAPI2Login (0.25s)
+    fapi_login_test.go:164: login ok: client e2e-superapp-0e2a6efe, sub Fb_p4xRMZoCe1tuWsFHpf2ghfOV_Cj7ZHIuoTiMSw04, token_type DPoP
+--- PASS: TestE2E_FAPI2Login (0.27s)
 === RUN   TestE2E_PSUTProbe
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-08f632fb&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-49ca9ac1&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -77,10 +82,10 @@ stack smoke: PASS
     client.go:89:   flow COMPLETE inputs=[]
     client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
-    fapi_login_test.go:185: relying party e2e-rp-12b61246 client e2e-superapp-08f632fb sub bLf0iK1gr8akUnQ7j_JK5qmzXR9jRjt3lS4l-P2-37Q
+    fapi_login_test.go:185: relying party e2e-rp-b0b5b66e client e2e-superapp-49ca9ac1 sub MfkK0xpB98QDUTs9e7gNeKaOYZZ9TMObZd-t5NJ5hks
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-childapp-b70c8127&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-childapp-4d903d67&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -91,10 +96,10 @@ stack smoke: PASS
     client.go:89:   flow COMPLETE inputs=[]
     client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
-    fapi_login_test.go:185: relying party e2e-rp-12b61246 client e2e-childapp-b70c8127 sub bLf0iK1gr8akUnQ7j_JK5qmzXR9jRjt3lS4l-P2-37Q
+    fapi_login_test.go:185: relying party e2e-rp-b0b5b66e client e2e-childapp-4d903d67 sub MfkK0xpB98QDUTs9e7gNeKaOYZZ9TMObZd-t5NJ5hks
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-otherapp-af1db98e&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-otherapp-8a3e8a86&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -105,15 +110,15 @@ stack smoke: PASS
     client.go:89:   flow COMPLETE inputs=[]
     client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
-    fapi_login_test.go:185: relying party e2e-rp-other-a6862fd4 client e2e-otherapp-af1db98e sub qfR0sYDyNDw_9DVBFZqI_iLwh5MUfBBZVo2MdpoSwVY
+    fapi_login_test.go:185: relying party e2e-rp-other-77cfebe1 client e2e-otherapp-8a3e8a86 sub 0Woh5aMeEpYsTe5iUsCS4iqZKA6eLsaC-BRXvFISF0U
 psut-scope: relying-party (same relying party: sub equal=true; other relying party: sub equal=false)
---- PASS: TestE2E_PSUTProbe (0.21s)
+--- PASS: TestE2E_PSUTProbe (0.22s)
 === RUN   TestE2E_Exchange_ConsentOnlyReconsent
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-9b3d6323&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-025b0e57&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -190,7 +195,7 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
 === RUN   TestE2E_Exchange_ConsentOnlyReconsent/approval_is_per_login_session
 === NAME  TestE2E_Exchange_ConsentOnlyReconsent
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-9b3d6323&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-025b0e57&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -208,41 +213,41 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
 === NAME  TestE2E_Exchange_ConsentOnlyReconsent/revoked_device_secret_ends_the_approval
     nativesso_consent_test.go:260: R28: HTTP 400 invalid_grant: The login session of the device secret has ended
---- PASS: TestE2E_Exchange_ConsentOnlyReconsent (0.55s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/consent_page (0.06s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/declined (0.08s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/cross-site_form_refused (0.01s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/the_app_cannot_answer_for_the_user (0.05s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/allowed (0.07s)
+--- PASS: TestE2E_Exchange_ConsentOnlyReconsent (0.51s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/consent_page (0.05s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/declined (0.06s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/cross-site_form_refused (0.02s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/the_app_cannot_answer_for_the_user (0.07s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/allowed (0.06s)
     --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/approval_needs_every_binding_check (0.02s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/new_user_data_needs_a_login (0.03s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/scope_not_allowed_for_the_app (0.05s)
-    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/approval_is_per_login_session (0.09s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/new_user_data_needs_a_login (0.02s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/scope_not_allowed_for_the_app (0.02s)
+    --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/approval_is_per_login_session (0.08s)
     --- PASS: TestE2E_Exchange_ConsentOnlyReconsent/revoked_device_secret_ends_the_approval (0.02s)
 === RUN   TestE2E_SuperAppLogin_IssuesDeviceSecret
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
---- PASS: TestE2E_SuperAppLogin_IssuesDeviceSecret (0.07s)
+--- PASS: TestE2E_SuperAppLogin_IssuesDeviceSecret (0.08s)
 === RUN   TestE2E_DeviceSSO_ClientNotAllowed
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 400
     nativesso_test.go:55: R02: HTTP 400 invalid_scope: The client is not allowed to request the device_sso scope
---- PASS: TestE2E_DeviceSSO_ClientNotAllowed (0.03s)
+--- PASS: TestE2E_DeviceSSO_ClientNotAllowed (0.02s)
 === RUN   TestE2E_DeviceSecret_IsNestedJWE
 --- PASS: TestE2E_DeviceSecret_IsNestedJWE (0.02s)
 === RUN   TestE2E_IDToken_HasSIDAndDSHash
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
---- PASS: TestE2E_IDToken_HasSIDAndDSHash (0.03s)
+--- PASS: TestE2E_IDToken_HasSIDAndDSHash (0.02s)
 === RUN   TestE2E_TokenResponse_Fields
---- PASS: TestE2E_TokenResponse_Fields (0.06s)
+--- PASS: TestE2E_TokenResponse_Fields (0.03s)
 === RUN   TestE2E_DeviceSSO_RequiresDPoP
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
 === RUN   TestE2E_DeviceSSO_RequiresDPoP/client_without_DPoP_binding
 === NAME  TestE2E_DeviceSSO_RequiresDPoP
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-nodpopapp-eda92a76&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-nodpopapp-beab722d&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -259,7 +264,7 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
 === NAME  TestE2E_DeviceSSO_RequiresDPoP
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-5c0c44e3&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-7c51e6cd&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -274,9 +279,14 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     nativesso_test.go:146: R07: HTTP 400 invalid_dpop_proof: Invalid DPoP proof
 --- PASS: TestE2E_DeviceSSO_RequiresDPoP (0.17s)
     --- PASS: TestE2E_DeviceSSO_RequiresDPoP/client_without_DPoP_binding (0.10s)
-    --- PASS: TestE2E_DeviceSSO_RequiresDPoP/DPoP-bound_client (0.06s)
+    --- PASS: TestE2E_DeviceSSO_RequiresDPoP/DPoP-bound_client (0.08s)
 === RUN   TestE2E_Exchange_TamperedDeviceSecret
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
+=== RUN   TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext
+    nativesso_test.go:174: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
 === RUN   TestE2E_Exchange_TamperedDeviceSecret/id_token_as_device_secret
 === NAME  TestE2E_Exchange_TamperedDeviceSecret
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
@@ -287,15 +297,10 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
 === NAME  TestE2E_Exchange_TamperedDeviceSecret/access_token_as_device_secret
     nativesso_test.go:174: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
-=== RUN   TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext
-=== NAME  TestE2E_Exchange_TamperedDeviceSecret
-    client.go:89: POST http://localhost:38088/oauth2/token -> 400
-=== NAME  TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext
-    nativesso_test.go:174: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
---- PASS: TestE2E_Exchange_TamperedDeviceSecret (0.16s)
-    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/id_token_as_device_secret (0.04s)
-    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/access_token_as_device_secret (0.07s)
-    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext (0.05s)
+--- PASS: TestE2E_Exchange_TamperedDeviceSecret (0.06s)
+    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/tampered_ciphertext (0.01s)
+    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/id_token_as_device_secret (0.02s)
+    --- PASS: TestE2E_Exchange_TamperedDeviceSecret/access_token_as_device_secret (0.02s)
 === RUN   TestE2E_Exchange_OldURNRejected
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
 === RUN   TestE2E_Exchange_OldURNRejected/urn:x-oath:params:oauth:token-type:device-secret
@@ -309,31 +314,31 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
 === NAME  TestE2E_Exchange_OldURNRejected/urn:ietf:params:oauth:token-type:access_token
     nativesso_test.go:188: R10: HTTP 400 invalid_request: Only the OpenID Connect Native SSO token exchange is supported
 --- PASS: TestE2E_Exchange_OldURNRejected (0.05s)
-    --- PASS: TestE2E_Exchange_OldURNRejected/urn:x-oath:params:oauth:token-type:device-secret (0.03s)
-    --- PASS: TestE2E_Exchange_OldURNRejected/urn:ietf:params:oauth:token-type:access_token (0.03s)
+    --- PASS: TestE2E_Exchange_OldURNRejected/urn:x-oath:params:oauth:token-type:device-secret (0.02s)
+    --- PASS: TestE2E_Exchange_OldURNRejected/urn:ietf:params:oauth:token-type:access_token (0.02s)
 === RUN   TestE2E_Exchange_DSHashMismatch
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
     nativesso_test.go:200: R11: HTTP 400 invalid_request: The subject_token ds_hash does not match the device secret
---- PASS: TestE2E_Exchange_DSHashMismatch (0.08s)
+--- PASS: TestE2E_Exchange_DSHashMismatch (0.07s)
 === RUN   TestE2E_Exchange_ClientWithoutDeviceSSO
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
-=== RUN   TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso
-=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO
-    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
-    client.go:89: POST http://localhost:38088/oauth2/token -> 400
-=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso
-    nativesso_test.go:217: R13: HTTP 400 unauthorized_client: The client is not allowed to use the device_sso scope
 === RUN   TestE2E_Exchange_ClientWithoutDeviceSSO/no_token-exchange_grant
 === NAME  TestE2E_Exchange_ClientWithoutDeviceSSO
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
 === NAME  TestE2E_Exchange_ClientWithoutDeviceSSO/no_token-exchange_grant
     nativesso_test.go:217: R13: HTTP 400 unauthorized_client: The client is not authorized to use this grant type
---- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO (0.15s)
-    --- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso (0.05s)
-    --- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO/no_token-exchange_grant (0.10s)
+=== RUN   TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso
+=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO
+    client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
+    client.go:89: POST http://localhost:38088/oauth2/token -> 400
+=== NAME  TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso
+    nativesso_test.go:217: R13: HTTP 400 unauthorized_client: The client is not allowed to use the device_sso scope
+--- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO (0.04s)
+    --- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO/no_token-exchange_grant (0.02s)
+    --- PASS: TestE2E_Exchange_ClientWithoutDeviceSSO/no_device_sso (0.02s)
 === RUN   TestE2E_Exchange_DPoPKeyMismatch
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
@@ -353,7 +358,7 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
     nativesso_test.go:263: R16: HTTP 400 invalid_scope: The device_sso scope cannot be requested in a token exchange
---- PASS: TestE2E_Exchange_DeviceSSOInScope (0.02s)
+--- PASS: TestE2E_Exchange_DeviceSSOInScope (0.03s)
 === RUN   TestE2E_Exchange_NarrowerScope
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
@@ -361,7 +366,7 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
     client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
     nativesso_test.go:284: Hub userinfo claims [aud birthdate email gender iss name sub]; Health Card (openid email) userinfo claims [aud email iss sub]
---- PASS: TestE2E_Exchange_NarrowerScope (0.03s)
+--- PASS: TestE2E_Exchange_NarrowerScope (0.04s)
 === RUN   TestE2E_Exchange_WrongAudience
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
@@ -395,17 +400,17 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
     nativesso_test.go:401: R22: HTTP 400 invalid_dpop_proof: Invalid DPoP proof
---- PASS: TestE2E_Exchange_DPoPReplay (0.04s)
+--- PASS: TestE2E_Exchange_DPoPReplay (0.05s)
 === RUN   TestE2E_Exchange_ChildTokens
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
     client.go:89: GET http://localhost:38088/oauth2/jwks -> 200
     client.go:89: GET http://localhost:38088/oauth2/userinfo -> 200
---- PASS: TestE2E_Exchange_ChildTokens (0.03s)
+--- PASS: TestE2E_Exchange_ChildTokens (0.02s)
 === RUN   TestE2E_Exchange_SubMatchesDirectLogin
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-childapp-68da552a&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-childapp-388ececc&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -416,26 +421,26 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     client.go:89:   flow COMPLETE inputs=[]
     client.go:89: POST http://localhost:38088/oauth2/auth/callback -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
---- PASS: TestE2E_Exchange_SubMatchesDirectLogin (0.06s)
+--- PASS: TestE2E_Exchange_SubMatchesDirectLogin (0.07s)
 === RUN   TestE2E_Discovery_NativeSSO
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
---- PASS: TestE2E_Discovery_NativeSSO (0.05s)
+--- PASS: TestE2E_Discovery_NativeSSO (0.02s)
 === RUN   TestE2E_ClientRegistration_TokenExchangeGrant
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
---- PASS: TestE2E_ClientRegistration_TokenExchangeGrant (0.05s)
+--- PASS: TestE2E_ClientRegistration_TokenExchangeGrant (0.04s)
 === RUN   TestE2E_GenericExchangeRejected
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
     nativesso_test.go:513: R26: HTTP 400 invalid_request: Only the OpenID Connect Native SSO token exchange is supported
---- PASS: TestE2E_GenericExchangeRejected (0.06s)
+--- PASS: TestE2E_GenericExchangeRejected (0.05s)
 === RUN   TestE2E_Revoke_DeviceSecret
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/client-mgmt/client -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-8265f3a1&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-ef93c962&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -477,18 +482,18 @@ psut-scope: relying-party (same relying party: sub equal=true; other relying par
     client.go:89: POST http://localhost:38088/oauth2/revoke -> 400
 === NAME  TestE2E_Revoke_DeviceSecret/other_tokens_without_the_deny_list
     nativesso_test.go:584: R27: HTTP 400 unsupported_token_type: Only device secrets can be revoked on this server
---- PASS: TestE2E_Revoke_DeviceSecret (0.51s)
-    --- PASS: TestE2E_Revoke_DeviceSecret/other_client_of_the_vendor (0.12s)
-    --- PASS: TestE2E_Revoke_DeviceSecret/issuing_client (0.20s)
+--- PASS: TestE2E_Revoke_DeviceSecret (0.46s)
+    --- PASS: TestE2E_Revoke_DeviceSecret/other_client_of_the_vendor (0.05s)
+    --- PASS: TestE2E_Revoke_DeviceSecret/issuing_client (0.15s)
     --- PASS: TestE2E_Revoke_DeviceSecret/again_and_unknown_values_are_no-ops (0.01s)
-    --- PASS: TestE2E_Revoke_DeviceSecret/other_tokens_without_the_deny_list (0.02s)
+    --- PASS: TestE2E_Revoke_DeviceSecret/other_tokens_without_the_deny_list (0.07s)
 === CONT  TestE2E_Exchange_ExpiredIDToken
-    nativesso_test.go:383: waiting 2m11s for the Hub id_token to expire
+    nativesso_test.go:383: waiting 2m12s for the Hub id_token to expire
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 200
---- PASS: TestE2E_Exchange_ExpiredIDToken (130.78s)
+--- PASS: TestE2E_Exchange_ExpiredIDToken (131.59s)
 PASS
-ok  	github.com/badmosip/esignet-native-sso/e2e	133.632s
+ok  	github.com/badmosip/esignet-native-sso/e2e	134.069s
 ?   	github.com/badmosip/esignet-native-sso/e2e/client	[no test files]
 ?   	github.com/badmosip/esignet-native-sso/e2e/internal/uuid	[no test files]
 e2e: phase 2: recreating eSignet with a device secret lifetime of 20 s
@@ -499,11 +504,11 @@ stack restart: esignet ready in 7 s
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
     nativesso_test.go:615: R12: HTTP 400 invalid_grant: The login session of the device secret has ended
---- PASS: TestE2E_Exchange_SessionEnded (0.02s)
+--- PASS: TestE2E_Exchange_SessionEnded (0.05s)
 === RUN   TestE2E_Exchange_ExpiredDeviceSecret
     client.go:89: GET http://localhost:38088/.well-known/openid-configuration -> 200
     client.go:89: POST http://localhost:38088/oauth2/par -> 201
-    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-2095e70b&request_uri=<removed> -> 302
+    client.go:89: GET http://localhost:38088/oauth2/authorize?client_id=e2e-superapp-54fa6243&request_uri=<removed> -> 302
     client.go:89: POST http://localhost:38088/flow/execute -> 200
     client.go:89:   flow INCOMPLETE inputs=[username,captcha_token]
     client.go:89: POST http://localhost:38088/flow/execute -> 200
@@ -516,12 +521,12 @@ stack restart: esignet ready in 7 s
     nativesso_test.go:639: waiting 33s for the device secret to expire
     client.go:89: POST http://localhost:38088/oauth2/token -> 400
     nativesso_test.go:641: R09: HTTP 400 invalid_request: Invalid actor_token: the device secret is invalid or expired
---- PASS: TestE2E_Exchange_ExpiredDeviceSecret (33.19s)
+--- PASS: TestE2E_Exchange_ExpiredDeviceSecret (33.22s)
 PASS
-ok  	github.com/badmosip/esignet-native-sso/e2e	33.211s
+ok  	github.com/badmosip/esignet-native-sso/e2e	33.278s
 ?   	github.com/badmosip/esignet-native-sso/e2e/client	[no test files]
 ?   	github.com/badmosip/esignet-native-sso/e2e/internal/uuid	[no test files]
-e2e: evidence: /e/Projects/MOSIP/PS03/esignet-native-sso/run/evidence/e2e-20261025-141647/evidence.jsonl
+e2e: evidence: /e/Projects/MOSIP/PS03/esignet-native-sso/run/evidence/e2e-20261025-165029/evidence.jsonl
 e2e: 31 passed, 0 failed
-e2e: logs: /e/Projects/MOSIP/PS03/esignet-native-sso/run/logs/e2e-20261025-141647-phase1.log /e/Projects/MOSIP/PS03/esignet-native-sso/run/logs/e2e-20261025-141647-phase2.log
+e2e: logs: /e/Projects/MOSIP/PS03/esignet-native-sso/run/logs/e2e-20261025-165029-phase1.log /e/Projects/MOSIP/PS03/esignet-native-sso/run/logs/e2e-20261025-165029-phase2.log
 stack down: ps03-native-sso
