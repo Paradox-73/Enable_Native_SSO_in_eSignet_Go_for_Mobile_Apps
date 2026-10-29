@@ -490,6 +490,9 @@ func (tb *tokenBuilder) buildIDTokenClaims(ctx *IDTokenBuildContext) map[string]
 	if ctx.DeviceSecretHash != "" {
 		claims[constants.ClaimDeviceSecretHash] = ctx.DeviceSecretHash
 	}
+	if ctx.DeviceSecret != "" {
+		claims[constants.ClaimDeviceSecret] = ctx.DeviceSecret
+	}
 
 	return claims
 }

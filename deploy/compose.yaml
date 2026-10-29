@@ -98,6 +98,8 @@ services:
       MOSIP_ESIGNET_NATIVE_SSO_RESIGN_ALL_USERINFO: "true"
       MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY: "true"
       MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR: interaction_required
+      # Statement task 4.a.ix: the first app's id_token also carries the device secret (claim device_secret).
+      MOSIP_ESIGNET_NATIVE_SSO_EMBED_DEVICE_SECRET_IN_ID_TOKEN: "true"
       # Consent-only re-consent: extra scopes that need no new user data are approved on
       # /oauth2/native-sso/consent without a new login.
       MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT: "true"

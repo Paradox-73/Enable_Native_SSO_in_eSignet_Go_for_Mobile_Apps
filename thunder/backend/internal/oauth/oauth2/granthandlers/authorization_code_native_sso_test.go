@@ -419,3 +419,59 @@ func (s *AuthorizationCodeNativeSSOTestSuite) TestDeviceSSO_FullSHA256DSHash() {
 	s.Equal(nativesso.DeviceSecretHash(nativeSSODeviceSecret, true), s.builtIDTokens[0].DeviceSecretHash)
 	s.Len(s.builtIDTokens[0].DeviceSecretHash, 43)
 }
+
+// With oauth.native_sso.embed_device_secret_in_id_token the id_token carries the device secret of the
+// response itself (statement task 4.a.ix); sid and ds_hash are unchanged.
+func (s *AuthorizationCodeNativeSSOTestSuite) TestDeviceSSO_EmbedDeviceSecretInIDToken() {
+	s.handler.cfg.OAuth.NativeSSO.EmbedDeviceSecretInIDToken = true
+	s.expectCode()
+	s.expectAttributes()
+	s.expectAccessToken()
+	req := s.expectDeviceSecret()
+	s.attrCache.EXPECT().ExtendAttributeCacheTTL(mock.Anything, testCacheID, mock.Anything).Return(nil)
+	s.expectIDToken()
+
+	resp, errResp := s.handler.HandleGrant(s.dpopCtx, s.tokenRequest, s.oauthApp)
+
+	s.Require().Nil(errResp)
+	s.Require().Len(s.builtIDTokens, 1)
+	s.Equal(nativeSSODeviceSecret, resp.DeviceSecret.Token)
+	s.Equal(resp.DeviceSecret.Token, s.builtIDTokens[0].DeviceSecret)
+	s.Equal(nativeSSODSHash, s.builtIDTokens[0].DeviceSecretHash)
+	s.Equal(req.SessionID, s.builtIDTokens[0].SessionID)
+}
+
+// Without the setting (the default) the id_token carries no device secret.
+func (s *AuthorizationCodeNativeSSOTestSuite) TestDeviceSSO_DeviceSecretNotInIDTokenByDefault() {
+	s.expectCode()
+	s.expectAttributes()
+	s.expectAccessToken()
+	s.expectDeviceSecret()
+	s.attrCache.EXPECT().ExtendAttributeCacheTTL(mock.Anything, testCacheID, mock.Anything).Return(nil)
+	s.expectIDToken()
+
+	resp, errResp := s.handler.HandleGrant(s.dpopCtx, s.tokenRequest, s.oauthApp)
+
+	s.Require().Nil(errResp)
+	s.Equal(nativeSSODeviceSecret, resp.DeviceSecret.Token)
+	s.Require().Len(s.builtIDTokens, 1)
+	s.Empty(s.builtIDTokens[0].DeviceSecret)
+}
+
+// Without device_sso no device secret is issued, so the setting adds nothing to the id_token.
+func (s *AuthorizationCodeNativeSSOTestSuite) TestNoDeviceSSO_EmbedSettingAddsNothing() {
+	s.handler.cfg.OAuth.NativeSSO.EmbedDeviceSecretInIDToken = true
+	s.authCode.Scopes = "openid profile"
+	s.authCode.AuthID = ""
+	s.expectCode()
+	s.expectAttributes()
+	s.expectAccessToken()
+	s.expectIDToken()
+
+	resp, errResp := s.handler.HandleGrant(s.dpopCtx, s.tokenRequest, s.oauthApp)
+
+	s.Require().Nil(errResp)
+	s.Empty(resp.DeviceSecret.Token)
+	s.Require().Len(s.builtIDTokens, 1)
+	s.Empty(s.builtIDTokens[0].DeviceSecret)
+}

@@ -607,6 +607,14 @@ the `device_secret` field of the token response.
   `at_hash` form, which Hub (`IdTokenValidator`'s `dsHash` parameter) and the e2e suite check; a deployment that turns
   the setting on must give its apps the same rule. Changing the setting on a running server makes every id_token
   issued before the change fail the exchange with a `ds_hash` mismatch until the first app logs in again.
+- Device secret in the id_token: task 4.a.ix of the statement asks for the device secret to be embedded in the
+  id_token. With `oauth.native_sso.embed_device_secret_in_id_token: true`
+  (`MOSIP_ESIGNET_NATIVE_SSO_EMBED_DEVICE_SECRET_IN_ID_TOKEN`) the id_token issued with a device secret at the token
+  endpoint also has a `device_secret` claim, equal to `device_secret` in the same response. `sid` and `ds_hash` do not
+  change. The token exchange ignores the claim: the device secret still comes only from `actor_token`, and `ds_hash`
+  still binds the two. The second app's id_token never has the claim, because no device secret is issued to it. The
+  default is false, because Native SSO 1.0 does not define the claim and it makes the id_token as sensitive as the
+  device secret; the demo deployment (`deploy/compose.yaml`) sets it to true.
 
 ## 11. Validation order at the token exchange
 
@@ -770,6 +778,7 @@ for every eSignet setting, architecture 2.8):
 | `oauth.native_sso.scope_exceeded_error` | `MOSIP_ESIGNET_NATIVE_SSO_SCOPE_EXCEEDED_ERROR` | `interaction_required` | or `invalid_scope` |
 | `oauth.native_sso.exchange_only` | `MOSIP_ESIGNET_NATIVE_SSO_EXCHANGE_ONLY` | true in eSignet | token exchange only for the device-secret profile |
 | `oauth.native_sso.ds_hash_full_sha256` | `MOSIP_ESIGNET_NATIVE_SSO_DS_HASH_FULL_SHA256` | false | true: `ds_hash` is the full `BASE64URL(SHA-256(device_secret))` of the statement's diagram 1 instead of the left half (section [10](#10-ds_hash-and-sid)) |
+| `oauth.native_sso.embed_device_secret_in_id_token` | `MOSIP_ESIGNET_NATIVE_SSO_EMBED_DEVICE_SECRET_IN_ID_TOKEN` | false; true in `deploy/compose.yaml` | true: the id_token issued with a device secret also has a `device_secret` claim, the device secret itself (statement task 4.a.ix; section [10](#10-ds_hash-and-sid)) |
 | `oauth.native_sso.consent_only_reconsent` | `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT` | false; true in `deployment.yaml` | consent-only re-consent (section 6.3); needs `scope_exceeded_error: interaction_required` |
 | `oauth.native_sso.consent_ticket_ttl_seconds` | `MOSIP_ESIGNET_NATIVE_SSO_CONSENT_TICKET_TTL_SECONDS` | 0 (= 300) | lifetime of a `consent_uri`, at most 600 |
 | `oauth.native_sso.consent_browser_ttl_seconds` | - (eSignet sets it to `native_sso.device_secret_validity_seconds`) | 0 (= 28800) | how long the browser of a login can answer its consent pages |

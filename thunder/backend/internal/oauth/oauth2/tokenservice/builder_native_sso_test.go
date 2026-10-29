@@ -53,6 +53,21 @@ func TestBuildIDTokenClaims_NativeSSO(t *testing.T) {
 		assert.Equal(t, "ds-hash", claims[constants.ClaimDeviceSecretHash])
 	})
 
+	t.Run("with the device secret embedded", func(t *testing.T) {
+		claims := tb.buildIDTokenClaims(&IDTokenBuildContext{
+			Scopes:           []string{"openid", "profile"},
+			UserAttributes:   map[string]interface{}{"device_secret": "forged"},
+			OAuthApp:         app,
+			SessionID:        "session-id",
+			DeviceSecretHash: "ds-hash",
+			DeviceSecret:     "the-device-secret",
+		})
+
+		assert.Equal(t, "the-device-secret", claims[constants.ClaimDeviceSecret])
+		assert.Equal(t, "ds-hash", claims[constants.ClaimDeviceSecretHash])
+		assert.Equal(t, "session-id", claims[constants.ClaimSessionID])
+	})
+
 	t.Run("without a device secret", func(t *testing.T) {
 		claims := tb.buildIDTokenClaims(&IDTokenBuildContext{
 			Scopes:         []string{"openid", "profile"},
@@ -62,6 +77,7 @@ func TestBuildIDTokenClaims_NativeSSO(t *testing.T) {
 
 		assert.NotContains(t, claims, constants.ClaimSessionID)
 		assert.NotContains(t, claims, constants.ClaimDeviceSecretHash)
+		assert.NotContains(t, claims, constants.ClaimDeviceSecret)
 	})
 }
 

@@ -116,6 +116,9 @@ type IDTokenBuildContext struct {
 	// DeviceSecretHash is the ds_hash claim that binds this id_token to its device secret (Native SSO
 	// 3.4.1). Empty when no device secret is issued.
 	DeviceSecretHash string
+	// DeviceSecret is the device_secret claim (oauth.native_sso.embed_device_secret_in_id_token). Empty
+	// when no device secret is issued or the setting is off.
+	DeviceSecret string
 }
 
 // RefreshTokenClaims represents the validated claims from a refresh token.

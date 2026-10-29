@@ -103,6 +103,8 @@ func applyNativeSSODefaults(cfg *AppConfig) {
 		cfg.OAuth.NativeSSO.ExchangeOnly)
 	cfg.OAuth.NativeSSO.DSHashFullSHA256 = envBoolOrConfig("MOSIP_ESIGNET_NATIVE_SSO_DS_HASH_FULL_SHA256",
 		cfg.OAuth.NativeSSO.DSHashFullSHA256)
+	cfg.OAuth.NativeSSO.EmbedDeviceSecretInIDToken = envBoolOrConfig(
+		"MOSIP_ESIGNET_NATIVE_SSO_EMBED_DEVICE_SECRET_IN_ID_TOKEN", cfg.OAuth.NativeSSO.EmbedDeviceSecretInIDToken)
 	// Consent-only re-consent: extra scopes that need no new user data are approved on a consent page
 	// without a new login. 0 for the ticket lifetime means the engine default (300 s).
 	cfg.OAuth.NativeSSO.ConsentOnlyReconsent = envBoolOrConfig("MOSIP_ESIGNET_NATIVE_SSO_CONSENT_ONLY_RECONSENT",

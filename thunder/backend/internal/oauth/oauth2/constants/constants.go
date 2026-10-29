@@ -307,6 +307,9 @@ const (
 	// ClaimDeviceSecretHash binds the id_token to its device secret: the base64url encoding of the
 	// left-most half of the SHA-256 hash of the device secret, built like at_hash.
 	ClaimDeviceSecretHash string = "ds_hash"
+	// ClaimDeviceSecret is the device secret itself, carried only with
+	// oauth.native_sso.embed_device_secret_in_id_token. It is not part of Native SSO 1.0.
+	ClaimDeviceSecret string = "device_secret"
 )
 
 // SurfaceableClientSystemClaims is the fixed set of entity system-attribute keys that may be

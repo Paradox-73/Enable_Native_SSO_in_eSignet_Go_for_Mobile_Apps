@@ -459,6 +459,21 @@ func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_FullSHA256DS
 	s.Equal(errDescNSSODSHashMismatch, errResp.ErrorDescription)
 }
 
+// With oauth.native_sso.embed_device_secret_in_id_token the exchange is unchanged: the device secret
+// comes from actor_token and the ds_hash binding is checked, and the second app's id_token carries no
+// device secret, because none is issued to it.
+func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_EmbedDeviceSecretSetting() {
+	s.handler.cfg.OAuth.NativeSSO.EmbedDeviceSecretInIDToken = true
+	s.expectChecksPass()
+	s.expectIssue()
+	resp, errResp := s.handle()
+	s.Require().Nil(errResp)
+	s.Empty(resp.DeviceSecret.Token)
+	s.Require().Len(s.builtID, 1)
+	s.Empty(s.builtID[0].DeviceSecret)
+	s.Empty(s.builtID[0].DeviceSecretHash)
+}
+
 // R21: an expired id_token inside the optional age cap is accepted.
 func (s *TokenExchangeNativeSSOTestSuite) TestNativeSSO_HandleGrant_ExpiredIDTokenInsideCap() {
 	s.handler.cfg.OAuth.NativeSSO.IDTokenMaxAgeSeconds = 3600

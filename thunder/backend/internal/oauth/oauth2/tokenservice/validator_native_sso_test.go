@@ -92,6 +92,24 @@ func (s *TokenValidatorNativeSSOTestSuite) TestNativeSSOIDToken_ExpiredTokenAcce
 	s.Positive(claims.IssuedAt)
 }
 
+// An id_token that carries the device secret (oauth.native_sso.embed_device_secret_in_id_token) is
+// accepted like any other, and its sid and ds_hash are read as before. The claim is not returned, so
+// the exchange can only take the device secret from actor_token.
+func (s *TokenValidatorNativeSSOTestSuite) TestNativeSSOIDToken_EmbeddedDeviceSecretIgnored() {
+	c := expiredIDTokenClaims()
+	c["device_secret"] = "embedded-device-secret"
+	token := nativeSSOTestToken(jwt.TokenTypeJWT, c)
+	s.jwtService.EXPECT().VerifyJWTSignature(mock.Anything, token).Return(nil)
+	s.enforcement.EXPECT().EnsureNotRevoked(mock.Anything, mock.Anything).Return(nil)
+
+	claims, err := s.validator.ValidateNativeSSOIDToken(s.T().Context(), token)
+
+	s.Require().NoError(err)
+	s.Equal(NativeSSOIDTokenClaims{Sub: "user-1", Iss: nativeSSOTestIssuer, Aud: []string{"super-app"},
+		IssuedAt: c["iat"].(int64), ExpiresAt: c["exp"].(int64), SessionID: "session-1",
+		DeviceSecretHash: "hash-1"}, *claims)
+}
+
 func (s *TokenValidatorNativeSSOTestSuite) TestNativeSSOIDToken_Rejected() {
 	withClaim := func(key string, value interface{}) map[string]interface{} {
 		c := expiredIDTokenClaims()

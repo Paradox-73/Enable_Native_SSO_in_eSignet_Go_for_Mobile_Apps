@@ -22,6 +22,7 @@ func (suite *NativeSSOConstantsTestSuite) TestNativeSSONames() {
 	assert.Equal(suite.T(), "device_sso", ScopeDeviceSSO)
 	assert.Equal(suite.T(), "sid", ClaimSessionID)
 	assert.Equal(suite.T(), "ds_hash", ClaimDeviceSecretHash)
+	assert.Equal(suite.T(), "device_secret", ClaimDeviceSecret)
 	assert.Equal(suite.T(), "interaction_required", ErrorInteractionRequired)
 	assert.Equal(suite.T(), TokenTypeIdentifier("urn:openid:params:token-type:device-secret"),
 		TokenTypeIdentifierDeviceSecret)

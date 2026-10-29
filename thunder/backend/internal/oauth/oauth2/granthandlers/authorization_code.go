@@ -240,6 +240,9 @@ func (h *authorizationCodeGrantHandler) HandleGrant(ctx context.Context, tokenRe
 			idTokenCtx.SessionID = deviceSecret.sessionID
 			idTokenCtx.DeviceSecretHash = nativesso.DeviceSecretHash(deviceSecret.value,
 				h.cfg.OAuth.NativeSSO.DSHashFullSHA256)
+			if h.cfg.OAuth.NativeSSO.EmbedDeviceSecretInIDToken {
+				idTokenCtx.DeviceSecret = deviceSecret.value
+			}
 		}
 		idToken, err := h.tokenBuilder.BuildIDToken(ctx, idTokenCtx)
 		if err != nil {

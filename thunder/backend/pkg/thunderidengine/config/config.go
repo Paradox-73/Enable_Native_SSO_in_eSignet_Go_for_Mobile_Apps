@@ -381,6 +381,10 @@ type NativeSSOConfig struct {
 	// its left half (the at_hash construction, the default). Both meet Native SSO 3.4.1; clients that
 	// check ds_hash must use the same form.
 	DSHashFullSHA256 bool `yaml:"ds_hash_full_sha256" json:"ds_hash_full_sha256"`
+	// EmbedDeviceSecretInIDToken adds a device_secret claim, the device secret itself, to the id_token
+	// issued with it at the token endpoint. sid and ds_hash stay as they are, and the token exchange
+	// still takes the device secret only from actor_token.
+	EmbedDeviceSecretInIDToken bool `yaml:"embed_device_secret_in_id_token" json:"embed_device_secret_in_id_token"`
 	// ConsentOnlyReconsent lets the user approve extra scopes for the second app without logging in
 	// again, when the scopes need no user data beyond what the login already released. A refused
 	// exchange then carries consent_uri, a one-time page of this server where the user allows or
