@@ -167,7 +167,7 @@ Test names below are Go unit tests (`go test -run`), live tests (`e2e/nativesso_
 | Updated Postman collection | [esignet/postman-collection/](esignet/postman-collection/README.md#native-sso), folder "Native SSO" |
 | Updated API documentation | [docs/api.md](docs/api.md), [esignet-openapi.yaml](esignet/docs/esignet-openapi.yaml), [oauth2.yaml](thunder/api/oauth2.yaml) |
 | Design document | [docs/design.md](docs/design.md), [docs/threat-model.md](docs/threat-model.md) |
-| Presentation | slide deck, kept outside this repository and submitted with the other deliverables; outline in [docs/ppt-outline.md](docs/ppt-outline.md) |
+| Presentation | slide deck [docs/deck.pdf](docs/deck.pdf), also submitted with the other deliverables; outline in [docs/ppt-outline.md](docs/ppt-outline.md) |
 | Demo video | script in [docs/video-script.md](docs/video-script.md); recording: https://youtu.be/TqObNRZVifU |
 | Submission items | [docs/submission-checklist.md](docs/submission-checklist.md) |
 

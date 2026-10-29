@@ -38,6 +38,6 @@ repository claims a result that was not run, and every measured result carries i
 |---|---|---|
 | [../THIRD_PARTY.md](../THIRD_PARTY.md) | Imported code, tools and libraries, with licences | updated 2026-10-05 |
 | [../scripts/README.md](../scripts/README.md) | Build, test, lint and import-check commands | done |
-| [ppt-outline.md](ppt-outline.md) | Slide outline for the pitch | final; the deck is made and is submitted outside the repository |
+| [ppt-outline.md](ppt-outline.md) | Slide outline for the pitch | final; the deck is [deck.pdf](deck.pdf) |
 | [upstream-prs/thunder.md](upstream-prs/thunder.md), [upstream-prs/esignet.md](upstream-prs/esignet.md) | Notes for offering the changes to Thunder and eSignet | final (2026-10-05) |
 | [submission-checklist.md](submission-checklist.md) | Every submission item and where it is | updated 2026-10-22 |

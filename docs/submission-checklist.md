@@ -10,7 +10,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 |---|---|---|---|
 | Source code, complete, hosted | GitHub `Paradox-73/Enable_Native_SSO_in_eSignet_Go_for_Mobile_Apps` (public) | READY | GitHub Actions passed every job on 2026-10-25 at `dc450ee` (run 40190961830) |
 | Working prototype or demo | stack and both apps: [setup.md](setup.md); `bash scripts/demo/demo.sh` | READY | `bash scripts/demo/demo.sh --check` (row DEMO-FULL). Emulator and one real phone (OnePlus CPH2569, Android 15; [phone-run.md](evidence/2026-10-24/phone-run.md)) |
-| Pitch deck | outline: [ppt-outline.md](ppt-outline.md) | READY | the deck is ready and is submitted with the other deliverables (it is not kept in this repository) |
+| Pitch deck | outline: [ppt-outline.md](ppt-outline.md) | READY | the deck is ready: [deck.pdf](deck.pdf), also submitted with the other deliverables |
 | Video demo, 2 to 5 minutes | script with scenes and timings: [video-script.md](video-script.md); runbook: [demo-script.md](demo-script.md) | READY | https://youtu.be/TqObNRZVifU |
 | Usage and installation instructions | [../README.md](../README.md), [setup.md](setup.md) | READY | a person runs a fresh clone on macOS, Linux and Windows (checklist steps MT01 to MT10) and sends the results template back |
 | API documentation | [api.md](api.md), [../esignet/docs/esignet-openapi.yaml](../esignet/docs/esignet-openapi.yaml), [../thunder/api/oauth2.yaml](../thunder/api/oauth2.yaml) | READY | OpenAPI lint 0 errors |
@@ -34,7 +34,7 @@ Every item of the MOSIP Decode 2026 submission guidelines and of problem stateme
 | Updated Postman collection | [../esignet/postman-collection/README.md](../esignet/postman-collection/README.md#native-sso) | READY: run under newman (row NEWMAN), including consent-only re-consent (Card 03 to Card 07) |
 | Updated API documentation | [api.md](api.md) | READY |
 | Design document based on MOSIP/eSignet design and RFC behaviour | [design.md](design.md), [threat-model.md](threat-model.md) | READY; section 17 lists where the statement, its sequence diagrams and the specifications differ |
-| PPT summarising approach and implementation | [ppt-outline.md](ppt-outline.md) | READY (see Pitch deck) |
+| PPT summarising approach and implementation | [deck.pdf](deck.pdf), outline [ppt-outline.md](ppt-outline.md) | READY (see Pitch deck) |
 
 ## Steps to submit
 
